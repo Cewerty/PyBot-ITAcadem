@@ -36,12 +36,11 @@ class BotSettings(BaseSettings):
         alias="REDIS_URL",
         description="Redis URL used for FSM storage when FSM_STORAGE_BACKEND=redis",
     )
-    # TODO: Replace default value with real admin Telegram ID in .env,
-    # or switch to required Field(...) once all environments are configured.
     role_request_admin_tg_id: int = Field(
-        0,
+        ...,
         alias="ROLE_REQUEST_ADMIN_TG_ID",
         description="Telegram user id of admin recipient for role requests",
+        gt=0,
     )
     auto_admin_telegram_ids: set[int] = Field(
         default_factory=set,
