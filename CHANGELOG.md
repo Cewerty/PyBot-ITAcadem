@@ -2,6 +2,71 @@
 
 <!-- version list -->
 
+## v0.16.0 (2026-03-12)
+
+### Bug Fixes
+
+- Исправил ошибку конфигурации, через создания подкласса с отдельными настройками проставленными на
+  локальные настройки для теста ([#81](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/81),
+  [`e45eb50`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/e45eb50b75372d556088b69065af750a185c311e))
+
+- Исправил ошибку с абсолютным путём до события
+  ([#81](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/81),
+  [`e45eb50`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/e45eb50b75372d556088b69065af750a185c311e))
+
+- Исправил прямую зависимость теста от .env
+  ([#81](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/81),
+  [`e45eb50`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/e45eb50b75372d556088b69065af750a185c311e))
+
+- Полностью убрал прямую работу с нулевым значением поля для id админа для запроса к нему
+  ([#81](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/81),
+  [`e45eb50`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/e45eb50b75372d556088b69065af750a185c311e))
+
+- Убрал временное значение по-умолчанию для поля admin telegram id
+  ([#81](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/81),
+  [`e45eb50`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/e45eb50b75372d556088b69065af750a185c311e))
+
+### Chores
+
+- **style**: Использование форматера на пропущенных pre-commit-hook-ом ошибок
+  ([#81](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/81),
+  [`e45eb50`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/e45eb50b75372d556088b69065af750a185c311e))
+
+- **tests**: Добавил тесты к логике фонового оповещения
+  ([#81](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/81),
+  [`e45eb50`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/e45eb50b75372d556088b69065af750a185c311e))
+
+### Features
+
+- Добавил отправку оповещений пользователю, которому было назначены очки
+  ([#81](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/81),
+  [`e45eb50`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/e45eb50b75372d556088b69065af750a185c311e))
+
+- Создал ядро работы с очередями и фоновыми задачами через неё
+  ([#81](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/81),
+  [`e45eb50`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/e45eb50b75372d556088b69065af750a185c311e))
+
+### Refactoring
+
+- Введение TaskIQ notification выполнения and рефакторинг broadcast flow
+  ([#81](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/81),
+  [`e45eb50`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/e45eb50b75372d556088b69065af750a185c311e))
+
+- Выделение валидации в отдельные DTO для усиления контракта данных
+  ([#81](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/81),
+  [`e45eb50`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/e45eb50b75372d556088b69065af750a185c311e))
+
+- Добавил domain errors и улучшил обработку неожиданных ошибок при работе программы, добавил новые
+  DTO для инкапсуляции валидации и упрочнения контракта данных, а также удалил дублирование при
+  проверке типа TaskSchedule, изменил тесты под новые сигнатуры методов и функций, учитывающие новые
+  DTO ([#81](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/81),
+  [`e45eb50`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/e45eb50b75372d556088b69065af750a185c311e))
+
+- Добавил DTO для фоновой задачи оповещения и перенёс туда валидацию входящих в задачу данных
+  ([#81](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/81),
+  [`e45eb50`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/e45eb50b75372d556088b69065af750a185c311e))
+
+
 ## v0.15.1 (2026-03-03)
 
 ### Bug Fixes
