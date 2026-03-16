@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.17.1 (2026-03-16)
+
+### Bug Fixes
+
+- Исправил ошибку импорта DTO в логику профиля
+  ([`68dde53`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/68dde532f76b6d97e03287cc0a99519f7a9f6500))
+
+
 ## v0.17.0 (2026-03-16)
 
 ### Bug Fixes
