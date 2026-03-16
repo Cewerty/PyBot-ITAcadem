@@ -1,11 +1,9 @@
 import textwrap
 from dataclasses import dataclass
 
-from pybot import NotifyDTO
-
 from ...core.constants import LevelTypeEnum
 from ...domain.exceptions import LevelNotFoundError
-from ...dto import UserLevelReadDTO, UserProfileReadDTO, UserReadDTO
+from ...dto import NotifyDTO, UserLevelReadDTO, UserProfileReadDTO, UserReadDTO
 from ...dto.value_objects import Points
 from ...mappers.level_mappers import map_orm_level_to_level_read_dto
 from ...utils import progress_bar
