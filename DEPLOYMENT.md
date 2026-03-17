@@ -64,6 +64,8 @@ The app is deployed into `/home/ilya/pybot` by default and keeps persistent data
 - `pybot_data_prod`
 - `pybot_redis_data_prod`
 
+The deploy also persists the currently released image reference as `APP_IMAGE` inside the server-side `.env`, so routine manual commands like `docker compose ps` and `docker compose logs` work without extra exports.
+
 ## Notes about ports
 
 `docker-compose.prod.yml` does not publish any host ports.

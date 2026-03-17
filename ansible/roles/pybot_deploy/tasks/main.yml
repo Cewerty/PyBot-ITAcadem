@@ -30,6 +30,14 @@
     dest: "{{ deploy_path }}/.env"
     mode: "0600"
 
+- name: Persist current APP_IMAGE in deploy environment file
+  ansible.builtin.lineinfile:
+    path: "{{ deploy_path }}/.env"
+    regexp: "^APP_IMAGE="
+    line: "APP_IMAGE={{ image_repository }}:{{ image_tag }}"
+    create: true
+    mode: "0600"
+
 - name: Log in to GHCR when deploy credentials are provided
   ansible.builtin.shell: |
     set -eu
