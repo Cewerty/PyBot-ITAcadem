@@ -1,43 +1,38 @@
--
-name: 🐛 Bug Report
-about: Сообщить об ошибке, чтобы мы могли её исправить
-title: "[BUG] "
-labels: bug
+---
+name: Bug report
+about: Create a report to help us improve
+title: ''
+labels: ''
 assignees: ''
--
 
-## Описание проблемы
+---
 
-<! Четко и кратко опиши, в чем заключается баг. >
-<! Пример: При нажатии на кнопку "Мой профиль" бот падает с ошибкой. >
+**Describe the bug**
+A clear and concise description of what the bug is.
 
-## Шаги для воспроизведения (Reproduction Steps)
+**To Reproduce**
+Steps to reproduce the behavior:
+1. Go to '...'
+2. Click on '....'
+3. Scroll down to '....'
+4. See error
 
-<! Это самая важная часть! Если мы не сможем воспроизвести — мы не сможем починить. >
+**Expected behavior**
+A clear and concise description of what you expected to happen.
 
-1. Отправить команду ...
-2. Нажать на кнопку ...
-3. Ввести данные ...
-4. Увидеть ошибку.
+**Screenshots**
+If applicable, add screenshots to help explain your problem.
 
-## Ожидаемое поведение
+**Desktop (please complete the following information):**
+ - OS: [e.g. iOS]
+ - Browser [e.g. chrome, safari]
+ - Version [e.g. 22]
 
-<! Что должно было произойти? >
+**Smartphone (please complete the following information):**
+ - Device: [e.g. iPhone6]
+ - OS: [e.g. iOS8.1]
+ - Browser [e.g. stock browser, safari]
+ - Version [e.g. 22]
 
-## Логи / Скриншоты
-
-<! Вставь сюда трейсбек ошибки из консоли или скриншот переписки. >
-<! Используй блок кода для логов: >
-
-Traceback (most recent call last):
-  ...
-
-## Окружение (Environment)
-
-- OS: [напр. Windows / Linux / Docker]
-- Python Version: [напр. 3.11]
-- Версия бота (commit hash):
-
-## Дополнительно
-
-<! Есть ли догадки, почему это происходит? Связано ли это с БД (SQLite)? >
+**Additional context**
+Add any other context about the problem here.

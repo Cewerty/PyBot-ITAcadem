@@ -1,37 +1,20 @@
--
-name: ✨ Feature Request
-about: Предложить новую функциональность для проекта
-title: "[FEAT] "
-labels: enhancement
+---
+name: Feature request
+about: Suggest an idea for this project
+title: ''
+labels: ''
 assignees: ''
--
 
-## Какую проблему мы решаем?
+---
 
-<! Опиши проблему, с которой ты столкнулся. Не предлагай сразу решение! >
-<! Формат: "Мне неудобно, когда...", "Я не могу сделать X, потому что..." >
+**Is your feature request related to a problem? Please describe.**
+A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
 
-## Предлагаемое решение
+**Describe the solution you'd like**
+A clear and concise description of what you want to happen.
 
-<! Опиши, как именно ты хочешь решить проблему. >
-<! Технические детали, новые команды, изменения в UI. >
+**Describe alternatives you've considered**
+A clear and concise description of any alternative solutions or features you've considered.
 
-## Альтернативы
-
-<! Рассматривал ли ты другие варианты? >
-<! Почему нельзя оставить как есть? (YAGNI check) >
-
-## Архитектурный контекст (Важно!)
-
-<! См. ARCHITECTURE.md >
-
-- [ ] Требуются ли изменения в схеме БД? (Если да, помни про миграции и SQLite Foreign Keys)
-- [ ] Затрагивает ли это слои Service/Domain?
-- [ ] Не нарушает ли это принцип KISS (не переусложняем ли мы)?
-
-## Критерии приемки (Definition of Done)
-
-<! Как мы поймем, что задача выполнена? >
-
-- [ ]
-- [ ]
+**Additional context**
+Add any other context or screenshots about the feature request here.
