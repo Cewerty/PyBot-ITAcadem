@@ -18,6 +18,7 @@ from ...core import logger
 from ...core.config import settings
 from ...dto import NotifyDTO
 from ...services.ports import NotificationPermanentError, NotificationPort, NotificationTemporaryError
+from ...utils import telegram_user_link
 
 
 class TelegramNotificationService(NotificationPort):
@@ -32,7 +33,7 @@ class TelegramNotificationService(NotificationPort):
 
     async def send_role_request_to_admin(self, request_id: int, requester_user_id: int, role_name: str) -> None:
         admin_tg_id = settings.role_request_admin_tg_id
-        mention = f"<a href='tg://user?id={requester_user_id}'>пользователь {requester_user_id}</a>"
+        mention = telegram_user_link(requester_user_id)
         text = role_request_admin_notification(request_id=request_id, role_name=role_name, mention=mention)
 
         try:
