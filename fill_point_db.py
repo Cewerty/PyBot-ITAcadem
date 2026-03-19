@@ -24,6 +24,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 if TYPE_CHECKING:
+    from dishka import AsyncContainer
     from loguru import Logger
 
     from src.pybot.core.constants import LevelTypeEnum, RoleEnum
@@ -52,23 +53,42 @@ else:
         pass
 
     class AdjustUserPointsDTO:
-        pass
+        def __init__(
+            self,
+            recipient_id: int,
+            giver_id: int,
+            points: Points,
+            reason: str,
+        ) -> None:
+            del recipient_id, giver_id, points, reason
+            raise RuntimeError("fill_point_db runtime dependencies are not loaded")
 
     class CompetenceCreateDTO:
-        pass
+        def __init__(self, name: str, description: str) -> None:
+            del name, description
+            raise RuntimeError("fill_point_db runtime dependencies are not loaded")
 
     class CompetenceReadDTO:
         id: int
 
     class UserCreateDTO:
-        pass
+        def __init__(
+            self,
+            first_name: str,
+            last_name: str,
+            patronymic: str | None,
+            phone: str,
+            tg_id: int,
+        ) -> None:
+            del first_name, last_name, patronymic, phone, tg_id
+            raise RuntimeError("fill_point_db runtime dependencies are not loaded")
 
     class Points:
         value: int
         point_type: LevelTypeEnum
 
-        def __init__(self, *args: object, **kwargs: object) -> None:
-            del args, kwargs
+        def __init__(self, value: int, point_type: LevelTypeEnum) -> None:
+            del value, point_type
             raise RuntimeError("fill_point_db runtime dependencies are not loaded")
 
     class CompetenceService:
@@ -95,7 +115,7 @@ class RuntimeDependencies:
     role_enum: type[RoleEnum]
     level_model: type[Level]
     role_model: type[Role]
-    setup_container: Callable[[], Awaitable[object]]
+    setup_container: Callable[[], Awaitable[AsyncContainer]]
     adjust_user_points_dto_cls: type[AdjustUserPointsDTO]
     competence_create_dto_cls: type[CompetenceCreateDTO]
     competence_read_dto_cls: type[CompetenceReadDTO]
@@ -140,7 +160,7 @@ def _get_runtime_dependencies() -> RuntimeDependencies:
 
 
 @lru_cache(maxsize=1)
-def _get_runtime_logger() -> Logger | object:
+def _get_runtime_logger() -> Logger:
     """Create the configured application logger lazily for runtime execution."""
 
     logger_module = import_module("src.pybot.core.logger")
