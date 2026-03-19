@@ -109,7 +109,6 @@ class ServiceProvider(Provider):
         level_calculator: LevelCalculator,
         user_repository: UserRepository,
         level_repository: LevelRepository,
-        role_repository: RoleRepository,
     ) -> PointsService:
         return PointsService(db, level_calculator, user_repository, level_repository)
 

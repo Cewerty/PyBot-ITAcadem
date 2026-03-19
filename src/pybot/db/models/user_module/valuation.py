@@ -7,6 +7,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ....core.constants import LevelTypeEnum
+from ....domain.exceptions import ZeroPointsAdjustmentError
 from ....dto.value_objects import Points
 from ...base_class import Base
 from .user import User
@@ -69,24 +70,23 @@ class Valuation(Base):
         cls,
         recipient: User,
         giver: User,
-        points: int,
-        point_type: LevelTypeEnum,
+        points: Points,
         reason: str | None = None,
     ) -> Valuation:
         """
         Создает запись о начислении.
         Гарантирует валидацию на уровне создания.
         """
-        if points == 0:
-            raise ValueError("Нельзя создать запись с 0 баллов")
+        if points.value == 0:
+            raise ZeroPointsAdjustmentError()
 
         clean_reason = reason.strip() if reason else None
 
         return cls(
             recipient_id=recipient.id,
             giver_id=giver.id,
-            points=points,
-            points_type=point_type,
+            points=points.value,
+            points_type=points.point_type,
             reason=clean_reason,
             created_at=datetime.now(UTC),
             recipient=recipient,

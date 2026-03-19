@@ -46,8 +46,7 @@ class PointsService:
         valuation = Valuation.create(
             recipient=user,
             giver=giver_orm,
-            points=dto.points.value,
-            point_type=dto.points.point_type,
+            points=dto.points,
             reason=dto.reason,
         )
 
