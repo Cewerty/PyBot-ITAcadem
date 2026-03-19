@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.18.1 (2026-03-19)
+
+### Bug Fixes
+
+- **seed**: Пофиксил ошибку с конфигурацией seed-скрипта с tyro cli
+  ([`29d5736`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/29d57363ad374420bad4e0ec9fe49979a947b4b4))
+
+
 ## v0.18.0 (2026-03-19)
 
 ### Bug Fixes
