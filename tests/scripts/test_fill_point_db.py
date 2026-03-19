@@ -1,6 +1,8 @@
-from collections.abc import Sequence
+import asyncio
+import inspect
+from collections.abc import Coroutine, Sequence
 from datetime import date
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -54,7 +56,13 @@ class _RequestScope:
     async def __aenter__(self) -> FakeRequestContainer:
         return self._request_container
 
-    async def __aexit__(self, exc_type, exc, tb) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: object | None,
+    ) -> None:
+        del exc_type, exc, tb
         return None
 
 
@@ -114,6 +122,113 @@ class FakeGenerateUsersPointsService(fill_point_db.PointsService):
         return await self.change_points_mock(dto)
 
 
+class FakeFaker:
+    @staticmethod
+    def first_name() -> str:
+        return "\u0418\u0432\u0430\u043d"
+
+    @staticmethod
+    def last_name() -> str:
+        return "\u0418\u0432\u0430\u043d\u043e\u0432"
+
+    @staticmethod
+    def middle_name() -> str:
+        return "\u0418\u0432\u0430\u043d\u043e\u0432\u0438\u0447"
+
+    @staticmethod
+    def phone_number() -> str:
+        return "+7 (999) 123-45-67"
+
+    @staticmethod
+    def boolean(chance_of_getting_true: int = 80) -> bool:
+        del chance_of_getting_true
+        return True
+
+
+def test_build_seed_config_preserves_default_runtime_behavior() -> None:
+    cli_config = fill_point_db.FillDatabaseCLIConfig()
+
+    runtime_config = fill_point_db.build_seed_config(cli_config)
+
+    assert runtime_config == fill_point_db.FillDatabaseConfig()
+
+
+def test_build_seed_config_inverts_skip_flags() -> None:
+    cli_config = fill_point_db.FillDatabaseCLIConfig(
+        skip_levels=True,
+        skip_roles=True,
+        skip_competencies=True,
+        skip_fake_users=True,
+        competencies_preset="none",
+    )
+
+    runtime_config = fill_point_db.build_seed_config(cli_config)
+
+    assert runtime_config.seed_levels is False
+    assert runtime_config.seed_roles is False
+    assert runtime_config.seed_competencies is False
+    assert runtime_config.seed_fake_users is False
+    assert runtime_config.competencies_preset is fill_point_db.CompetencePreset.NONE
+
+
+def test_parse_cli_args_parses_tyro_dataclass_config() -> None:
+    cli_config = fill_point_db.parse_cli_args(
+        [
+            "--num-fake-users",
+            "3",
+            "--num-levels-per-type",
+            "2",
+            "--min-telegram-id",
+            "2000000000",
+            "--competencies-preset",
+            "none",
+            "--skip-levels",
+            "--skip-fake-users",
+        ]
+    )
+
+    assert cli_config.num_fake_users == 3
+    assert cli_config.num_levels_per_type == 2
+    assert cli_config.min_telegram_id == 2_000_000_000
+    assert cli_config.competencies_preset == "none"
+    assert cli_config.skip_levels is True
+    assert cli_config.skip_fake_users is True
+    assert cli_config.skip_roles is False
+
+
+def test_main_uses_tyro_cli_and_asyncio_run(monkeypatch: pytest.MonkeyPatch) -> None:
+    cli_config = fill_point_db.FillDatabaseCLIConfig(
+        num_fake_users=3,
+        skip_levels=True,
+        competencies_preset="none",
+    )
+    expected_runtime_config = fill_point_db.build_seed_config(cli_config)
+    tyro_cli_mock = Mock(return_value=cli_config)
+    ensure_project_root_mock = Mock()
+    observed: dict[str, object] = {}
+    original_asyncio_run = asyncio.run
+
+    async def fake_fill_database(config: fill_point_db.FillDatabaseConfig | None = None) -> str:
+        observed["runtime_config"] = config
+        return "ok"
+
+    def fake_asyncio_run(coro: Coroutine[object, object, str]) -> str:
+        observed["is_coroutine"] = inspect.iscoroutine(coro)
+        return original_asyncio_run(coro)
+
+    monkeypatch.setattr(fill_point_db.tyro, "cli", tyro_cli_mock)
+    monkeypatch.setattr(fill_point_db, "_ensure_project_root_on_path", ensure_project_root_mock)
+    monkeypatch.setattr(fill_point_db, "fill_database", fake_fill_database)
+    monkeypatch.setattr(fill_point_db.asyncio, "run", fake_asyncio_run)
+
+    fill_point_db.main()
+
+    tyro_cli_mock.assert_called_once_with(fill_point_db.FillDatabaseCLIConfig, args=None)
+    ensure_project_root_mock.assert_called_once_with()
+    assert observed["is_coroutine"] is True
+    assert observed["runtime_config"] == expected_runtime_config
+
+
 @pytest.mark.asyncio
 async def test_fill_database_uses_dishka_container_and_closes_it(monkeypatch: pytest.MonkeyPatch) -> None:
     fake_session = FakeFillDatabaseSession()
@@ -130,6 +245,7 @@ async def test_fill_database_uses_dishka_container_and_closes_it(monkeypatch: py
     )
     fake_container = _ContainerStub(fake_request_container)
 
+    config = fill_point_db.FillDatabaseConfig(num_fake_users=7)
     setup_container = AsyncMock(return_value=fake_container)
     generate_levels_data = AsyncMock()
     add_roles_data = AsyncMock()
@@ -143,18 +259,58 @@ async def test_fill_database_uses_dishka_container_and_closes_it(monkeypatch: py
     monkeypatch.setattr(fill_point_db, "add_competencies_data", add_competencies_data)
     monkeypatch.setattr(fill_point_db, "generate_users_data", generate_users_data)
 
-    await fill_point_db.fill_database()
+    await fill_point_db.fill_database(config)
 
     setup_container.assert_awaited_once_with()
-    generate_levels_data.assert_awaited_once_with(fake_session, fake_level_service)
+    generate_levels_data.assert_awaited_once_with(fake_session, fake_level_service, config)
     add_roles_data.assert_awaited_once_with(fake_session)
-    add_competencies_data.assert_awaited_once_with(fake_competence_service)
+    add_competencies_data.assert_awaited_once_with(fake_competence_service, config)
     generate_users_data.assert_awaited_once_with(
         fake_user_service,
         fake_points_service,
         competencies,
-        fill_point_db.NUM_FAKE_USERS,
+        config,
     )
+    fake_session.rollback_mock.assert_not_awaited()
+    fake_container.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_fill_database_skips_disabled_seed_steps(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake_session = FakeFillDatabaseSession()
+    fake_request_container = FakeRequestContainer(
+        fake_session,
+        FakeCompetenceService(),
+        FakeLevelService(),
+        FakePointsService(),
+        FakeFillDatabaseUserService(),
+    )
+    fake_container = _ContainerStub(fake_request_container)
+
+    generate_levels_data = AsyncMock()
+    add_roles_data = AsyncMock()
+    add_competencies_data = AsyncMock()
+    generate_users_data = AsyncMock()
+
+    monkeypatch.setattr(fill_point_db, "setup_container", AsyncMock(return_value=fake_container))
+    monkeypatch.setattr(fill_point_db, "generate_levels_data", generate_levels_data)
+    monkeypatch.setattr(fill_point_db, "add_roles_data", add_roles_data)
+    monkeypatch.setattr(fill_point_db, "add_competencies_data", add_competencies_data)
+    monkeypatch.setattr(fill_point_db, "generate_users_data", generate_users_data)
+
+    await fill_point_db.fill_database(
+        fill_point_db.FillDatabaseConfig(
+            seed_levels=False,
+            seed_roles=False,
+            seed_competencies=False,
+            seed_fake_users=False,
+        )
+    )
+
+    generate_levels_data.assert_not_awaited()
+    add_roles_data.assert_not_awaited()
+    add_competencies_data.assert_not_awaited()
+    generate_users_data.assert_not_awaited()
     fake_session.rollback_mock.assert_not_awaited()
     fake_container.close.assert_awaited_once()
 
@@ -163,12 +319,17 @@ async def test_fill_database_uses_dishka_container_and_closes_it(monkeypatch: py
 async def test_generate_users_data_uses_services_for_registration_and_points(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    config = fill_point_db.FillDatabaseConfig(
+        num_fake_users=1,
+        min_telegram_id=1_555_000_000,
+        seed_points_reason="Configured seed reason",
+    )
     fake_user = UserReadDTO(
         id=42,
-        first_name="Иван",
-        last_name="Иванов",
-        patronymic="Иванович",
-        telegram_id=fill_point_db.MIN_TELEGRAM_ID,
+        first_name="\u0418\u0432\u0430\u043d",
+        last_name="\u0418\u0432\u0430\u043d\u043e\u0432",
+        patronymic="\u0418\u0432\u0430\u043d\u043e\u0432\u0438\u0447",
+        telegram_id=config.min_telegram_id,
         academic_points=Points(value=0, point_type=LevelTypeEnum.ACADEMIC),
         reputation_points=Points(value=0, point_type=LevelTypeEnum.REPUTATION),
         join_date=date(2026, 3, 13),
@@ -176,21 +337,7 @@ async def test_generate_users_data_uses_services_for_registration_and_points(
     fake_user_service = FakeGenerateUsersService(fake_user)
     fake_points_service = FakeGenerateUsersPointsService(fake_user)
 
-    monkeypatch.setattr(
-        fill_point_db,
-        "fake",
-        type(
-            "FakeFaker",
-            (),
-            {
-                "first_name": staticmethod(lambda: "Иван"),
-                "last_name": staticmethod(lambda: "Иванов"),
-                "middle_name": staticmethod(lambda: "Иванович"),
-                "phone_number": staticmethod(lambda: "+7 (999) 123-45-67"),
-                "boolean": staticmethod(lambda chance_of_getting_true=80: True),
-            },
-        )(),
-    )
+    monkeypatch.setattr(fill_point_db, "_build_faker", lambda _: FakeFaker())
     monkeypatch.setattr(fill_point_db.random, "choice", lambda seq: seq[0])
     monkeypatch.setattr(fill_point_db.random, "randrange", lambda start, stop, step: step)
     monkeypatch.setattr(fill_point_db.random, "randint", lambda start, end: 1)
@@ -198,16 +345,18 @@ async def test_generate_users_data_uses_services_for_registration_and_points(
 
     competencies = [CompetenceReadDTO(id=7, name="Python", description=None)]
 
-    await fill_point_db.generate_users_data(fake_user_service, fake_points_service, competencies, 1)
+    await fill_point_db.generate_users_data(fake_user_service, fake_points_service, competencies, config)
 
     fake_user_service.register_student_mock.assert_awaited_once()
-    assert fake_user_service.register_student_mock.await_args is not None
-    created_dto = fake_user_service.register_student_mock.await_args.args[0]
-    assert created_dto.first_name == "Иван"
-    assert created_dto.last_name == "Иванов"
-    assert created_dto.patronymic == "Иванович"
+    register_call = fake_user_service.register_student_mock.await_args
+    if register_call is None:
+        raise AssertionError("register_student was not awaited")
+    created_dto = register_call.args[0]
+    assert created_dto.first_name == "\u0418\u0432\u0430\u043d"
+    assert created_dto.last_name == "\u0418\u0432\u0430\u043d\u043e\u0432"
+    assert created_dto.patronymic == "\u0418\u0432\u0430\u043d\u043e\u0432\u0438\u0447"
     assert created_dto.phone == "+79991234567"
-    assert created_dto.tg_id == fill_point_db.MIN_TELEGRAM_ID
+    assert created_dto.tg_id == config.min_telegram_id
 
     assert fake_points_service.change_points_mock.await_count == 2
     academic_dto = fake_points_service.change_points_mock.await_args_list[0].args[0]
@@ -215,7 +364,7 @@ async def test_generate_users_data_uses_services_for_registration_and_points(
     assert academic_dto.recipient_id == 42
     assert academic_dto.giver_id == 42
     assert academic_dto.points == Points(value=5, point_type=LevelTypeEnum.ACADEMIC)
-    assert academic_dto.reason == fill_point_db.SEED_POINTS_REASON
+    assert academic_dto.reason == config.seed_points_reason
     assert reputation_dto.points == Points(value=5, point_type=LevelTypeEnum.REPUTATION)
     fake_user_service.add_user_competencies_mock.assert_awaited_once_with(42, [7])
 
@@ -224,12 +373,13 @@ async def test_generate_users_data_uses_services_for_registration_and_points(
 async def test_generate_users_data_skips_zero_points_adjustments(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    config = fill_point_db.FillDatabaseConfig(num_fake_users=1)
     fake_user = UserReadDTO(
         id=42,
-        first_name="РРІР°РЅ",
-        last_name="РРІР°РЅРѕРІ",
-        patronymic="РРІР°РЅРѕРІРёС‡",
-        telegram_id=fill_point_db.MIN_TELEGRAM_ID,
+        first_name="\u0418\u0432\u0430\u043d",
+        last_name="\u0418\u0432\u0430\u043d\u043e\u0432",
+        patronymic="\u0418\u0432\u0430\u043d\u043e\u0432\u0438\u0447",
+        telegram_id=config.min_telegram_id,
         academic_points=Points(value=0, point_type=LevelTypeEnum.ACADEMIC),
         reputation_points=Points(value=0, point_type=LevelTypeEnum.REPUTATION),
         join_date=date(2026, 3, 13),
@@ -237,24 +387,54 @@ async def test_generate_users_data_skips_zero_points_adjustments(
     fake_user_service = FakeGenerateUsersService(fake_user)
     fake_points_service = FakeGenerateUsersPointsService(fake_user)
 
-    monkeypatch.setattr(
-        fill_point_db,
-        "fake",
-        type(
-            "FakeFaker",
-            (),
-            {
-                "first_name": staticmethod(lambda: "РРІР°РЅ"),
-                "last_name": staticmethod(lambda: "РРІР°РЅРѕРІ"),
-                "middle_name": staticmethod(lambda: "РРІР°РЅРѕРІРёС‡"),
-                "phone_number": staticmethod(lambda: "+7 (999) 123-45-67"),
-                "boolean": staticmethod(lambda chance_of_getting_true=80: True),
-            },
-        )(),
-    )
+    monkeypatch.setattr(fill_point_db, "_build_faker", lambda _: FakeFaker())
     monkeypatch.setattr(fill_point_db.random, "choice", lambda seq: seq[0])
     monkeypatch.setattr(fill_point_db.random, "randrange", lambda start, stop, step: 0)
 
-    await fill_point_db.generate_users_data(fake_user_service, fake_points_service, [], 1)
+    await fill_point_db.generate_users_data(fake_user_service, fake_points_service, [], config)
 
     fake_points_service.change_points_mock.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_add_competencies_data_uses_selected_preset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    created_competence = CompetenceReadDTO(id=1, name="Python", description="desc")
+    competence_service = AsyncMock()
+    competence_service.get_all_competencies = AsyncMock(return_value=[])
+    competence_service.create_competence = AsyncMock(return_value=created_competence)
+    monkeypatch.setitem(
+        fill_point_db._COMPETENCE_PRESETS,
+        fill_point_db.CompetencePreset.PROFESSIONALS,
+        (fill_point_db.CompetenceSeedConfig(name="Python", description="desc"),),
+    )
+    config = fill_point_db.FillDatabaseConfig(
+        competencies_preset=fill_point_db.CompetencePreset.PROFESSIONALS,
+    )
+
+    result = await fill_point_db.add_competencies_data(competence_service, config)
+
+    competence_service.create_competence.assert_awaited_once()
+    create_call = competence_service.create_competence.await_args
+    if create_call is None:
+        raise AssertionError("create_competence was not awaited")
+    dto = create_call.args[0]
+    assert dto.name == "Python"
+    assert dto.description == "desc"
+    assert result == [created_competence]
+
+
+@pytest.mark.asyncio
+async def test_add_competencies_data_skips_empty_preset() -> None:
+    competence_service = AsyncMock()
+    competence_service.get_all_competencies = AsyncMock(return_value=[])
+    competence_service.create_competence = AsyncMock()
+    config = fill_point_db.FillDatabaseConfig(
+        competencies_preset=fill_point_db.CompetencePreset.NONE,
+    )
+
+    result = await fill_point_db.add_competencies_data(competence_service, config)
+
+    competence_service.create_competence.assert_not_awaited()
+    assert result == []

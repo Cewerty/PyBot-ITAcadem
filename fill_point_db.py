@@ -1,11 +1,19 @@
+"""Seed script for filling the database with test data.
+
+The script uses tyro as its public CLI while preserving the current async
+Dishka-based bootstrap flow behind a dedicated runtime configuration object.
+"""
+
 import asyncio
 import enum
 import os
 import random
 import sys
 from collections.abc import Sequence
-from typing import TypedDict
+from dataclasses import dataclass
+from typing import Literal, TypedDict
 
+import tyro
 from faker import Faker
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,31 +30,200 @@ from src.pybot.services.points import PointsService
 from src.pybot.services.users import UserService
 
 logger = setup_logger()
-fake = Faker("ru_RU")
 
-NUM_FAKE_USERS = 50
-NUM_LEVELS_PER_TYPE = 15
-MAX_POINTS_RANGE = 1050
-POINT_STEPS = [5, 10]
-MIN_TELEGRAM_ID = 1000000000
-MAX_COMPETENCIES_PER_USER = 3
-SEED_POINTS_REASON = "Seed data bootstrap"
-COMPETENCIES_SEED: tuple[tuple[str, str], ...] = (
-    ("Python", "Разработка на Python"),
-    ("SQL", "Работа с реляционными базами данных"),
-    ("Git", "Контроль версий и командная разработка"),
-    ("Linux", "Базовые навыки администрирования Linux"),
-    ("Docker", "Контейнеризация приложений"),
-    ("Algorithms", "Базовые алгоритмы и структуры данных"),
-)
+
+@dataclass(frozen=True, slots=True)
+class CompetenceSeedConfig:
+    """Seed payload for one competence entry.
+
+    Attributes:
+        name: Competence title to create or reuse.
+        description: Human-readable competence description.
+    """
+
+    name: str
+    description: str
+
+
+class CompetencePreset(enum.StrEnum):
+    """Named presets for competence seed payloads."""
+
+    NONE = "none"
+    PROFESSIONALS = "professionals"
+
+
+_COMPETENCE_PRESETS: dict[CompetencePreset, tuple[CompetenceSeedConfig, ...]] = {
+    CompetencePreset.NONE: (),
+    CompetencePreset.PROFESSIONALS: (
+        CompetenceSeedConfig("Python", "Разработка на Python"),
+        CompetenceSeedConfig("SQL", "Работа с реляционными базами данных"),
+        CompetenceSeedConfig("Git", "Контроль версий и командная разработка"),
+        CompetenceSeedConfig("Linux", "Базовые навыки администрирования Linux"),
+        CompetenceSeedConfig("Docker", "Контейнеризация приложений"),
+        CompetenceSeedConfig("Algorithms", "Базовые алгоритмы и структуры данных"),
+    ),
+}
+
+type CompetencePresetChoice = Literal["none", "professionals"]
+
+
+@dataclass(frozen=True, slots=True)
+class FillDatabaseConfig:
+    """Configuration for database seed generation.
+
+    Attributes:
+        faker_locale: Locale used by Faker when generating users.
+        num_fake_users: Number of test users to register.
+        num_levels_per_type: Number of academic and reputation levels to create.
+        max_points_range: Upper inclusive boundary for generated points.
+        point_steps: Allowed point increments for generated values.
+        min_telegram_id: Initial Telegram id for deterministic fake users.
+        max_competencies_per_user: Upper bound of competencies per generated user.
+        seed_points_reason: Reason stored in valuations created by seed points flow.
+        seed_levels: Whether the script should seed levels.
+        seed_roles: Whether the script should seed roles.
+        seed_competencies: Whether the script should seed competences.
+        seed_fake_users: Whether the script should seed fake users.
+        competencies_preset: Named preset used when creating competences.
+    """
+
+    faker_locale: str = "ru_RU"
+    num_fake_users: int = 50
+    num_levels_per_type: int = 15
+    max_points_range: int = 1_050
+    point_steps: tuple[int, ...] = (5, 10)
+    min_telegram_id: int = 1_000_000_000
+    max_competencies_per_user: int = 3
+    seed_points_reason: str = "Seed data bootstrap"
+    seed_levels: bool = True
+    seed_roles: bool = True
+    seed_competencies: bool = True
+    seed_fake_users: bool = True
+    competencies_preset: CompetencePreset = CompetencePreset.PROFESSIONALS
+
+    def __post_init__(self) -> None:
+        """Validate seed parameters early.
+
+        Raises:
+            ValueError: If one of the numeric limits or point steps is invalid.
+        """
+
+        if self.num_fake_users < 0:
+            raise ValueError("num_fake_users must be greater than or equal to 0")
+        if self.num_levels_per_type < 0:
+            raise ValueError("num_levels_per_type must be greater than or equal to 0")
+        if self.max_points_range < 0:
+            raise ValueError("max_points_range must be greater than or equal to 0")
+        if self.min_telegram_id < 0:
+            raise ValueError("min_telegram_id must be greater than or equal to 0")
+        if self.max_competencies_per_user < 0:
+            raise ValueError("max_competencies_per_user must be greater than or equal to 0")
+        if not self.point_steps:
+            raise ValueError("point_steps must contain at least one value")
+        if any(step <= 0 for step in self.point_steps):
+            raise ValueError("point_steps must contain only positive values")
+
+
+@dataclass(frozen=True, slots=True)
+class FillDatabaseCLIConfig:
+    """Public CLI configuration for database seed generation.
+
+    Attributes:
+        faker_locale: Locale used by Faker when generating users.
+        num_fake_users: Number of test users to register.
+        num_levels_per_type: Number of academic and reputation levels to create.
+        max_points_range: Upper inclusive boundary for generated points.
+        point_steps: Allowed point increments for generated values.
+        min_telegram_id: Initial Telegram id for deterministic fake users.
+        max_competencies_per_user: Upper bound of competencies per generated user.
+        seed_points_reason: Reason stored in valuations created by seed points flow.
+        competencies_preset: Named preset used when creating competences.
+        skip_levels: Whether to skip level seeding.
+        skip_roles: Whether to skip role seeding.
+        skip_competencies: Whether to skip competence seeding.
+        skip_fake_users: Whether to skip fake-user seeding.
+    """
+
+    faker_locale: str = "ru_RU"
+    num_fake_users: int = 50
+    num_levels_per_type: int = 15
+    max_points_range: int = 1_050
+    point_steps: tuple[int, ...] = (5, 10)
+    min_telegram_id: int = 1_000_000_000
+    max_competencies_per_user: int = 3
+    seed_points_reason: str = "Seed data bootstrap"
+    competencies_preset: CompetencePresetChoice = "professionals"
+    skip_levels: bool = False
+    skip_roles: bool = False
+    skip_competencies: bool = False
+    skip_fake_users: bool = False
+
+
+def build_seed_config(cli_config: FillDatabaseCLIConfig) -> FillDatabaseConfig:
+    """Map CLI options into the internal runtime seed configuration.
+
+    Args:
+        cli_config: Public CLI configuration parsed by tyro.
+
+    Returns:
+        Internal runtime configuration for the async seed flow.
+    """
+
+    competencies_preset = CompetencePreset(cli_config.competencies_preset)
+
+    return FillDatabaseConfig(
+        faker_locale=cli_config.faker_locale,
+        num_fake_users=cli_config.num_fake_users,
+        num_levels_per_type=cli_config.num_levels_per_type,
+        max_points_range=cli_config.max_points_range,
+        point_steps=cli_config.point_steps,
+        min_telegram_id=cli_config.min_telegram_id,
+        max_competencies_per_user=cli_config.max_competencies_per_user,
+        seed_points_reason=cli_config.seed_points_reason,
+        seed_levels=not cli_config.skip_levels,
+        seed_roles=not cli_config.skip_roles,
+        seed_competencies=not cli_config.skip_competencies,
+        seed_fake_users=not cli_config.skip_fake_users,
+        competencies_preset=competencies_preset,
+    )
+
+
+def parse_cli_args(args: Sequence[str] | None = None) -> FillDatabaseCLIConfig:
+    """Parse CLI arguments into the public tyro config.
+
+    Args:
+        args: Optional CLI arguments for testing or programmatic invocation.
+
+    Returns:
+        Parsed CLI configuration.
+    """
+
+    return tyro.cli(FillDatabaseCLIConfig, args=list(args) if args is not None else None)
+
+
+def _get_competence_seed_entries(config: FillDatabaseConfig) -> tuple[CompetenceSeedConfig, ...]:
+    """Resolve competence seed payloads for the selected preset.
+
+    Args:
+        config: Seed configuration.
+
+    Returns:
+        Competence entries mapped from the selected preset.
+    """
+
+    return _COMPETENCE_PRESETS[config.competencies_preset]
 
 
 class PhoneNumberLength(enum.Enum):
+    """Supported lengths for normalized phone values."""
+
     SHORTENED_FORMAT = 10
     AVERAGE_FORMAT = 11
 
 
 class UserDataDict(TypedDict):
+    """Generated user payload used by the seed script internals."""
+
     first_name: str
     last_name: str
     patronymic: str | None
@@ -57,13 +234,78 @@ class UserDataDict(TypedDict):
     competence_ids: list[int]
 
 
+@dataclass(slots=True)
+class UserGenerationState:
+    """Mutable state for deterministic fake-user generation.
+
+    Attributes:
+        used_telegram_ids: Already reserved Telegram ids.
+        used_phones: Already reserved phone numbers.
+        current_telegram_id_seed: Current Telegram id counter.
+    """
+
+    used_telegram_ids: set[int]
+    used_phones: set[str]
+    current_telegram_id_seed: int
+
+
+@dataclass(frozen=True, slots=True)
+class SeedServices:
+    """Service bundle used by helper steps during user seeding.
+
+    Attributes:
+        user_service: Service used to register users and attach competences.
+        points_service: Service used to seed points through gamification logic.
+    """
+
+    user_service: UserService
+    points_service: PointsService
+
+
 def calculate_xp(n: int) -> int:
+    """Calculate cumulative points required for a level.
+
+    Args:
+        n: Level number starting from 1.
+
+    Returns:
+        Required points for the requested level.
+    """
+
     if n <= 0:
         return 0
     return 50 * n * (n - 1)
 
 
-async def generate_levels_data(session: AsyncSession, level_service: LevelService) -> Sequence[Level]:
+def _build_faker(config: FillDatabaseConfig) -> Faker:
+    """Create a Faker instance for the provided seed config.
+
+    Args:
+        config: Seed configuration.
+
+    Returns:
+        Configured Faker instance.
+    """
+
+    return Faker(config.faker_locale)
+
+
+async def generate_levels_data(
+    session: AsyncSession,
+    level_service: LevelService,
+    config: FillDatabaseConfig,
+) -> Sequence[Level]:
+    """Seed academic and reputation levels.
+
+    Args:
+        session: Active database session.
+        level_service: Service used to check existing levels.
+        config: Seed configuration.
+
+    Returns:
+        Existing or newly created levels.
+    """
+
     logger.info("Starting level generation")
 
     if await level_service.level_exists():
@@ -72,7 +314,7 @@ async def generate_levels_data(session: AsyncSession, level_service: LevelServic
 
     levels_to_add: list[Level] = []
 
-    for level_num in range(1, NUM_LEVELS_PER_TYPE + 1):
+    for level_num in range(1, config.num_levels_per_type + 1):
         required_xp = calculate_xp(level_num)
 
         levels_to_add.append(
@@ -98,7 +340,17 @@ async def generate_levels_data(session: AsyncSession, level_service: LevelServic
     return levels_to_add
 
 
-def _sanitize_phone_number(phone_raw: str) -> str:
+def _sanitize_phone_number(phone_raw: str, fake_data: Faker) -> str:
+    """Normalize a Faker-generated phone number into E.164-like format.
+
+    Args:
+        phone_raw: Raw phone number from Faker.
+        fake_data: Faker instance used for fallback generation.
+
+    Returns:
+        Sanitized phone number prefixed with `+`.
+    """
+
     phone_cleaned = "".join(filter(str.isdigit, phone_raw))
 
     if phone_cleaned.startswith("8"):
@@ -110,7 +362,7 @@ def _sanitize_phone_number(phone_raw: str) -> str:
         phone_cleaned = phone_cleaned[-11:]
 
     if len(phone_cleaned) < PhoneNumberLength.SHORTENED_FORMAT.value:
-        return "+" + "".join(filter(str.isdigit, fake.phone_number()))
+        return "+" + "".join(filter(str.isdigit, fake_data.phone_number()))
 
     return "+" + phone_cleaned
 
@@ -119,11 +371,21 @@ async def generate_users_data(
     user_service: UserService,
     points_service: PointsService,
     competencies: Sequence[CompetenceReadDTO],
-    num_users: int,
+    config: FillDatabaseConfig,
 ) -> None:
-    logger.info("Starting generation of %s fake users", num_users)
+    """Generate fake users and seed their gamification state.
 
-    users_data = _generate_fake_users_data(competencies, num_users)
+    Args:
+        user_service: Service used to register users and assign competences.
+        points_service: Service used to seed points through business logic.
+        competencies: Available competences that may be attached to users.
+        config: Seed configuration.
+    """
+
+    logger.info("Starting generation of %s fake users", config.num_fake_users)
+
+    fake_data = _build_faker(config)
+    users_data = _generate_fake_users_data(competencies, config, fake_data)
     successfully_created = 0
     failed_count = 0
     created_users: list[tuple[int, UserDataDict]] = []
@@ -148,14 +410,18 @@ async def generate_users_data(
             )
 
     created_user_ids = [user_id for user_id, _ in created_users]
+    services = SeedServices(
+        user_service=user_service,
+        points_service=points_service,
+    )
     for idx, (user_id, user_data) in enumerate(created_users, 1):
         try:
             await _seed_registered_user(
-                user_service=user_service,
-                points_service=points_service,
+                services=services,
                 created_user_ids=created_user_ids,
                 user_id=user_id,
                 user_data=user_data,
+                config=config,
             )
             successfully_created += 1
             logger.debug("User %s seeded successfully (id=%s)", idx, user_id)
@@ -172,19 +438,37 @@ async def generate_users_data(
     logger.success("Successfully created %s users. Errors: %s", successfully_created, failed_count)
 
 
-def _generate_fake_users_data(competencies: Sequence[CompetenceReadDTO], num_users: int) -> list[UserDataDict]:
-    users_data: list[UserDataDict] = []
-    used_telegram_ids: set[int] = set()
-    used_phones: set[str] = set()
-    current_telegram_id_seed = MIN_TELEGRAM_ID
+def _generate_fake_users_data(
+    competencies: Sequence[CompetenceReadDTO],
+    config: FillDatabaseConfig,
+    fake_data: Faker,
+) -> list[UserDataDict]:
+    """Create raw fake user payloads before registration.
 
-    for _ in range(num_users):
-        user_data, current_telegram_id_seed = _build_fake_user_data(
+    Args:
+        competencies: Competences available for random assignment.
+        config: Seed configuration.
+        fake_data: Faker instance used for synthetic user data.
+
+    Returns:
+        User payloads ready to be passed into registration.
+    """
+
+    users_data: list[UserDataDict] = []
+    state = UserGenerationState(
+        used_telegram_ids=set(),
+        used_phones=set(),
+        current_telegram_id_seed=config.min_telegram_id,
+    )
+
+    for _ in range(config.num_fake_users):
+        user_data, next_telegram_id_seed = _build_fake_user_data(
             competencies=competencies,
-            used_telegram_ids=used_telegram_ids,
-            used_phones=used_phones,
-            current_telegram_id_seed=current_telegram_id_seed,
+            state=state,
+            config=config,
+            fake_data=fake_data,
         )
+        state.current_telegram_id_seed = next_telegram_id_seed
         users_data.append(user_data)
 
     return users_data
@@ -193,24 +477,36 @@ def _generate_fake_users_data(competencies: Sequence[CompetenceReadDTO], num_use
 def _build_fake_user_data(
     *,
     competencies: Sequence[CompetenceReadDTO],
-    used_telegram_ids: set[int],
-    used_phones: set[str],
-    current_telegram_id_seed: int,
+    state: UserGenerationState,
+    config: FillDatabaseConfig,
+    fake_data: Faker,
 ) -> tuple[UserDataDict, int]:
-    first_name = fake.first_name()
-    last_name = fake.last_name()
-    patronymic = fake.middle_name() if fake.boolean(chance_of_getting_true=80) else None
+    """Build one fake user payload.
 
-    while current_telegram_id_seed in used_telegram_ids:
-        current_telegram_id_seed += 1
-    telegram_id = current_telegram_id_seed
-    used_telegram_ids.add(telegram_id)
-    next_telegram_id_seed = current_telegram_id_seed + 1
+    Args:
+        competencies: Competences available for random assignment.
+        state: Mutable state used to avoid duplicate phones and Telegram ids.
+        config: Seed configuration.
+        fake_data: Faker instance used for synthetic user data.
 
-    phone_number = _sanitize_phone_number(fake.phone_number())
-    if phone_number in used_phones:
-        phone_number = _sanitize_phone_number(fake.phone_number())
-    used_phones.add(phone_number)
+    Returns:
+        Tuple of generated user payload and next Telegram id seed.
+    """
+
+    first_name = fake_data.first_name()
+    last_name = fake_data.last_name()
+    patronymic = fake_data.middle_name() if fake_data.boolean(chance_of_getting_true=80) else None
+
+    while state.current_telegram_id_seed in state.used_telegram_ids:
+        state.current_telegram_id_seed += 1
+    telegram_id = state.current_telegram_id_seed
+    state.used_telegram_ids.add(telegram_id)
+    next_telegram_id_seed = state.current_telegram_id_seed + 1
+
+    phone_number = _sanitize_phone_number(fake_data.phone_number(), fake_data)
+    if phone_number in state.used_phones:
+        phone_number = _sanitize_phone_number(fake_data.phone_number(), fake_data)
+    state.used_phones.add(phone_number)
 
     return (
         {
@@ -219,19 +515,32 @@ def _build_fake_user_data(
             "patronymic": patronymic,
             "phone": phone_number,
             "tg_id": telegram_id,
-            "academic_points": random.randrange(0, MAX_POINTS_RANGE + 1, random.choice(POINT_STEPS)),  # noqa: S311
-            "reputation_points": random.randrange(0, MAX_POINTS_RANGE + 1, random.choice(POINT_STEPS)),  # noqa: S311
-            "competence_ids": _pick_competence_ids(competencies),
+            "academic_points": random.randrange(0, config.max_points_range + 1, random.choice(config.point_steps)),  # noqa: S311
+            "reputation_points": random.randrange(0, config.max_points_range + 1, random.choice(config.point_steps)),  # noqa: S311
+            "competence_ids": _pick_competence_ids(competencies, config),
         },
         next_telegram_id_seed,
     )
 
 
-def _pick_competence_ids(competencies: Sequence[CompetenceReadDTO]) -> list[int]:
-    if not competencies:
+def _pick_competence_ids(
+    competencies: Sequence[CompetenceReadDTO],
+    config: FillDatabaseConfig,
+) -> list[int]:
+    """Pick a random subset of competences for a user.
+
+    Args:
+        competencies: Available competences.
+        config: Seed configuration.
+
+    Returns:
+        Selected competence identifiers.
+    """
+
+    if not competencies or config.max_competencies_per_user == 0:
         return []
 
-    selected_count = random.randint(1, min(MAX_COMPETENCIES_PER_USER, len(competencies)))  # noqa: S311
+    selected_count = random.randint(1, min(config.max_competencies_per_user, len(competencies)))  # noqa: S311
     return random.sample([competence.id for competence in competencies], selected_count)
 
 
@@ -241,6 +550,18 @@ async def _register_seed_user(
     idx: int,
     total_users: int,
 ) -> int | None:
+    """Register one generated user through the application service.
+
+    Args:
+        user_service: Service used for student registration.
+        user_data: Generated user payload.
+        idx: Current user number for logging.
+        total_users: Total number of generated users.
+
+    Returns:
+        Newly created user id or `None` if the created DTO does not contain it.
+    """
+
     logger.debug(
         "Creating user %s/%s: %s %s",
         idx,
@@ -269,33 +590,53 @@ async def _register_seed_user(
 
 async def _seed_registered_user(
     *,
-    user_service: UserService,
-    points_service: PointsService,
+    services: SeedServices,
     created_user_ids: Sequence[int],
     user_id: int,
     user_data: UserDataDict,
+    config: FillDatabaseConfig,
 ) -> None:
+    """Apply gamification data for a newly registered seed user.
+
+    Args:
+        services: Services used during seed user enrichment.
+        created_user_ids: All successfully created user ids.
+        user_id: Current user id.
+        user_data: Generated user payload.
+        config: Seed configuration.
+    """
+
     giver_id = _select_seed_giver_id(created_user_ids, user_id)
     await _apply_seed_points(
-        points_service=points_service,
+        points_service=services.points_service,
         recipient_id=user_id,
         giver_id=giver_id,
-        points_value=user_data["academic_points"],
-        points_type=LevelTypeEnum.ACADEMIC,
+        points=Points(value=user_data["academic_points"], point_type=LevelTypeEnum.ACADEMIC),
+        reason=config.seed_points_reason,
     )
     await _apply_seed_points(
-        points_service=points_service,
+        points_service=services.points_service,
         recipient_id=user_id,
         giver_id=giver_id,
-        points_value=user_data["reputation_points"],
-        points_type=LevelTypeEnum.REPUTATION,
+        points=Points(value=user_data["reputation_points"], point_type=LevelTypeEnum.REPUTATION),
+        reason=config.seed_points_reason,
     )
 
     if user_data["competence_ids"]:
-        await user_service.add_user_competencies(user_id, user_data["competence_ids"])
+        await services.user_service.add_user_competencies(user_id, user_data["competence_ids"])
 
 
 def _select_seed_giver_id(created_user_ids: Sequence[int], recipient_id: int) -> int:
+    """Choose a deterministic giver id for seed point operations.
+
+    Args:
+        created_user_ids: All registered user ids created during the seed run.
+        recipient_id: User receiving the seed points.
+
+    Returns:
+        Identifier of the giver user.
+    """
+
     if len(created_user_ids) <= 1:
         return recipient_id
 
@@ -308,35 +649,72 @@ async def _apply_seed_points(
     points_service: PointsService,
     recipient_id: int,
     giver_id: int,
-    points_value: int,
-    points_type: LevelTypeEnum,
+    points: Points,
+    reason: str,
 ) -> None:
-    if points_value == 0:
+    """Apply one points adjustment through the real points service.
+
+    Args:
+        points_service: Service responsible for gamification point updates.
+        recipient_id: User receiving the points.
+        giver_id: User acting as the points giver.
+        points: Points value object to apply.
+        reason: Reason stored with the seeded valuation.
+    """
+
+    if points.value == 0:
         return
 
     await points_service.change_points(
         AdjustUserPointsDTO(
             recipient_id=recipient_id,
             giver_id=giver_id,
-            points=Points(value=points_value, point_type=points_type),
-            reason=SEED_POINTS_REASON,
+            points=points,
+            reason=reason,
         )
     )
 
 
 async def get_all_roles(session: AsyncSession) -> Sequence[Role]:
+    """Fetch all roles from the database.
+
+    Args:
+        session: Active database session.
+
+    Returns:
+        Stored role entities.
+    """
+
     stmt = select(Role)
     result = await session.execute(stmt)
     return result.scalars().all()
 
 
 async def role_exists(session: AsyncSession) -> bool:
+    """Check whether at least one role already exists.
+
+    Args:
+        session: Active database session.
+
+    Returns:
+        `True` when roles are already present in the database.
+    """
+
     stmt = select(Role).limit(1)
     result = await session.execute(stmt)
     return result.scalar_one_or_none() is not None
 
 
 async def add_roles_data(session: AsyncSession) -> Sequence[Role]:
+    """Seed system roles if they are absent.
+
+    Args:
+        session: Active database session.
+
+    Returns:
+        Existing or newly created role entities.
+    """
+
     logger.info("Starting role generation")
 
     if await role_exists(session):
@@ -350,7 +728,20 @@ async def add_roles_data(session: AsyncSession) -> Sequence[Role]:
     return roles_to_add
 
 
-async def add_competencies_data(competence_service: CompetenceService) -> Sequence[CompetenceReadDTO]:
+async def add_competencies_data(
+    competence_service: CompetenceService,
+    config: FillDatabaseConfig,
+) -> Sequence[CompetenceReadDTO]:
+    """Seed competences if they are absent.
+
+    Args:
+        competence_service: Service used to create competences.
+        config: Seed configuration.
+
+    Returns:
+        Existing or newly created competence DTOs.
+    """
+
     logger.info("Starting competence generation")
 
     existing = await competence_service.get_all_competencies()
@@ -358,17 +749,32 @@ async def add_competencies_data(competence_service: CompetenceService) -> Sequen
         logger.info("Competencies already exist, skipping generation")
         return existing
 
+    competencies_seed = _get_competence_seed_entries(config)
+    if not competencies_seed:
+        logger.info("Competence preset %s is empty, skipping generation", config.competencies_preset)
+        return []
+
     created: list[CompetenceReadDTO] = []
-    for name, description in COMPETENCIES_SEED:
+    for competence in competencies_seed:
         created.append(
-            await competence_service.create_competence(CompetenceCreateDTO(name=name, description=description))
+            await competence_service.create_competence(
+                CompetenceCreateDTO(name=competence.name, description=competence.description)
+            )
         )
 
     logger.info("Added %s competencies", len(created))
     return created
 
 
-async def fill_database() -> None:
+async def fill_database(config: FillDatabaseConfig | None = None) -> None:
+    """Run the database seed process.
+
+    Args:
+        config: Optional seed configuration. Defaults to the standard script
+            behavior when omitted.
+    """
+
+    seed_config = config or FillDatabaseConfig()
     logger.info("Starting database seed script")
 
     container = await setup_container()
@@ -381,10 +787,28 @@ async def fill_database() -> None:
             user_service = await request_container.get(UserService)
 
             try:
-                await generate_levels_data(session, level_service)
-                await add_roles_data(session)
-                competencies = await add_competencies_data(competence_service)
-                await generate_users_data(user_service, points_service, competencies, NUM_FAKE_USERS)
+                competencies: Sequence[CompetenceReadDTO] = []
+
+                if seed_config.seed_levels:
+                    await generate_levels_data(session, level_service, seed_config)
+                else:
+                    logger.info("Skipping level generation by config")
+
+                if seed_config.seed_roles:
+                    await add_roles_data(session)
+                else:
+                    logger.info("Skipping role generation by config")
+
+                if seed_config.seed_competencies:
+                    competencies = await add_competencies_data(competence_service, seed_config)
+                else:
+                    logger.info("Skipping competence generation by config")
+
+                if seed_config.seed_fake_users:
+                    await generate_users_data(user_service, points_service, competencies, seed_config)
+                else:
+                    logger.info("Skipping fake user generation by config")
+
                 logger.success("Database seeding finished successfully")
             except Exception as exc:
                 await session.rollback()
@@ -394,8 +818,25 @@ async def fill_database() -> None:
         await container.close()
 
 
-if __name__ == "__main__":
+def _ensure_project_root_on_path() -> None:
+    """Ensure the repository root is available in `sys.path` for script runs."""
+
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
-    asyncio.run(fill_database())
+
+
+def main(cli_config: FillDatabaseCLIConfig | None = None) -> None:
+    """Run the seed script from a synchronous tyro-powered entrypoint.
+
+    Args:
+        cli_config: Optional CLI configuration for programmatic invocation.
+    """
+
+    resolved_cli_config = cli_config or parse_cli_args()
+    _ensure_project_root_on_path()
+    asyncio.run(fill_database(build_seed_config(resolved_cli_config)))
+
+
+if __name__ == "__main__":
+    main()
