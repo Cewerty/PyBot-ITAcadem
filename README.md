@@ -71,7 +71,7 @@
 ### Вспомогательные инструменты
 
 - loguru — логирование с поддержкой структурированных логов
-- tyro — CLI для скриптов (в разработке для fill_point_db.py)
+- tyro — CLI для скриптов, используется в `fill_point_db.py`
 - Faker — генерация тестовых данных
 - phonenumbers — валидация и нормализация телефонных номеров
 - uv — современный менеджер пакетов и зависимостей
@@ -86,52 +86,52 @@
 PyBot_ITAcadem/
 ├── src/
 │   └── pybot/
-│       ├── bot/                     # Presentation Layer
-│       │   ├── dialogs/            # aiogram-dialog сценарии
-│       │   ├── handlers/           # Thin handlers (без бизнес-логики)
-│       │   ├── keyboards/          # Кастомные клавиатуры
-│       │   ├── middlewares/        # Кросс-катинговые мидлвари
-│       │   │   ├── db.py           # Сессия БД
-│       │   │   ├── logger.py       # Логирование событий
-│       │   │   ├── rate_limit.py   # Rate limiting
-│       │   │   ├── role.py         # Проверка ролей
-│       │   │   └── user_activity.py # Трекинг активности
-│       │   ├── filters/            # Фильтры для роутеров
-│       │   ├── utils/              # Вспомогательные функции
-│       │   └── tg_bot_run.py       # Точка входа бота
-│       ├── core/                   # Конфигурация и константы
-│       │   ├── config.py           # Pydantic Settings (.env)
-│       │   ├── constants.py        # Enum'ы (LevelTypeEnum, RoleEnum)
-│       │   └── logger.py           # Настройка loguru
-│       ├── db/                     # Data Layer
-│       │   ├── models/             # Rich ORM Models (бизнес-логика здесь!)
-│       │   │   ├── user_module/
-│       │   │   │   ├── user.py     # User.add_role(), User.set_initial_levels()
-│       │   │   │   ├── level.py
-│       │   │   │   └── user_level.py
+│       ├── bot/                         # Presentation layer: aiogram routers, dialogs, UI text
+│       │   ├── dialogs/                 # aiogram-dialog сценарии и окна
+│       │   ├── filters/                 # Telegram-specific filters and router factories
+│       │   ├── handlers/                # Thin handlers grouped by feature
+│       │   │   ├── broadcast/
+│       │   │   ├── common/
+│       │   │   ├── points/
+│       │   │   ├── profile/
+│       │   │   └── roles/
+│       │   ├── keyboards/               # Reply and inline keyboards
+│       │   ├── middlewares/             # Cross-cutting middleware
+│       │   ├── utils/                   # Bot-only helper functions
+│       │   ├── texts.py                 # Shared user-facing text constants
+│       │   └── tg_bot_run.py            # Telegram bot bootstrap
+│       ├── core/                        # Settings, enums, shared logger setup
+│       ├── db/                          # Database setup and rich ORM models
+│       │   ├── models/
+│       │   │   ├── level_module/
 │       │   │   ├── role_module/
-│       │   │   │   ├── roles.py
-│       │   │   │   └── user_roles.py
-│       │   │   └── task_module/
-│       │   └── database.py          # Async engine и сессия
-│       ├── di/                     # DI-контейнер Dishka
-│       │   └── containers.py       # Провайдеры (Database, Session, Repository, Service)
-│       ├── infrastructure/         # Repository Layer
-│       │   ├── user_repository.py  # CRUD + бизнес-запросы
-│       │   ├── level_repository.py
-│       │   └── valuation_repository.py
-│       ├── services/               # Application Layer
-│       │   ├── users.py            # UserService (оркестрация)
-│       │   ├── points.py           # adjust_user_points(), update_user_level()
-│       │   └── levels.py
-│       ├── dto/                    # Data Transfer Objects
-│       │   ├── user_dto.py         # UserCreateDTO, UserReadDTO, AdjustUserPointsDTO
-│       │   └── value_objects.py    # Points (Value Object для баллов)
-│       └── utils/                  # Утилиты
-│           └── phonenumber_normalization.py
+│       │   │   ├── task_module/
+│       │   │   └── user_module/
+│       │   ├── base_class.py
+│       │   └── database.py
+│       ├── di/                          # Dishka composition root and providers
+│       │   └── containers.py
+│       ├── domain/                      # Domain rules that do not belong to ORM or transport layers
+│       │   ├── exceptions.py
+│       │   └── services/
+│       ├── dto/                         # DTOs and value objects at layer boundaries
+│       │   ├── *_dto.py
+│       │   └── value_objects.py
+│       ├── health/                      # Health/readiness API and server wiring
+│       ├── infrastructure/              # Repositories, adapters, and external integrations
+│       │   ├── ports/                   # Concrete notification adapters
+│       │   ├── roles/                   # Role-related repositories
+│       │   └── taskiq/                  # Background jobs and scheduling integration
+│       ├── mappers/                     # Mapping helpers between transport/dialog data and DTOs
+│       ├── services/                    # Application layer orchestration
+│       │   ├── ports/                   # Service-level ports and contracts
+│       │   └── user_services/           # User-facing service specializations
+│       └── utils/                       # Shared project utilities
 ├── fill_point_db.py                # CLI-скрипт для наполнения БД тестовыми данными
 ├── db_reset_start.py               # Сброс БД + миграции + заполнение + запуск бота
 ├── run.py                          # Запуск бота
+├── AGENTS.md                       # Operating contract for AI agents
+├── ARCHITECTURE.md                 # Архитектурный манифест и инварианты
 └── alembic/                        # Миграции БД
 
 ```
@@ -194,6 +194,12 @@ PyBot_ITAcadem/
 
    ```bash
    python fill_point_db.py
+
+   # Показать CLI-параметры seed-скрипта
+   python fill_point_db.py --help
+
+   # Непосредственно запустить только нужные этапы
+   python fill_point_db.py --skip-levels --skip-roles --skip-competencies --num-fake-users 10
    ```
 
 6. Запустить бота:
