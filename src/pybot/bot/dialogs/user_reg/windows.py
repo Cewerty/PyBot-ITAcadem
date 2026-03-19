@@ -1,10 +1,10 @@
-from aiogram.types import ContentType, Message
-from aiogram_dialog import Dialog, DialogManager, Window
+from aiogram.types import ContentType
+from aiogram_dialog import Dialog, Window
 from aiogram_dialog.widgets.input import MessageInput
 from aiogram_dialog.widgets.kbd import Back, Button, Cancel
 from aiogram_dialog.widgets.text import Const
 
-from ...keyboards.auth import request_contact_kb
+from ...texts import REGISTRATION_WELCOME
 from .handlers import (
     on_contact_input,
     on_first_name_input,
@@ -12,19 +12,21 @@ from .handlers import (
     on_other_messages,
     on_patronymic_input,
     on_patronymic_skip,
+    request_contact_prompt,
 )
 from .states import CreateProfileSG
 
-
-async def prompt_contact_request(start_data: object, manager: DialogManager) -> None:
-    if isinstance(manager.event, Message):
-        await manager.event.answer(
-            "Пожалуйста, отправьте свой контакт, используя кнопку ниже.",
-            reply_markup=request_contact_kb,
-        )
-
-
 profile_create_dialog = Dialog(
+    Window(
+        Const(REGISTRATION_WELCOME),
+        Button(
+            Const("Продолжить"),
+            id="go_to_contact",
+            on_click=request_contact_prompt,
+        ),
+        Cancel(Const("❌ Отмена")),
+        state=CreateProfileSG.welcome,
+    ),
     Window(
         Const("👤 Твой контакт?"),
         MessageInput(
@@ -59,5 +61,4 @@ profile_create_dialog = Dialog(
         ),
         state=CreateProfileSG.patronymic,
     ),
-    on_start=prompt_contact_request,
 )

@@ -72,6 +72,7 @@ async def test_manage_profile_sends_rendered_message_with_user_progress(
     assert "Known" in sent_message.message_text
     assert "120 academic" in sent_message.message_text
     assert "40 reputation" in sent_message.message_text
+    assert "/help" in sent_message.message_text
 
 
 @pytest.mark.asyncio

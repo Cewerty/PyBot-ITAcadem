@@ -28,4 +28,4 @@ async def cmd_profile_private(
             await user_profile_service.manage_profile(user)
             return
 
-    await dialog_manager.start(CreateProfileSG.contact, mode=StartMode.RESET_STACK)
+    await dialog_manager.start(CreateProfileSG.welcome, mode=StartMode.RESET_STACK)

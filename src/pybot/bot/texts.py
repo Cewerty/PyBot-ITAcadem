@@ -61,3 +61,16 @@ INFO_GLOBAL = textwrap.dedent(
     https://github.com/NikkiShuRA/PyBot-ITAcadem.git
     """
 ).strip()
+
+REGISTRATION_WELCOME = textwrap.dedent(
+    """
+    Привет!
+    Я бот платформы ITAcadem.
+
+    Здесь можно пройти регистрацию, создать профиль и дальше пользоваться возможностями платформы прямо в Telegram.
+
+    Нажмите «Продолжить», и я попрошу ваш номер телефона для регистрации.
+    """
+).strip()
+
+REGISTRATION_CONTACT_PROMPT = "Чтобы продолжить регистрацию, отправьте свой контакт с помощью кнопки ниже."

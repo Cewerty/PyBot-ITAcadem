@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
@@ -9,10 +10,11 @@ from aiogram.types import Chat, Message, User
 from aiogram_dialog.api.entities.modes import StartMode
 
 from pybot.bot.dialogs.user_reg.states import CreateProfileSG
-from pybot.bot.dialogs.user_reg.windows import prompt_contact_request
+from pybot.bot.dialogs.user_reg.handlers import request_contact_prompt
 from pybot.bot.handlers.common.start import cmd_start_private
 from pybot.bot.handlers.profile.user_profile import cmd_profile_private
 from pybot.bot.keyboards.auth import request_contact_kb
+from pybot.bot.texts import REGISTRATION_CONTACT_PROMPT
 from pybot.core.constants import LevelTypeEnum
 from pybot.dto import UserReadDTO
 from pybot.dto.value_objects import Points
@@ -51,7 +53,7 @@ class StubDialogManager:
 
 @dataclass(slots=True)
 class StubRegistrationDialogManager:
-    event: Message
+    next: AsyncMock = field(default_factory=AsyncMock)
 
 
 class StubUserService(UserService):
@@ -122,7 +124,7 @@ async def test_cmd_start_private_requests_contact_when_user_is_not_registered(
     assert user_service.telegram_queries == [700_001]
     user_profile_service.manage_profile_mock.assert_not_awaited()
     answer_mock.assert_not_awaited()
-    dialog_manager.start.assert_awaited_once_with(CreateProfileSG.contact, mode=StartMode.RESET_STACK)
+    dialog_manager.start.assert_awaited_once_with(CreateProfileSG.welcome, mode=StartMode.RESET_STACK)
 
 
 @pytest.mark.asyncio
@@ -175,7 +177,7 @@ async def test_cmd_profile_private_requests_contact_when_user_is_not_registered(
     assert user_service.telegram_queries == [700_001]
     user_profile_service.manage_profile_mock.assert_not_awaited()
     answer_mock.assert_not_awaited()
-    dialog_manager.start.assert_awaited_once_with(CreateProfileSG.contact, mode=StartMode.RESET_STACK)
+    dialog_manager.start.assert_awaited_once_with(CreateProfileSG.welcome, mode=StartMode.RESET_STACK)
 
 
 @pytest.mark.asyncio
@@ -202,19 +204,22 @@ async def test_cmd_profile_private_requests_contact_when_message_sender_is_missi
     assert user_service.telegram_queries == []
     user_profile_service.manage_profile_mock.assert_not_awaited()
     answer_mock.assert_not_awaited()
-    dialog_manager.start.assert_awaited_once_with(CreateProfileSG.contact, mode=StartMode.RESET_STACK)
+    dialog_manager.start.assert_awaited_once_with(CreateProfileSG.welcome, mode=StartMode.RESET_STACK)
 
 
 @pytest.mark.asyncio
-async def test_prompt_contact_request_sends_contact_keyboard(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_request_contact_prompt_sends_contact_keyboard(monkeypatch: pytest.MonkeyPatch) -> None:
     message = _build_message()
-    manager = StubRegistrationDialogManager(event=message)
+    callback = SimpleNamespace(message=message, answer=AsyncMock())
+    manager = StubRegistrationDialogManager()
     answer_mock = AsyncMock()
     monkeypatch.setattr(Message, "answer", answer_mock)
 
-    await prompt_contact_request(None, manager)  # type: ignore[arg-type]
+    await request_contact_prompt(callback, None, manager)  # type: ignore[arg-type]
 
     answer_mock.assert_awaited_once_with(
-        "Пожалуйста, отправьте свой контакт, используя кнопку ниже.",
+        REGISTRATION_CONTACT_PROMPT,
         reply_markup=request_contact_kb,
     )
+    callback.answer.assert_awaited_once()
+    manager.next.assert_awaited_once()

@@ -33,7 +33,7 @@ async def cmd_start_private(
         await user_profile_service.manage_profile(user)
         return
 
-    await dialog_manager.start(CreateProfileSG.contact, mode=StartMode.RESET_STACK)
+    await dialog_manager.start(CreateProfileSG.welcome, mode=StartMode.RESET_STACK)
 
 
 # /start - в групповом чате

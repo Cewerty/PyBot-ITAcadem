@@ -83,7 +83,7 @@ class UserProfileService:
             }
                 Общий счёт: {user_profile_data.academic_progress}
 
-                🤌 Репутационный уровень
+                ⭐ Репутационный уровень
                 {user_profile_data.reputation_level.current_level.name}
                 {
                 progress_bar(
@@ -93,6 +93,7 @@ class UserProfileService:
                 Общий счёт: {user_profile_data.reputation_progress}
 
                 🔄️ Обновить профиль — /profile
+                ❓ Вспомнить или узнать возможности бота — /help
             """
         )
 

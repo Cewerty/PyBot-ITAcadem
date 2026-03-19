@@ -8,7 +8,10 @@ from dishka.integrations.aiogram_dialog import inject
 from ....core import logger
 from ....dto import UserCreateDTO
 from ....mappers.user_mappers import map_dialog_data_to_user_create_dto
+from ....services import UserProfileService
 from ....services.users import UserService
+from ...keyboards.auth import request_contact_kb
+from ...texts import REGISTRATION_CONTACT_PROMPT
 
 
 def _validate_name_input(raw_text: str, field_name: str, *, allow_empty: bool = False) -> str | None:
@@ -34,6 +37,20 @@ def _validate_name_input(raw_text: str, field_name: str, *, allow_empty: bool = 
 
 async def on_other_messages(message: Message, message_input: MessageInput, manager: DialogManager) -> None:
     await message.answer("Пожалуйста, введите корректное значение.")
+
+
+async def request_contact_prompt(
+    callback: CallbackQuery,
+    button: Button,
+    manager: DialogManager,
+) -> None:
+    if callback.message is not None:
+        await callback.message.answer(
+            REGISTRATION_CONTACT_PROMPT,
+            reply_markup=request_contact_kb,
+        )
+    await callback.answer()
+    await manager.next()
 
 
 @inject
@@ -113,12 +130,14 @@ async def on_patronymic_input(
     widget: MessageInput,
     manager: DialogManager,
     user_service: FromDishka[UserService],
+    user_profile_service: FromDishka[UserProfileService],
 ) -> None:
     await _on_patronymic_input_impl(
         message=message,
         widget=widget,
         manager=manager,
         user_service=user_service,
+        user_profile_service=user_profile_service,
     )
 
 
@@ -127,6 +146,7 @@ async def _on_patronymic_input_impl(
     widget: MessageInput,
     manager: DialogManager,
     user_service: UserService,
+    user_profile_service: UserProfileService,
 ) -> None:
     patronymic = message.text or ""
     try:
@@ -147,6 +167,7 @@ async def _on_patronymic_input_impl(
     logger.info("User created: {user}", user=user)
     await message.answer(f"✅ Профиль создан. Добро пожаловать, {user.first_name}!")
     await manager.done()
+    await user_profile_service.manage_profile(user)
 
 
 @inject
@@ -155,6 +176,21 @@ async def on_patronymic_skip(
     button: Button,
     manager: DialogManager,
     user_service: FromDishka[UserService],
+    user_profile_service: FromDishka[UserProfileService],
+) -> None:
+    await _on_patronymic_skip_impl(
+        callback=callback,
+        manager=manager,
+        user_service=user_service,
+        user_profile_service=user_profile_service,
+    )
+
+
+async def _on_patronymic_skip_impl(
+    callback: CallbackQuery,
+    manager: DialogManager,
+    user_service: UserService,
+    user_profile_service: UserProfileService,
 ) -> None:
     user_data = await map_dialog_data_to_user_create_dto(manager)
     if not user_data:
@@ -169,3 +205,4 @@ async def on_patronymic_skip(
         await callback.message.answer(f"✅ Профиль создан. Добро пожаловать, {user.first_name}!")
     await callback.answer()
     await manager.done()
+    await user_profile_service.manage_profile(user)

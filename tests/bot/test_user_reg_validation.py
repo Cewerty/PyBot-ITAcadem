@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
@@ -12,9 +13,15 @@ from pytest_mock import MockerFixture
 
 from pybot.bot.dialogs.user_reg.handlers import (
     _on_patronymic_input_impl,
+    _on_patronymic_skip_impl,
     on_first_name_input,
     on_last_name_input,
+    on_patronymic_skip,
+    request_contact_prompt,
 )
+from pybot.bot.keyboards.auth import request_contact_kb
+from pybot.bot.texts import REGISTRATION_CONTACT_PROMPT
+from pybot.services import UserProfileService
 from pybot.services.users import UserService
 
 
@@ -50,6 +57,12 @@ class UserServiceTestState:
     register_student_mock: AsyncMock
 
 
+@dataclass(slots=True)
+class UserProfileServiceTestState:
+    service: UserProfileService
+    manage_profile_mock: AsyncMock
+
+
 def _build_manager(mocker: MockerFixture) -> ManagerTestState:
     manager = mocker.create_autospec(DialogManager, instance=True, spec_set=True)
     next_mock = mocker.AsyncMock()
@@ -66,6 +79,13 @@ def _build_user_service(mocker: MockerFixture) -> UserServiceTestState:
     register_student_mock = mocker.AsyncMock()
     service.register_student = register_student_mock
     return UserServiceTestState(service=service, register_student_mock=register_student_mock)
+
+
+def _build_user_profile_service(mocker: MockerFixture) -> UserProfileServiceTestState:
+    service = mocker.create_autospec(UserProfileService, instance=True, spec_set=True)
+    manage_profile_mock = mocker.AsyncMock()
+    service.manage_profile = manage_profile_mock
+    return UserProfileServiceTestState(service=service, manage_profile_mock=manage_profile_mock)
 
 
 @pytest.mark.asyncio
@@ -116,6 +136,7 @@ async def test_patronymic_with_invalid_symbols_returns_error_and_keeps_state(moc
     widget = _build_widget()
     manager_state = _build_manager(mocker)
     user_service_state = _build_user_service(mocker)
+    user_profile_service_state = _build_user_profile_service(mocker)
     answer_mock = mocker.patch.object(Message, "answer", new=mocker.AsyncMock())
 
     await _on_patronymic_input_impl(
@@ -123,8 +144,107 @@ async def test_patronymic_with_invalid_symbols_returns_error_and_keeps_state(moc
         widget=widget,
         manager=manager_state.manager,
         user_service=user_service_state.service,
+        user_profile_service=user_profile_service_state.service,
     )
 
     answer_mock.assert_awaited_once()
     manager_state.done_mock.assert_not_awaited()
     user_service_state.register_student_mock.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_request_contact_prompt_moves_to_contact_step(mocker: MockerFixture) -> None:
+    message = _build_message("/start")
+    callback = SimpleNamespace(message=message, answer=mocker.AsyncMock())
+    manager_state = _build_manager(mocker)
+    answer_mock = mocker.patch.object(Message, "answer", new=mocker.AsyncMock())
+
+    await request_contact_prompt(
+        callback=callback,  # type: ignore[arg-type]
+        button=None,  # type: ignore[arg-type]
+        manager=manager_state.manager,
+    )
+
+    answer_mock.assert_awaited_once_with(
+        REGISTRATION_CONTACT_PROMPT,
+        reply_markup=request_contact_kb,
+    )
+    callback.answer.assert_awaited_once()
+    manager_state.next_mock.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_patronymic_input_registers_user_and_shows_profile_on_success(mocker: MockerFixture) -> None:
+    message = _build_message("Иванович")
+    widget = _build_widget()
+    manager_state = _build_manager(mocker)
+    manager_state.manager.dialog_data.update(
+        {
+            "phone_number": "+79990001122",
+            "tg_id": 100_001,
+            "first_name": "Иван",
+            "last_name": "Петров",
+        }
+    )
+    user_service_state = _build_user_service(mocker)
+    user_profile_service_state = _build_user_profile_service(mocker)
+    user_dto = SimpleNamespace()
+    created_user = SimpleNamespace(first_name="Иван")
+    answer_mock = mocker.patch.object(Message, "answer", new=mocker.AsyncMock())
+    mocker.patch(
+        "pybot.bot.dialogs.user_reg.handlers.map_dialog_data_to_user_create_dto",
+        new=mocker.AsyncMock(return_value=user_dto),
+    )
+    user_service_state.register_student_mock.return_value = created_user
+
+    await _on_patronymic_input_impl(
+        message=message,
+        widget=widget,
+        manager=manager_state.manager,
+        user_service=user_service_state.service,
+        user_profile_service=user_profile_service_state.service,
+    )
+
+    assert manager_state.manager.dialog_data["patronymic"] == "Иванович"
+    user_service_state.register_student_mock.assert_awaited_once_with(user_dto)
+    answer_mock.assert_awaited_once_with("✅ Профиль создан. Добро пожаловать, Иван!")
+    manager_state.done_mock.assert_awaited_once()
+    user_profile_service_state.manage_profile_mock.assert_awaited_once_with(created_user)
+
+
+@pytest.mark.asyncio
+async def test_patronymic_skip_registers_user_and_shows_profile_on_success(mocker: MockerFixture) -> None:
+    message = _build_message("/start")
+    callback = SimpleNamespace(message=message, answer=mocker.AsyncMock())
+    manager_state = _build_manager(mocker)
+    manager_state.manager.dialog_data.update(
+        {
+            "phone_number": "+79990001122",
+            "tg_id": 100_001,
+            "first_name": "Иван",
+            "last_name": "Петров",
+        }
+    )
+    user_service_state = _build_user_service(mocker)
+    user_profile_service_state = _build_user_profile_service(mocker)
+    user_dto = SimpleNamespace()
+    created_user = SimpleNamespace(first_name="Иван")
+    answer_mock = mocker.patch.object(Message, "answer", new=mocker.AsyncMock())
+    mocker.patch(
+        "pybot.bot.dialogs.user_reg.handlers.map_dialog_data_to_user_create_dto",
+        new=mocker.AsyncMock(return_value=user_dto),
+    )
+    user_service_state.register_student_mock.return_value = created_user
+
+    await _on_patronymic_skip_impl(
+        callback=callback,  # type: ignore[arg-type]
+        manager=manager_state.manager,
+        user_service=user_service_state.service,
+        user_profile_service=user_profile_service_state.service,
+    )
+
+    user_service_state.register_student_mock.assert_awaited_once_with(user_dto)
+    answer_mock.assert_awaited_once_with("✅ Профиль создан. Добро пожаловать, Иван!")
+    callback.answer.assert_awaited_once()
+    manager_state.done_mock.assert_awaited_once()
+    user_profile_service_state.manage_profile_mock.assert_awaited_once_with(created_user)
