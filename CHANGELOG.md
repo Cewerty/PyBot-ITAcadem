@@ -2,6 +2,40 @@
 
 <!-- version list -->
 
+## v0.18.0 (2026-03-19)
+
+### Bug Fixes
+
+- **points**: Валидировал начисления через Points
+  ([`d0305d6`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/d0305d6aef74eb496fb01b8f7cf3cd4e65d140ee))
+
+### Chores
+
+- **deploy**: Harden ci and production rollout
+  ([`3897628`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/38976289df1813b5add7f5b230fb965cbb227bac))
+
+- **deployment**: Добавил базовую runtime-валидацию для деплоя на VDS
+  ([`03d8be8`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/03d8be8542bf1d7138b3f3b907d74214fd87fd97))
+
+### Documentation
+
+- **project**: Refresh onboarding and security guides
+  ([`c39d47a`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/c39d47a65af42bf5750376fc22c12f27b5377db5))
+
+### Features
+
+- **profile**: Добавил welcome-шаг регистрации
+  ([`d0227f7`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/d0227f776256eb68de28840ca09b3bcf34078195))
+
+- **seed**: Add configurable fill-point-db cli
+  ([`9ab684e`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/9ab684e6061dfa1b2f090ce973e0f347f9d2fd75))
+
+### Refactoring
+
+- **logging**: Унифицировал runtime-логи бота и taskiq
+  ([`a33e709`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/a33e7092c3f9fc0d895e7afc1c40a8d92db31f32))
+
+
 ## v0.17.4 (2026-03-18)
 
 
