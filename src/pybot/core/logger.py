@@ -13,10 +13,8 @@ if TYPE_CHECKING:
 
 
 def setup_logger() -> Logger:
-    """Настройка и инициализация логгера."""
+    """Настроить единый человекочитаемый sink для логов приложения."""
     loguru_logger.remove()
-
-    # Основной формат для консоли
     loguru_logger.add(
         sys.stdout,
         level=settings.log_level.upper(),
@@ -28,16 +26,4 @@ def setup_logger() -> Logger:
         ),
         colorize=True,
     )
-
-    # Продакшен-логи (сериализованные ошибки)
-    if not settings.debug:
-        loguru_logger.add(
-            sys.stdout,
-            level=settings.log_level.upper(),
-            format="{message}",
-            serialize=True,
-            enqueue=True,
-            filter=lambda record: record["level"].no >= loguru_logger.level("WARNING").no,
-        )
-
     return loguru_logger

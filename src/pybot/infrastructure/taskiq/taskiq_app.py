@@ -25,9 +25,9 @@ _runtime_state = _TaskiqRuntimeState()
 
 
 async def _on_worker_startup(_state: TaskiqState) -> None:
-    """Поднимает DI-контейнер Dishka и подключает его к воркеру TaskIQ."""
+    """Поднять DI-контейнер Dishka и подключить его к TaskIQ воркеру."""
     if _runtime_state.container is not None:
-        logger.warning("TaskIQ worker startup hook skipped: container already initialized")
+        logger.warning("событие=инициализация_taskiq_worker status=skipped причина=container_already_initialized")
         return
     if _runtime_state.broker is None:
         raise RuntimeError("TaskIQ broker is not initialized.")
@@ -35,34 +35,26 @@ async def _on_worker_startup(_state: TaskiqState) -> None:
     container = setup_taskiq_container()
     setup_dishka(container=container, broker=_runtime_state.broker)
     _runtime_state.container = container
-    logger.info("TaskIQ worker Dishka integration initialized")
+    logger.info("событие=инициализация_taskiq_worker status=success")
 
 
 async def _on_worker_shutdown(_state: TaskiqState) -> None:
-    """Корректно закрывает DI-контейнер Dishka при остановке воркера."""
+    """Корректно закрыть DI-контейнер Dishka при остановке воркера."""
     if _runtime_state.container is None:
-        logger.warning("TaskIQ worker shutdown hook skipped: container was not initialized")
+        logger.warning("событие=завершение_taskiq_worker status=skipped причина=container_not_initialized")
         return
 
     await _runtime_state.container.close()
     _runtime_state.container = None
-    logger.info("TaskIQ worker Dishka integration closed")
+    logger.info("событие=завершение_taskiq_worker status=success")
 
 
 def get_taskiq_broker() -> AsyncBroker:
-    """
-    Возвращает singleton брокера TaskIQ для воркера и scheduler-процесса.
-
-    Брокер создаётся лениво: основной bot/health runtime не тянет TaskIQ,
-    пока отдельные процессы worker/scheduler не запущены явно.
-    """
+    """Вернуть singleton брокера TaskIQ для worker и scheduler runtime."""
     if _runtime_state.broker is not None:
         return _runtime_state.broker
 
-    # Для критичных задач используем stream broker с ack-семантикой.
     broker = RedisStreamBroker(settings.redis_url)
-
-    # Интегрируем Dishka в lifecycle TaskIQ воркера через официальную интеграцию.
     broker.add_event_handler(TaskiqEvents.WORKER_STARTUP, _on_worker_startup)
     broker.add_event_handler(TaskiqEvents.WORKER_SHUTDOWN, _on_worker_shutdown)
 
@@ -71,7 +63,7 @@ def get_taskiq_broker() -> AsyncBroker:
 
 
 def get_taskiq_schedule_source() -> ListRedisScheduleSource:
-    """Возвращает singleton schedule source для scheduler-процесса."""
+    """Вернуть singleton schedule source для scheduler-процесса."""
     if _runtime_state.schedule_source is not None:
         return _runtime_state.schedule_source
 
@@ -80,7 +72,7 @@ def get_taskiq_schedule_source() -> ListRedisScheduleSource:
 
 
 def get_taskiq_scheduler() -> TaskiqScheduler:
-    """Возвращает singleton TaskIQ scheduler для отложенных и periodic задач."""
+    """Вернуть singleton scheduler для отложенных и periodic задач."""
     if _runtime_state.scheduler is not None:
         return _runtime_state.scheduler
 

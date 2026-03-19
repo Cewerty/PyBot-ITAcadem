@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 
 from aiogram import Bot, Dispatcher
@@ -6,7 +8,6 @@ from aiogram.fsm.storage.redis import RedisStorage
 from aiogram_dialog import setup_dialogs
 from dishka import AsyncContainer
 from dishka.integrations.aiogram import setup_dishka
-from yaspin import yaspin
 
 from ..core import logger
 from ..core.config import settings
@@ -29,71 +30,69 @@ from .middlewares import (
 
 
 async def setup_dispatcher() -> Dispatcher:
+    """Создать dispatcher с нужным backend для FSM."""
     if settings.fsm_storage_backend == "redis":
         storage = RedisStorage.from_url(
             settings.redis_url,
             key_builder=DefaultKeyBuilder(with_destiny=True),
         )
-        logger.info("FSM storage backend enabled: redis ({redis_url})", redis_url=settings.redis_url)
+        logger.info("событие=инициализация_fsm backend=redis redis_url={redis_url}", redis_url=settings.redis_url)
         return Dispatcher(storage=storage)
 
-    logger.info("FSM storage backend enabled: memory")
+    logger.info("событие=инициализация_fsm backend=memory")
     return Dispatcher()
 
 
 async def setup_middlewares(dp: Dispatcher) -> None:
+    """Подключить middleware к dispatcher."""
     if settings.enable_logging_middleware:
-        logging_middleware = LoggerMiddleware(
-            enabled=True,
-        )
-
+        logging_middleware = LoggerMiddleware(enabled=True)
         dp.message.middleware(logging_middleware)
         dp.callback_query.middleware(logging_middleware)
         dp.inline_query.middleware(logging_middleware)
-
-        logger.info("LoggerMiddleware enabled")
+        logger.info("событие=подключение_middleware middleware=LoggerMiddleware status=enabled")
     else:
-        logger.info("LoggerMiddleware disabled")
+        logger.info("событие=подключение_middleware middleware=LoggerMiddleware status=disabled")
 
     if settings.enable_user_activity_middleware:
         dp.message.middleware(UserActivityMiddleware())
         dp.callback_query.middleware(UserActivityMiddleware())
-
-        logger.info("UserActivityMiddleware enabled")
+        logger.info("событие=подключение_middleware middleware=UserActivityMiddleware status=enabled")
     else:
-        logger.info("UserActivityMiddleware disabled")
+        logger.info("событие=подключение_middleware middleware=UserActivityMiddleware status=disabled")
 
     if settings.enable_role_middleware:
         dp.message.middleware(RoleMiddleware())
         dp.callback_query.middleware(RoleMiddleware())
         dp.inline_query.middleware(RoleMiddleware())
-
-        logger.info("RoleMiddleware enabled")
+        logger.info("событие=подключение_middleware middleware=RoleMiddleware status=enabled")
     else:
-        logger.info("RoleMiddleware disabled")
+        logger.info("событие=подключение_middleware middleware=RoleMiddleware status=disabled")
 
     if settings.enable_rate_limit:
         dp.update.middleware(RateLimitMiddleware())
         dp.message.middleware(RateLimitMiddleware())
         dp.callback_query.middleware(RateLimitMiddleware())
-
-        logger.info("RateLimitMiddleware enabled")
+        logger.info("событие=подключение_middleware middleware=RateLimitMiddleware status=enabled")
     else:
-        logger.info("RateLimitMiddleware disabled")
+        logger.info("событие=подключение_middleware middleware=RateLimitMiddleware status=disabled")
 
 
 async def setup_di(dp: Dispatcher) -> AsyncContainer:
+    """Поднять DI-контейнер и подключить его к aiogram."""
     container = await setup_container()
-    logger.debug("Container setup complete: {container}", container=container)
+    logger.debug("событие=инициализация_di status=success container={container}", container=container)
     setup_dishka(container, dp, auto_inject=True)
     return container
 
 
 async def setup_bot(container: AsyncContainer) -> Bot:
+    """Получить экземпляр бота из DI-контейнера."""
     return await container.get(Bot)
 
 
 def setup_handlers(dp: Dispatcher) -> None:
+    """Подключить роутеры и dialog-слой."""
     register_dialog_error_handlers(dp)
     dp.include_router(common_router)
     dp.include_router(points_router)
@@ -105,41 +104,43 @@ def setup_handlers(dp: Dispatcher) -> None:
 
 
 async def tg_bot_main() -> None:
-    """Main bot function with graceful shutdown."""
+    """Запустить бота с корректным shutdown-путём."""
     container: AsyncContainer | None = None
     dp: Dispatcher | None = None
     try:
-        with yaspin(text="Bot initialization...", color="cyan") as sp:
-            dp = await setup_dispatcher()
-            container = await setup_di(dp)
-            bot = await setup_bot(container)
-            await setup_middlewares(dp)
-            setup_handlers(dp)
-            await bot.delete_webhook(drop_pending_updates=True)
-            logger.info("Starting bot")
-            sp.ok("Bot started")
+        logger.info("событие=инициализация_бота status=started")
+        dp = await setup_dispatcher()
+        container = await setup_di(dp)
+        bot = await setup_bot(container)
+        await setup_middlewares(dp)
+        setup_handlers(dp)
+        await bot.delete_webhook(drop_pending_updates=True)
+        logger.info("событие=инициализация_бота status=completed")
+        logger.info("событие=запуск_polling status=started")
         await dp.start_polling(bot)
     except asyncio.CancelledError:
-        logger.info("Received cancellation signal")
+        logger.info("событие=завершение_бота причина=cancelled")
         raise
     except Exception:
-        logger.exception("Unexpected error")
+        logger.exception("событие=неожиданная_ошибка_runtime")
         raise
     finally:
-        logger.info("Graceful shutdown...")
+        logger.info("событие=graceful_shutdown status=started")
 
         if dp is not None:
             storage: BaseStorage | None = getattr(dp, "storage", None)
             if storage is not None:
                 try:
                     await storage.close()
-                    logger.info("Dispatcher FSM storage closed")
+                    logger.info("событие=закрытие_fsm_storage status=success")
                 except Exception:
-                    logger.exception("Error while closing dispatcher FSM storage")
+                    logger.exception("событие=закрытие_fsm_storage status=failed")
 
         if container is not None:
             try:
                 await container.close()
-                logger.info("Dishka container closed")
+                logger.info("событие=закрытие_container status=success")
             except Exception:
-                logger.exception("Error while closing container")
+                logger.exception("событие=закрытие_container status=failed")
+
+        logger.info("событие=graceful_shutdown status=completed")

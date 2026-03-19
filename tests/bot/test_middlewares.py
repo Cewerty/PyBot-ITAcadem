@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import itertools
+import time
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import cast
@@ -11,6 +13,7 @@ from dishka import AsyncContainer
 from dishka.integrations.aiogram import CONTAINER_NAME
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from pybot.bot.middlewares.logger import LoggerMiddleware
 from pybot.bot.middlewares.rate_limit import RateLimitMiddleware
 from pybot.bot.middlewares.role import RoleMiddleware
 from pybot.bot.middlewares.user_activity import UserActivityMiddleware
@@ -31,6 +34,47 @@ def _build_message(*, text: str = "/command", from_user_id: int = 700_001) -> Me
 
 def _build_handler_data(**flags: object) -> dict[str, object]:
     return {"handler": SimpleNamespace(flags=flags)}
+
+
+@pytest.mark.asyncio
+async def test_logger_middleware_reuses_same_event_id_for_start_and_finish_logs(
+    monkeypatch: pytest.MonkeyPatch,
+    mocker,
+) -> None:
+    monkeypatch.setattr(settings, "enable_logging_middleware", True)
+    middleware = LoggerMiddleware(enabled=True)
+    message = _build_message(text="/start", from_user_id=700_000)
+    handler = AsyncMock(return_value="handled")
+    data: dict[str, object] = {
+        "handler": SimpleNamespace(callback=SimpleNamespace(__name__="cmd_start_private")),
+    }
+
+    info_mock = mocker.Mock()
+    warning_mock = mocker.Mock()
+    debug_mock = mocker.Mock()
+
+    monkeypatch.setattr("pybot.bot.middlewares.logger.logger.info", info_mock)
+    monkeypatch.setattr("pybot.bot.middlewares.logger.logger.warning", warning_mock)
+    monkeypatch.setattr("pybot.bot.middlewares.logger.logger.debug", debug_mock)
+
+    real_monotonic = time.monotonic
+    monotonic_mock = mocker.Mock(side_effect=itertools.chain([10.0, 10.2], itertools.repeat(real_monotonic())))
+    monkeypatch.setattr("pybot.bot.middlewares.logger.time.monotonic", monotonic_mock)
+
+    result = await middleware(handler, message, data)
+
+    assert result == "handled"
+    handler.assert_awaited_once_with(message, data)
+    warning_mock.assert_not_called()
+    assert info_mock.call_count == 2
+
+    first_call = info_mock.call_args_list[0]
+    second_call = info_mock.call_args_list[1]
+    assert "событие=получен_update" in first_call.args[0]
+    assert "событие=обработан_update" in second_call.args[0]
+    assert first_call.kwargs["event_id"] == second_call.kwargs["event_id"]
+    assert first_call.kwargs["handler_name"] == "cmd_start_private"
+    assert second_call.kwargs["handler_name"] == "cmd_start_private"
 
 
 @pytest.mark.asyncio

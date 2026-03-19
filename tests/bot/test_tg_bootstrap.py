@@ -6,17 +6,6 @@ import pytest
 from pybot.bot import tg_bot_run
 
 
-class DummySpin:
-    def __enter__(self) -> "DummySpin":
-        return self
-
-    def __exit__(self, exc_type, exc, tb) -> None:
-        return None
-
-    def ok(self, message: str) -> None:
-        return None
-
-
 @pytest.mark.asyncio
 async def test_tg_bot_main_uses_di_bot_and_closes_container(monkeypatch: pytest.MonkeyPatch, mocker) -> None:
     fake_container = SimpleNamespace(close=mocker.AsyncMock())
@@ -37,7 +26,6 @@ async def test_tg_bot_main_uses_di_bot_and_closes_container(monkeypatch: pytest.
     monkeypatch.setattr(tg_bot_run, "setup_bot", setup_bot_mock)
     monkeypatch.setattr(tg_bot_run, "setup_middlewares", setup_middlewares_mock)
     monkeypatch.setattr(tg_bot_run, "setup_handlers", setup_handlers_mock)
-    monkeypatch.setattr(tg_bot_run, "yaspin", lambda *args, **kwargs: DummySpin())
 
     with pytest.raises(asyncio.CancelledError):
         await tg_bot_run.tg_bot_main()
