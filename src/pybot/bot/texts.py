@@ -84,13 +84,13 @@ REGISTRATION_WELCOME = textwrap.dedent(
 ).strip()
 
 REGISTRATION_CONTACT_PROMPT = "Чтобы продолжить регистрацию, поделитесь номером телефона с помощью кнопки ниже."
-REGISTRATION_CONTACT_STEP = "📱 Поделитесь номером телефона"
-REGISTRATION_FIRST_NAME_STEP = "Введите имя"
-REGISTRATION_LAST_NAME_STEP = "Введите фамилию"
-REGISTRATION_PATRONYMIC_STEP = "Введите отчество"
+REGISTRATION_CONTACT_STEP = "Шаг 1/5. 📱 Поделитесь номером телефона"
+REGISTRATION_FIRST_NAME_STEP = "Шаг 2/5. Введите имя"
+REGISTRATION_LAST_NAME_STEP = "Шаг 3/5. Введите фамилию"
+REGISTRATION_PATRONYMIC_STEP = "Шаг 4/5. Введите отчество"
 REGISTRATION_COMPETENCE_STEP = textwrap.dedent(
     """
-    Выберите компетенции, которые вам уже знакомы или интересны.
+    Шаг 5/5. Выберите компетенции, которые вам уже знакомы или интересны.
 
     Этот шаг можно пропустить: потом вы сможете изменить компетенции в профиле.
     """
