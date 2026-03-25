@@ -31,13 +31,21 @@ HELP_PRIVATE = textwrap.dedent(
     /showcompetences [@user|id|reply] - показать компетенции пользователя
 
     Команды для администраторов:
+
+    Рассылка:
     /broadcast @all <текст> - рассылка всем пользователям
     /broadcast <Student|Mentor|Admin> <текст> - рассылка по роли
     /broadcast <Competence> <текст> - рассылка по компетенции
+
+    Работа с баллами:
     /academic_points @user <число> "причина" - изменить академические баллы
     /reputation_points @user <число> "причина" - изменить репутационные баллы
+
+    Работа с ролями:
     /addrole @user <Student|Mentor|Admin> "причина" - выдать роль
     /removerole @user <Student|Mentor|Admin> "причина" - снять роль
+
+    Работа с компетенциями:
     /addcompetence @user Python,SQL - добавить компетенции
     /removecompetence @user Python,SQL - удалить компетенции
     """
