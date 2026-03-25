@@ -7,6 +7,7 @@ from dishka.integrations.aiogram import FromDishka
 from ....services.user_services import UserProfileService, UserService
 from ...dialogs.user_reg.states import CreateProfileSG
 from ...filters import create_chat_type_routers
+from ...texts import render_profile_message
 
 user_profile_private_router, user_profile_group_router, user_profile_global_router = create_chat_type_routers(
     "user_profile"
@@ -24,7 +25,8 @@ async def cmd_profile_private(
     if message.from_user:
         user = await user_service.find_user_by_telegram_id(message.from_user.id)
         if user:
-            await user_profile_service.manage_profile(user)
+            user_profile_dto = await user_profile_service.build_profile_view(user)
+            await message.answer(render_profile_message(user_profile_dto))
             return
 
     await dialog_manager.start(CreateProfileSG.welcome, mode=StartMode.RESET_STACK)

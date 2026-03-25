@@ -27,6 +27,7 @@ from ...texts import (
     registration_existing_profile,
     registration_name_too_long,
     registration_profile_created,
+    render_profile_message,
 )
 
 
@@ -241,9 +242,10 @@ async def _on_competence_submit_impl(
     logger.info("User created: {user}", user=user)
     if callback.message is not None:
         await callback.message.answer(registration_profile_created(user.first_name))
+        user_profile_dto = await user_profile_service.build_profile_view(user)
+        await callback.message.answer(render_profile_message(user_profile_dto))
     await callback.answer()
     await manager.done()
-    await user_profile_service.manage_profile(user)
 
 
 @inject

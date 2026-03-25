@@ -1,39 +1,70 @@
-from dataclasses import dataclass
+from collections.abc import Sequence
 
-from ...bot.texts import profile_message, profile_section
 from ...core.constants import PointsTypeEnum
 from ...domain.exceptions import LevelNotFoundError
-from ...dto import NotifyDTO, UserLevelReadDTO, UserProfileReadDTO, UserReadDTO
+from ...dto import CompetenceReadDTO, ProfileViewDTO, UserLevelReadDTO, UserProfileReadDTO, UserReadDTO
 from ...dto.value_objects import Points
 from ...mappers.level_mappers import map_orm_level_to_level_read_dto
-from ...utils import progress_bar
 from ..levels import LevelService
-from ..ports import NotificationPort
-
-
-@dataclass(frozen=True, slots=True)
-class ProfileMessagePO:
-    user: UserReadDTO
-    academic_progress: Points
-    academic_level: UserLevelReadDTO
-    academic_current_points: Points
-    academic_next_points: Points
-    reputation_progress: Points
-    reputation_level: UserLevelReadDTO
-    reputation_current_points: Points
-    reputation_next_points: Points
+from .user_competence import UserCompetenceService
+from .user_roles import UserRolesService
 
 
 class UserProfileService:
     def __init__(
         self,
         level_service: LevelService,
-        notification_port: NotificationPort,
+        user_competence_service: UserCompetenceService,
+        user_roles_service: UserRolesService,
     ) -> None:
         self.level_service = level_service
-        self.notification_port = notification_port
+        self.user_competence_service = user_competence_service
+        self.user_roles_service = user_roles_service
+
+    async def build_profile_view(self, user_read: UserReadDTO) -> ProfileViewDTO:
+        user_profile = await self._collect_user_profile(user_read)
+
+        (
+            academic_progress,
+            academic_level,
+            academic_current_points,
+            academic_next_points,
+        ) = await self._handle_points_data(user_profile, PointsTypeEnum.ACADEMIC)
+        (
+            reputation_progress,
+            reputation_level,
+            reputation_current_points,
+            reputation_next_points,
+        ) = await self._handle_points_data(user_profile, PointsTypeEnum.REPUTATION)
+
+        return ProfileViewDTO(
+            user=user_profile.user,
+            academic_progress=academic_progress,
+            academic_level=academic_level,
+            academic_current_points=academic_current_points,
+            academic_next_points=academic_next_points,
+            reputation_progress=reputation_progress,
+            reputation_level=reputation_level,
+            reputation_current_points=reputation_current_points,
+            reputation_next_points=reputation_next_points,
+            roles_data=user_profile.roles,
+            competences=user_profile.competences,
+        )
 
     async def _collect_user_profile(self, user_read_dto: UserReadDTO) -> UserProfileReadDTO:
+        levels_data: dict[PointsTypeEnum, UserLevelReadDTO] = await self._get_user_level_data(user_read_dto)
+        competences_data: Sequence[CompetenceReadDTO] = await self.user_competence_service.find_user_competencies(
+            user_read_dto.id
+        )
+        roles_data = await self.user_roles_service.find_user_roles(user_read_dto.id)
+        return UserProfileReadDTO(
+            user=user_read_dto,
+            competences=competences_data,
+            roles=roles_data,
+            level_info=levels_data,
+        )
+
+    async def _get_user_level_data(self, user_read_dto: UserReadDTO) -> dict[PointsTypeEnum, UserLevelReadDTO]:
         levels_data: dict[PointsTypeEnum, UserLevelReadDTO] = {}
         for level_system in PointsTypeEnum:
             orm_current_level_res = await self.level_service.find_user_current_level(user_read_dto.id, level_system)
@@ -54,7 +85,7 @@ class UserProfileService:
                 next_level=dto_next_level,
             )
 
-        return UserProfileReadDTO(user=user_read_dto, level_info=levels_data)
+        return levels_data
 
     async def _handle_points_data(
         self, user_profile_read: UserProfileReadDTO, point_type: PointsTypeEnum
@@ -69,64 +100,3 @@ class UserProfileService:
         next_points = user_level.next_level.required_points - user_level.current_level.required_points
 
         return current_progress, user_level, current_points, next_points
-
-    async def _create_profile_message(self, user_profile_data: ProfileMessagePO) -> str:
-        academic_progress_bar = progress_bar(
-            user_profile_data.academic_current_points.value,
-            user_profile_data.academic_next_points.value,
-        )
-        reputation_progress_bar = progress_bar(
-            user_profile_data.reputation_current_points.value,
-            user_profile_data.reputation_next_points.value,
-        )
-        academic_section = profile_section(
-            title="📘 Академический уровень",
-            level_name=user_profile_data.academic_level.current_level.name,
-            progress_bar=academic_progress_bar,
-            points=user_profile_data.academic_progress,
-        )
-        reputation_section = profile_section(
-            title="⭐ Репутационный уровень",
-            level_name=user_profile_data.reputation_level.current_level.name,
-            progress_bar=reputation_progress_bar,
-            points=user_profile_data.reputation_progress,
-        )
-        return profile_message(
-            first_name=user_profile_data.user.first_name,
-            academic_section=academic_section,
-            reputation_section=reputation_section,
-        )
-
-    async def manage_profile(self, user_read: UserReadDTO) -> None:
-        user_profile = await self._collect_user_profile(user_read)
-
-        (
-            academic_progress,
-            academic_level,
-            academic_current_points,
-            academic_next_points,
-        ) = await self._handle_points_data(user_profile, PointsTypeEnum.ACADEMIC)
-        (
-            reputation_progress,
-            reputation_level,
-            reputation_current_points,
-            reputation_next_points,
-        ) = await self._handle_points_data(user_profile, PointsTypeEnum.REPUTATION)
-
-        message_text = await self._create_profile_message(
-            ProfileMessagePO(
-                user=user_profile.user,
-                academic_progress=academic_progress,
-                academic_level=academic_level,
-                academic_current_points=academic_current_points,
-                academic_next_points=academic_next_points,
-                reputation_progress=reputation_progress,
-                reputation_level=reputation_level,
-                reputation_current_points=reputation_current_points,
-                reputation_next_points=reputation_next_points,
-            )
-        )
-
-        await self.notification_port.send_message(
-            NotifyDTO(message=message_text, user_id=user_profile.user.telegram_id)
-        )

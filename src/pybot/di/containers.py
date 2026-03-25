@@ -171,9 +171,10 @@ class ServiceProvider(Provider):
     def user_profile_service(
         self,
         level_service: LevelService,
-        notification_port: NotificationPort,
+        user_competence_service: UserCompetenceService,
+        user_roles_service: UserRolesService,
     ) -> UserProfileService:
-        return UserProfileService(level_service, notification_port)
+        return UserProfileService(level_service, user_competence_service, user_roles_service)
 
     @provide(scope=Scope.REQUEST)
     def user_registration_service(

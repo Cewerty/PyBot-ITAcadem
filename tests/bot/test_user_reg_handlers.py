@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import cast
 from unittest.mock import AsyncMock
 
 import pytest
 from aiogram.types import Chat, Contact, Message, ReplyKeyboardRemove, User
+from aiogram_dialog import DialogManager
 
 from pybot.bot.dialogs.user_reg.handlers import _handle_contact_input
 from pybot.bot.texts import (
@@ -16,6 +18,7 @@ from pybot.bot.texts import (
 from pybot.core.constants import PointsTypeEnum
 from pybot.dto import UserReadDTO
 from pybot.dto.value_objects import Points
+from pybot.services.user_services import UserService
 
 
 def _build_message(
@@ -79,8 +82,8 @@ async def test_on_contact_input_removes_keyboard_and_moves_to_next_step(
 
     await _handle_contact_input(
         message=message,
-        manager=manager,  # type: ignore[arg-type]
-        user_service=user_service,  # type: ignore[arg-type]
+        manager=cast(DialogManager, manager),
+        user_service=cast(UserService, user_service),
     )
 
     assert user_service.phone_queries == ["+79990001122"]
@@ -108,8 +111,8 @@ async def test_on_contact_input_removes_keyboard_for_existing_user_and_finishes(
 
     await _handle_contact_input(
         message=message,
-        manager=manager,  # type: ignore[arg-type]
-        user_service=user_service,  # type: ignore[arg-type]
+        manager=cast(DialogManager, manager),
+        user_service=cast(UserService, user_service),
     )
 
     assert user_service.phone_queries == ["+79990001123"]
@@ -136,8 +139,8 @@ async def test_on_contact_input_with_empty_contact_keeps_keyboard_and_does_not_a
 
     await _handle_contact_input(
         message=message,
-        manager=manager,  # type: ignore[arg-type]
-        user_service=user_service,  # type: ignore[arg-type]
+        manager=cast(DialogManager, manager),
+        user_service=cast(UserService, user_service),
     )
 
     assert user_service.phone_queries == []

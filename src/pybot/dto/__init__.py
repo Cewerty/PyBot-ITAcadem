@@ -5,6 +5,7 @@ from .user_dto import UserReadDTO as UserReadDTO
 from .user_dto import UserProfileReadDTO as UserProfileReadDTO
 from .user_dto import UserLevelReadDTO as UserLevelReadDTO
 from .user_dto import UserRegistrationDTO as UserRegistrationDTO
+from .user_dto import ProfileViewDTO as ProfileViewDTO
 
 from .level_dto import LevelReadDTO as LevelReadDTO
 

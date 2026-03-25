@@ -3,7 +3,7 @@ import textwrap
 from collections.abc import Sequence
 
 from ..core.constants import PointsTypeEnum, RequestStatus, RoleEnum
-from ..dto import CompetenceReadDTO
+from ..dto import CompetenceReadDTO, ProfileViewDTO
 from ..dto.value_objects import Points
 
 REPOSITORY_URL = "https://github.com/NikkiShuRA/PyBot-ITAcadem.git"
@@ -374,7 +374,7 @@ def points_invalid_value(value: object) -> str:
     return POINTS_INVALID_VALUE.format(value=value)
 
 
-def profile_section(title: str, level_name: str, progress_bar: str, points: Points) -> str:
+def profile_point_section(title: str, level_name: str, progress_bar: str, points: Points) -> str:
     return textwrap.dedent(
         f"""
         {title}
@@ -385,7 +385,38 @@ def profile_section(title: str, level_name: str, progress_bar: str, points: Poin
     ).strip()
 
 
-def profile_message(first_name: str, academic_section: str, reputation_section: str) -> str:
+def profile_empty_section(title: str) -> str:
+    return textwrap.dedent(
+        f"""
+        {title}
+        Пока не указаны
+        """
+    ).strip()
+
+
+def profile_competence_section(title: str, competencies: Sequence[CompetenceReadDTO]) -> str:
+    competence_lines = "\n".join(_format_competence_catalog_line(competence) for competence in competencies)
+    return textwrap.dedent(
+        f"""
+        {title}
+        {competence_lines}
+        """
+    ).strip()
+
+
+def profile_roles_section(title: str, roles: Sequence[str]) -> str:
+    role_lines = "\n".join(f"- {role}" for role in roles)
+    return textwrap.dedent(
+        f"""
+        {title}
+        {role_lines}
+        """
+    ).strip()
+
+
+def profile_message(
+    first_name: str, academic_section: str, reputation_section: str, roles_section: str, competencies_section: str
+) -> str:
     return textwrap.dedent(
         f"""
         👋 Здравствуйте, {first_name}!
@@ -394,10 +425,52 @@ def profile_message(first_name: str, academic_section: str, reputation_section: 
 
         {reputation_section}
 
+        {roles_section}
+
+        {competencies_section}
+
         Обновить профиль: /profile
         Посмотреть команды: /help
         """
     ).strip()
+
+
+def render_profile_message(user_profile_data: ProfileViewDTO) -> str:
+    academic_section = profile_point_section(
+        title="📘 Академический уровень",
+        level_name=user_profile_data.academic_level.current_level.name,
+        progress_bar=user_profile_data.academic_progress_bar,
+        points=user_profile_data.academic_progress,
+    )
+    reputation_section = profile_point_section(
+        title="⭐ Репутационный уровень",
+        level_name=user_profile_data.reputation_level.current_level.name,
+        progress_bar=user_profile_data.reputation_progress_bar,
+        points=user_profile_data.reputation_progress,
+    )
+    roles_section = (
+        profile_roles_section(
+            title="🎭 Роли",
+            roles=user_profile_data.roles_data,
+        )
+        if user_profile_data.roles_data != []
+        else profile_empty_section("🎭 Роли")
+    )
+    competencies_section = (
+        profile_competence_section(
+            title="🧩 Компетенции",
+            competencies=user_profile_data.competences,
+        )
+        if user_profile_data.competences != []
+        else profile_empty_section("🧩 Компетенции")
+    )
+    return profile_message(
+        first_name=user_profile_data.user.first_name,
+        academic_section=academic_section,
+        reputation_section=reputation_section,
+        roles_section=roles_section,
+        competencies_section=competencies_section,
+    )
 
 
 def _format_competence_catalog_line(competence: CompetenceReadDTO) -> str:
