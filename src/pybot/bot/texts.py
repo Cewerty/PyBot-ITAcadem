@@ -51,6 +51,21 @@ HELP_PRIVATE = textwrap.dedent(
     """
 ).strip()
 
+HELP_PRIVATE_PUBLIC = textwrap.dedent(
+    """
+    Доступные команды в личном чате:
+    /start - открыть приветствие и регистрацию
+    /profile - показать ваш профиль
+    /role_request <Student|Mentor|Admin> - отправить запрос на роль
+    /help - показать эту подсказку
+    /info - рассказать о проекте
+    /ping - проверить, что бот работает
+    /competences - показать все компетенции в системе
+    /showcompetences [@user|id|reply] - показать компетенции пользователя
+    """
+).strip()
+
+
 HELP_GROUP = textwrap.dedent(
     """
     Доступные команды в группе:
