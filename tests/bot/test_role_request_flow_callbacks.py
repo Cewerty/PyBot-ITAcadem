@@ -10,6 +10,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from pybot.bot.handlers.roles.role_request_flow import accept_role_request, reject_role_request
 from pybot.bot.keyboards.role_request_keyboard import RoleRequestCB
+from pybot.bot.texts import (
+    ROLE_REQUEST_ADMIN_ALREADY_PROCESSED,
+    ROLE_REQUEST_ADMIN_APPROVED,
+    ROLE_REQUEST_ADMIN_REJECTED,
+    ROLE_REQUEST_NOTIFY_ALREADY_PROCESSED,
+    ROLE_REQUEST_NOTIFY_APPROVED,
+    ROLE_REQUEST_NOTIFY_REJECTED,
+    role_request_admin_notification,
+    role_request_admin_notification_with_status,
+)
 from pybot.core.constants import RequestStatus
 from pybot.db.models import RoleRequest
 from pybot.services.role_request import RoleRequestService
@@ -17,12 +27,13 @@ from tests.factories import RoleRequestSpec, UserSpec, create_role, create_role_
 from tests.providers import FakeNotificationPort
 
 
-def _build_callback_query(user_id: int, callback_id: str) -> CallbackQuery:
+def _build_callback_query(user_id: int, callback_id: str, message_text: str) -> CallbackQuery:
     from_user = User(id=user_id, is_bot=False, first_name="Admin")
     message = Message(
         message_id=1,
         date=datetime.now(UTC),
         chat=Chat(id=user_id, type="private"),
+        text=message_text,
     )
     return CallbackQuery(
         id=callback_id,
@@ -35,10 +46,10 @@ def _build_callback_query(user_id: int, callback_id: str) -> CallbackQuery:
 
 def _patch_callback_methods(monkeypatch: pytest.MonkeyPatch) -> tuple[AsyncMock, AsyncMock]:
     answer_mock = AsyncMock()
-    edit_reply_markup_mock = AsyncMock()
+    edit_text_mock = AsyncMock()
     monkeypatch.setattr(CallbackQuery, "answer", answer_mock)
-    monkeypatch.setattr(Message, "edit_reply_markup", edit_reply_markup_mock)
-    return answer_mock, edit_reply_markup_mock
+    monkeypatch.setattr(Message, "edit_text", edit_text_mock)
+    return answer_mock, edit_text_mock
 
 
 @pytest.mark.asyncio
@@ -58,10 +69,11 @@ async def test_accept_role_request_happy_path_updates_status_and_locks_buttons(
     )
     await db.commit()
 
-    callback_query = _build_callback_query(user_id=920_001, callback_id="approve-happy")
+    original_text = role_request_admin_notification(request_id=request.id, role_name=role.name, mention="@student")
+    callback_query = _build_callback_query(user_id=920_001, callback_id="approve-happy", message_text=original_text)
     callback_data = RoleRequestCB(action=RequestStatus.APPROVED, request_id=request.id)
 
-    answer_mock, edit_reply_markup_mock = _patch_callback_methods(monkeypatch)
+    answer_mock, edit_text_mock = _patch_callback_methods(monkeypatch)
 
     await accept_role_request(
         callback_query=callback_query,
@@ -74,10 +86,14 @@ async def test_accept_role_request_happy_path_updates_status_and_locks_buttons(
     assert updated.status == RequestStatus.APPROVED
     assert await role_request_service.user_repository.has_role(db, user_id=user.id, role_name=role.name) is True
 
-    answer_mock.assert_awaited_once_with("✅ Approved")
-    edit_reply_markup_mock.assert_awaited_once_with(reply_markup=None)
+    answer_mock.assert_awaited_once_with(ROLE_REQUEST_ADMIN_APPROVED)
+    edit_text_mock.assert_awaited_once_with(
+        role_request_admin_notification_with_status(original_text, ROLE_REQUEST_ADMIN_APPROVED),
+        parse_mode="HTML",
+        reply_markup=None,
+    )
     assert any(
-        item.user_id == 920_001 and item.message_text == "✅ Role request approved."
+        item.user_id == 920_001 and item.message_text == ROLE_REQUEST_NOTIFY_APPROVED
         for item in notification_service.direct_messages
     )
 
@@ -99,10 +115,11 @@ async def test_accept_role_request_already_processed_locks_buttons_and_reports_s
     )
     await db.commit()
 
-    callback_query = _build_callback_query(user_id=920_003, callback_id="approve-already")
+    original_text = role_request_admin_notification(request_id=request.id, role_name=role.name, mention="@student")
+    callback_query = _build_callback_query(user_id=920_003, callback_id="approve-already", message_text=original_text)
     callback_data = RoleRequestCB(action=RequestStatus.APPROVED, request_id=request.id)
 
-    answer_mock, edit_reply_markup_mock = _patch_callback_methods(monkeypatch)
+    answer_mock, edit_text_mock = _patch_callback_methods(monkeypatch)
 
     await accept_role_request(
         callback_query=callback_query,
@@ -114,10 +131,14 @@ async def test_accept_role_request_already_processed_locks_buttons_and_reports_s
     updated = (await db.execute(select(RoleRequest).where(RoleRequest.id == request.id))).scalar_one()
     assert updated.status == RequestStatus.APPROVED
 
-    answer_mock.assert_awaited_once_with("Already processed")
-    edit_reply_markup_mock.assert_awaited_once_with(reply_markup=None)
+    answer_mock.assert_awaited_once_with(ROLE_REQUEST_ADMIN_ALREADY_PROCESSED)
+    edit_text_mock.assert_awaited_once_with(
+        role_request_admin_notification_with_status(original_text, ROLE_REQUEST_ADMIN_ALREADY_PROCESSED),
+        parse_mode="HTML",
+        reply_markup=None,
+    )
     assert any(
-        item.user_id == 920_003 and item.message_text == "Role request has already been processed."
+        item.user_id == 920_003 and item.message_text == ROLE_REQUEST_NOTIFY_ALREADY_PROCESSED
         for item in notification_service.direct_messages
     )
 
@@ -139,10 +160,11 @@ async def test_reject_role_request_happy_path_updates_status_and_locks_buttons(
     )
     await db.commit()
 
-    callback_query = _build_callback_query(user_id=920_004, callback_id="reject-happy")
+    original_text = role_request_admin_notification(request_id=request.id, role_name=role.name, mention="@student")
+    callback_query = _build_callback_query(user_id=920_004, callback_id="reject-happy", message_text=original_text)
     callback_data = RoleRequestCB(action=RequestStatus.REJECTED, request_id=request.id)
 
-    answer_mock, edit_reply_markup_mock = _patch_callback_methods(monkeypatch)
+    answer_mock, edit_text_mock = _patch_callback_methods(monkeypatch)
 
     await reject_role_request(
         callback_query=callback_query,
@@ -154,10 +176,14 @@ async def test_reject_role_request_happy_path_updates_status_and_locks_buttons(
     updated = (await db.execute(select(RoleRequest).where(RoleRequest.id == request.id))).scalar_one()
     assert updated.status == RequestStatus.REJECTED
 
-    answer_mock.assert_awaited_once_with("❌ Rejected")
-    edit_reply_markup_mock.assert_awaited_once_with(reply_markup=None)
+    answer_mock.assert_awaited_once_with(ROLE_REQUEST_ADMIN_REJECTED)
+    edit_text_mock.assert_awaited_once_with(
+        role_request_admin_notification_with_status(original_text, ROLE_REQUEST_ADMIN_REJECTED),
+        parse_mode="HTML",
+        reply_markup=None,
+    )
     assert any(
-        item.user_id == 920_004 and item.message_text == "❌ Role request rejected."
+        item.user_id == 920_004 and item.message_text == ROLE_REQUEST_NOTIFY_REJECTED
         for item in notification_service.direct_messages
     )
 
@@ -179,10 +205,11 @@ async def test_reject_role_request_already_processed_locks_buttons_and_reports_s
     )
     await db.commit()
 
-    callback_query = _build_callback_query(user_id=920_002, callback_id="reject-already")
+    original_text = role_request_admin_notification(request_id=request.id, role_name=role.name, mention="@student")
+    callback_query = _build_callback_query(user_id=920_002, callback_id="reject-already", message_text=original_text)
     callback_data = RoleRequestCB(action=RequestStatus.REJECTED, request_id=request.id)
 
-    answer_mock, edit_reply_markup_mock = _patch_callback_methods(monkeypatch)
+    answer_mock, edit_text_mock = _patch_callback_methods(monkeypatch)
 
     await reject_role_request(
         callback_query=callback_query,
@@ -194,9 +221,13 @@ async def test_reject_role_request_already_processed_locks_buttons_and_reports_s
     updated = (await db.execute(select(RoleRequest).where(RoleRequest.id == request.id))).scalar_one()
     assert updated.status == RequestStatus.APPROVED
 
-    answer_mock.assert_awaited_once_with("Already processed")
-    edit_reply_markup_mock.assert_awaited_once_with(reply_markup=None)
+    answer_mock.assert_awaited_once_with(ROLE_REQUEST_ADMIN_ALREADY_PROCESSED)
+    edit_text_mock.assert_awaited_once_with(
+        role_request_admin_notification_with_status(original_text, ROLE_REQUEST_ADMIN_ALREADY_PROCESSED),
+        parse_mode="HTML",
+        reply_markup=None,
+    )
     assert any(
-        item.user_id == 920_002 and item.message_text == "Role request has already been processed."
+        item.user_id == 920_002 and item.message_text == ROLE_REQUEST_NOTIFY_ALREADY_PROCESSED
         for item in notification_service.direct_messages
     )

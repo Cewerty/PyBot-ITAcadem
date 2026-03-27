@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "aiogram>=3.22.0",
+    "aiohttp-socks>=0.10.1",
     "aiogram-dialog>=2.4.0",
     "python-dotenv>=1.2.1",
     "sqlalchemy[asyncio]>=2.0.44",
@@ -29,6 +30,17 @@ dependencies = [
     "pendulum>=3.2.0",
     "pydantic-extra-types[cron,pendulum]>=2.11.0",
     "tyro>=1.0.10",
+]
+
+[project.optional-dependencies]
+docs = [
+    "mkdocs>=1.5.0,<2.0.0",
+    "mkdocs-material>=9.5.0",
+    "mkdocstrings[python]>=0.24.0",
+    "mkdocstrings-python>=0.10.0",
+    "pymdown-extensions>=10.5",
+    "mkdocs-autorefs>=0.5.0",
+    "Pygments>=2.17.0",
 ]
 
 [dependency-groups]
@@ -107,10 +119,6 @@ ignore = ["PLR6301", "TRY003", "D212", "D211", "RUF002", "D203", "PLC0414", "ANN
 exclude = ['test_*', '__init__.py']
 
 [tool.ruff.lint.per-file-ignores]
-"src/pybot/db/models/user_module/valuation.py" = ["PLR0913"]
-"src/pybot/di/containers.py" = ["PLR0913"]
-"src/pybot/services/role_request.py" = ["PLR0913"]
-"src/pybot/services/users.py" = ["PLR0913"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["pybot"]

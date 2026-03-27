@@ -1,14 +1,16 @@
 import re
+from collections.abc import Sequence
 from datetime import date
 from typing import ClassVar
 
-from pydantic import Field, field_validator
+from pydantic import Field, computed_field, field_validator
 
-from ..core.constants import LevelTypeEnum
-from ..domain.exceptions import InvalidPhoneNumberError
+from ..core.constants import PointsTypeEnum
+from ..domain.exceptions import InvalidPhoneNumberError, NameInputValidationError
 from ..dto.value_objects import Points
-from ..utils import normalize_phone
+from ..utils import normalize_phone, progress_bar
 from .base_dto import BaseDTO
+from .competence_dto import CompetenceReadDTO
 from .level_dto import LevelReadDTO
 
 
@@ -55,6 +57,32 @@ class UserCreateDTO(BaseDTO):
             v = v.strip()
 
         return v
+
+    @classmethod
+    def validate_name_input(
+        cls,
+        raw_text: str,
+        *,
+        allow_empty: bool = False,
+    ) -> str | None:
+        """Validate dialog input using the same contract as DTO name fields."""
+        text = raw_text.strip()
+        if not text:
+            if allow_empty:
+                return None
+            raise NameInputValidationError("empty")
+
+        cleaned_text = cls.clean_string(text)
+        if cleaned_text != text:
+            raise NameInputValidationError("invalid_symbols")
+
+        if len(text) < cls.NAME_MIN_LENGTH:
+            raise NameInputValidationError("too_short")
+
+        if len(text) > cls.NAME_MAX_LENGTH:
+            raise NameInputValidationError("too_long", max_length=cls.NAME_MAX_LENGTH)
+
+        return text
 
     @field_validator("phone")
     @classmethod
@@ -117,4 +145,39 @@ class UserProfileReadDTO(BaseDTO):
     """
 
     user: UserReadDTO
-    level_info: dict[LevelTypeEnum, UserLevelReadDTO]
+    competences: Sequence[CompetenceReadDTO]
+    roles: Sequence[str]
+    level_info: dict[PointsTypeEnum, UserLevelReadDTO]
+
+
+class UserRegistrationDTO(BaseDTO):
+    user: UserCreateDTO
+    competence_ids: Sequence[int] = Field(default_factory=tuple)
+
+
+class ProfileViewDTO(BaseDTO):
+    user: UserReadDTO
+
+    academic_progress: Points
+    academic_level: UserLevelReadDTO
+    academic_current_points: Points
+    academic_next_points: Points
+
+    reputation_progress: Points
+    reputation_level: UserLevelReadDTO
+    reputation_current_points: Points
+    reputation_next_points: Points
+
+    roles_data: Sequence[str]
+
+    competences: Sequence[CompetenceReadDTO]
+
+    @computed_field
+    @property
+    def academic_progress_bar(self) -> str:
+        return progress_bar(self.academic_current_points.value, self.academic_next_points.value)
+
+    @computed_field
+    @property
+    def reputation_progress_bar(self) -> str:
+        return progress_bar(self.reputation_current_points.value, self.reputation_next_points.value)

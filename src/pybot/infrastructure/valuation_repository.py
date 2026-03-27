@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from ..core.constants import LevelTypeEnum
+from ..core.constants import PointsTypeEnum
 from ..db.models import Valuation
 
 
@@ -13,11 +13,11 @@ class ValuationRepository:
     Отвечает за доступ к операциям с баллами (Valuation).
     """
 
-    async def get_history_by_recipient(
+    async def find_history_by_recipient(
         self,
         db: AsyncSession,
         recipient_id: int,
-        points_type: LevelTypeEnum,
+        points_type: PointsTypeEnum,
         limit: int = 10,
     ) -> Sequence[Valuation]:
         """

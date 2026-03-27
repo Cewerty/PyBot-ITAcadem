@@ -2,9 +2,9 @@ from aiogram_dialog import DialogManager
 from pydantic import ValidationError
 
 from ..core import logger
-from ..core.constants import LevelTypeEnum
+from ..core.constants import PointsTypeEnum
 from ..db.models import User
-from ..dto import UserCreateDTO, UserReadDTO
+from ..dto import UserCreateDTO, UserReadDTO, UserRegistrationDTO
 from ..dto.value_objects import Points
 
 
@@ -19,8 +19,8 @@ async def map_orm_user_to_user_read_dto(orm_user: User) -> UserReadDTO:
         last_name=orm_user.last_name,
         patronymic=orm_user.patronymic,
         telegram_id=orm_user.telegram_id,
-        academic_points=Points(value=orm_user.academic_points, point_type=LevelTypeEnum.ACADEMIC),
-        reputation_points=Points(value=orm_user.reputation_points, point_type=LevelTypeEnum.REPUTATION),
+        academic_points=Points(value=orm_user.academic_points, point_type=PointsTypeEnum.ACADEMIC),
+        reputation_points=Points(value=orm_user.reputation_points, point_type=PointsTypeEnum.REPUTATION),
         join_date=orm_user.join_date,
     )
 
@@ -57,3 +57,27 @@ async def map_dialog_data_to_user_create_dto(manager: DialogManager) -> UserCrea
         return None
     else:
         return user_data
+
+
+async def map_dialog_data_to_user_registration_dto(manager: DialogManager) -> UserRegistrationDTO | None:
+    """
+    Маппинг данных из dialog_data в UserRegistrationDTO.
+    Возвращает DTO или None, если пользовательские данные неполные или невалидны.
+    """
+    user_data = await map_dialog_data_to_user_create_dto(manager)
+    if user_data is None:
+        return None
+
+    raw_competence_ids = manager.dialog_data.get("competence_ids", ())
+
+    try:
+        registration_data = UserRegistrationDTO(
+            user=user_data,
+            competence_ids=raw_competence_ids,
+        )
+    except (ValidationError, TypeError):
+        logger.exception("Ошибка валидации данных для регистрации пользователя из dialog_data")
+        await manager.done()
+        return None
+    else:
+        return registration_data

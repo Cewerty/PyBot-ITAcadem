@@ -2,14 +2,23 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from types import SimpleNamespace
-from typing import Protocol
+from typing import cast
 from unittest.mock import AsyncMock
 
 import pytest
 from aiogram.types import Chat, Contact, Message, ReplyKeyboardRemove, User
+from aiogram_dialog import DialogManager
 
 from pybot.bot.dialogs.user_reg.handlers import _handle_contact_input
+from pybot.bot.texts import (
+    REGISTRATION_CONTACT_ACCEPTED,
+    REGISTRATION_CONTACT_EMPTY,
+    registration_existing_profile,
+)
+from pybot.core.constants import PointsTypeEnum
+from pybot.dto import UserReadDTO
+from pybot.dto.value_objects import Points
+from pybot.services.user_services import UserService
 
 
 def _build_message(
@@ -38,18 +47,27 @@ class StubDialogManager:
     done: AsyncMock = field(default_factory=AsyncMock)
 
 
-class SupportsUserId(Protocol):
-    id: int
-
-
 @dataclass(slots=True)
 class StubUserService:
-    existing_user: SupportsUserId | None = None
+    existing_user: UserReadDTO | None = None
     phone_queries: list[str] = field(default_factory=list)
 
-    async def find_user_by_phone(self, phone: str) -> SupportsUserId | None:
+    async def find_user_by_phone(self, phone: str) -> UserReadDTO | None:
         self.phone_queries.append(phone)
         return self.existing_user
+
+
+def _build_user_read_dto(user_id: int, telegram_id: int) -> UserReadDTO:
+    return UserReadDTO(
+        id=user_id,
+        first_name="Tester",
+        last_name="User",
+        patronymic=None,
+        telegram_id=telegram_id,
+        academic_points=Points(value=0, point_type=PointsTypeEnum.ACADEMIC),
+        reputation_points=Points(value=0, point_type=PointsTypeEnum.REPUTATION),
+        join_date=datetime.now(UTC).date(),
+    )
 
 
 @pytest.mark.asyncio
@@ -64,8 +82,8 @@ async def test_on_contact_input_removes_keyboard_and_moves_to_next_step(
 
     await _handle_contact_input(
         message=message,
-        manager=manager,  # type: ignore[arg-type]
-        user_service=user_service,  # type: ignore[arg-type]
+        manager=cast(DialogManager, manager),
+        user_service=cast(UserService, user_service),
     )
 
     assert user_service.phone_queries == ["+79990001122"]
@@ -77,7 +95,7 @@ async def test_on_contact_input_removes_keyboard_and_moves_to_next_step(
     assert answer_mock.await_count == 1
     await_args = answer_mock.await_args
     assert await_args is not None
-    assert await_args.args[0] == "Контакт получен. Продолжаем регистрацию."
+    assert await_args.args[0] == REGISTRATION_CONTACT_ACCEPTED
     assert isinstance(await_args.kwargs.get("reply_markup"), ReplyKeyboardRemove)
 
 
@@ -87,14 +105,14 @@ async def test_on_contact_input_removes_keyboard_for_existing_user_and_finishes(
 ) -> None:
     message = _build_message(phone_number="+79990001123")
     manager = StubDialogManager()
-    user_service = StubUserService(existing_user=SimpleNamespace(id=42))
+    user_service = StubUserService(existing_user=_build_user_read_dto(user_id=42, telegram_id=700_001))
     answer_mock = AsyncMock()
     monkeypatch.setattr(Message, "answer", answer_mock)
 
     await _handle_contact_input(
         message=message,
-        manager=manager,  # type: ignore[arg-type]
-        user_service=user_service,  # type: ignore[arg-type]
+        manager=cast(DialogManager, manager),
+        user_service=cast(UserService, user_service),
     )
 
     assert user_service.phone_queries == ["+79990001123"]
@@ -105,7 +123,7 @@ async def test_on_contact_input_removes_keyboard_for_existing_user_and_finishes(
     assert answer_mock.await_count == 1
     await_args = answer_mock.await_args
     assert await_args is not None
-    assert await_args.args[0] == "Найден существующий профиль. Твой ID: 42"
+    assert await_args.args[0] == registration_existing_profile(42)
     assert isinstance(await_args.kwargs.get("reply_markup"), ReplyKeyboardRemove)
 
 
@@ -121,8 +139,8 @@ async def test_on_contact_input_with_empty_contact_keeps_keyboard_and_does_not_a
 
     await _handle_contact_input(
         message=message,
-        manager=manager,  # type: ignore[arg-type]
-        user_service=user_service,  # type: ignore[arg-type]
+        manager=cast(DialogManager, manager),
+        user_service=cast(UserService, user_service),
     )
 
     assert user_service.phone_queries == []
@@ -133,5 +151,5 @@ async def test_on_contact_input_with_empty_contact_keeps_keyboard_and_does_not_a
     assert answer_mock.await_count == 1
     await_args = answer_mock.await_args
     assert await_args is not None
-    assert await_args.args[0] == "Контакт не может быть пустым. Попробуйте снова."
+    assert await_args.args[0] == REGISTRATION_CONTACT_EMPTY
     assert "reply_markup" not in await_args.kwargs

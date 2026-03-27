@@ -1,6 +1,7 @@
 from collections.abc import AsyncGenerator
 
 from aiogram import Bot
+from aiogram.client.session.aiohttp import AiohttpSession
 from dishka import AsyncContainer, Provider, Scope, make_async_container, provide
 from dishka.integrations.aiogram import AiogramProvider
 from dishka.integrations.taskiq import TaskiqProvider
@@ -20,15 +21,21 @@ from ..infrastructure import (
 )
 from ..infrastructure.ports import LoggingNotificationService, TelegramNotificationService
 from ..infrastructure.taskiq.taskiq_notification_dispatcher import TaskIQNotificationDispatcher
-from ..services import LevelService, UserProfileService
+from ..services import (
+    UserCompetenceService,
+    UserProfileService,
+    UserRegistrationService,
+    UserRolesService,
+    UserService,
+)
 from ..services.broadcast import BroadcastService
 from ..services.competence import CompetenceService
 from ..services.health import HealthService, SessionExecutor
+from ..services.levels import LevelService
 from ..services.notification_facade import NotificationFacade
 from ..services.points import PointsService
 from ..services.ports import NotificationDispatchPort, NotificationPort
 from ..services.role_request import RoleRequestService
-from ..services.users import UserService
 
 
 class DatabaseProvider(Provider):
@@ -98,9 +105,26 @@ class ServiceProvider(Provider):
         user_repository: UserRepository,
         level_repository: LevelRepository,
         role_repository: RoleRepository,
-        competence_repository: CompetenceRepository,
     ) -> UserService:
-        return UserService(db, user_repository, level_repository, role_repository, competence_repository)
+        return UserService(db, user_repository, level_repository, role_repository)
+
+    @provide(scope=Scope.REQUEST)
+    def user_roles_service(
+        self,
+        db: AsyncSession,
+        user_repository: UserRepository,
+        role_repository: RoleRepository,
+    ) -> UserRolesService:
+        return UserRolesService(db, user_repository, role_repository)
+
+    @provide(scope=Scope.REQUEST)
+    def user_competence_service(
+        self,
+        db: AsyncSession,
+        user_repository: UserRepository,
+        competence_repository: CompetenceRepository,
+    ) -> UserCompetenceService:
+        return UserCompetenceService(db, user_repository, competence_repository)
 
     @provide(scope=Scope.REQUEST)
     def points_service(
@@ -148,9 +172,21 @@ class ServiceProvider(Provider):
     def user_profile_service(
         self,
         level_service: LevelService,
-        notification_port: NotificationPort,
+        user_competence_service: UserCompetenceService,
+        user_roles_service: UserRolesService,
     ) -> UserProfileService:
-        return UserProfileService(level_service, notification_port)
+        return UserProfileService(level_service, user_competence_service, user_roles_service)
+
+    @provide(scope=Scope.REQUEST)
+    def user_registration_service(
+        self,
+        db: AsyncSession,
+        user_repository: UserRepository,
+        level_repository: LevelRepository,
+        role_repository: RoleRepository,
+        competence_repository: CompetenceRepository,
+    ) -> UserRegistrationService:
+        return UserRegistrationService(db, user_repository, level_repository, role_repository, competence_repository)
 
 
 class HealthProvider(Provider):
@@ -174,7 +210,13 @@ class BotProvider(Provider):
 
     @provide(scope=Scope.APP)
     async def bot(self) -> AsyncGenerator[Bot, None]:
-        bot = Bot(settings.active_bot_token)
+        if settings.telegram_proxy_url is not None:
+            bot = Bot(
+                settings.active_bot_token,
+                session=AiohttpSession(proxy=settings.telegram_proxy_url),
+            )
+        else:
+            bot = Bot(settings.active_bot_token)
         try:
             yield bot
         finally:

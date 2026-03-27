@@ -4,6 +4,7 @@ from ...core import logger
 from ...core.config import settings
 from ...dto import NotificationLogEvent, NotifyDTO
 from ...services.ports import NotificationPermanentError, NotificationPort
+from ...utils import telegram_user_link
 
 
 class LoggingNotificationService(NotificationPort):
@@ -23,7 +24,7 @@ class LoggingNotificationService(NotificationPort):
         """Log role request notification with payload and store event in ring buffer."""
         admin_tg_id = settings.role_request_admin_tg_id
 
-        mention = f"<a href='tg://user?id={requester_user_id}'>user {requester_user_id}</a>"
+        mention = telegram_user_link(requester_user_id)
         text = f"New role request\n\nRequest ID: {request_id}\nRole: {role_name}\nUser: {mention}"
         event = NotificationLogEvent(
             event_type="role_request_to_admin",

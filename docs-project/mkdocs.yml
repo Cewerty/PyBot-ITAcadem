@@ -1,0 +1,135 @@
+site_name: PyBot ITAcadem
+site_description: Telegram-бот для ITAcadem StartUP
+site_author: ITAcadem StartUP Team
+repo_url: https://github.com/NikkiShuRA/PyBot-ITAcadem
+repo_name: NikkiShuRA/PyBot-ITAcadem
+copyright: "Copyright © 2026 ITAcadem StartUP"
+
+theme:
+  name: material
+  custom_dir: docs/overrides
+  language: ru
+  features:
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - toc.integrate
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.select
+    - content.code.annotate
+    - content.tabs.link
+    - announce.dismiss
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue
+      accent: indigo
+      toggle:
+        icon: material/lightbulb-outline
+        name: В тёмный режим
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue
+      accent: indigo
+      toggle:
+        icon: material/lightbulb
+        name: В светлый режим
+  font:
+    text: Roboto
+    code: Roboto Mono
+  icon:
+    logo: material/robot
+    repo: fontawesome/brands/github
+    edit: material/pencil
+    view: material/eye
+
+nav:
+  - Главная: index.md
+  - Руководство пользователя:
+    - Обзор: user-guide/index.md
+    - Быстрый старт: user-guide/getting-started.md
+    - Установка: user-guide/installation.md
+    - Конфигурация: user-guide/configuration.md
+    - Примеры: user-guide/examples.md
+  - Руководство разработчика:
+    - Обзор: developer-guide/index.md
+    - Архитектура: developer-guide/architecture.md
+    - Как контрибьютить: developer-guide/contributing.md
+    - Тестирование: developer-guide/testing.md
+    - Деплой: developer-guide/deployment.md
+  - Справочник API:
+    - Обзор: api-reference/index.md
+    - Core: api-reference/core.md
+    - Services: api-reference/services.md
+    - Domain: api-reference/domain.md
+    - Infrastructure: api-reference/infrastructure.md
+    - DTO: api-reference/dto.md
+  - Changelog: changelog.md
+  - Лицензия: about.md
+
+plugins:
+  - search:
+      lang: ru
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths:
+            - ../src
+          options:
+            show_root_heading: true
+            show_root_full_path: false
+            show_object_full_path: false
+            show_docstring_description: true
+            merge_init_into_class: true
+            separate_signature: true
+            line_length: 88
+            docstring_style: google
+            docstring_options:
+              warnings: false
+              warn_unknown_params: false
+              warn_missing_types: false
+            show_private: false
+            show_protected: false
+            show_bases: true
+
+markdown_extensions:
+  - markdown.extensions.nl2br
+  - markdown.extensions.toc
+  - markdown.extensions.tables
+  - pymdownx.highlight:
+      use_pygments: true
+      linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.arithmatex:
+      generic: true
+  - attr_list
+  - admonition
+  - pymdownx.details
+  - footnotes
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/NikkiShuRA/PyBot-ITAcadem
+      name: GitHub
+
+extra_css:
+  - stylesheets/custom.css
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mjs.js

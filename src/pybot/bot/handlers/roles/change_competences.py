@@ -8,10 +8,24 @@ from aiogram.types import Message
 from dishka.integrations.aiogram import FromDishka
 
 from ....core import logger
-from ....domain.exceptions import CommandTargetNotSpecifiedError, UserNotFoundError
+from ....domain.exceptions import CommandTargetNotSpecifiedError, CompetenceNotFoundError, UserNotFoundError
 from ....dto import UserReadDTO
-from ....services.users import UserService
+from ....services import CompetenceService
+from ....services.user_services import UserCompetenceService, UserService
 from ...filters import check_text_message_correction, create_chat_type_routers
+from ...texts import (
+    COMPETENCE_UNEXPECTED_ERROR,
+    TARGET_NOT_FOUND,
+    competence_add_success,
+    competence_catalog,
+    competence_list,
+    competence_list_required,
+    competence_missing_names_error,
+    competence_none,
+    competence_remove_success,
+    competence_target_required,
+    competence_validation_error,
+)
 
 (_, _, change_competence_global_router) = create_chat_type_routers("grand_points")
 
@@ -186,6 +200,7 @@ async def _resolve_target_user_for_command(
 async def handle_add_competence(
     message: Message,
     user_service: FromDishka[UserService],
+    user_competence_service: FromDishka[UserCompetenceService],
 ) -> None:
     try:
         target_user, target_source = await _resolve_target_user_for_command(
@@ -195,33 +210,31 @@ async def handle_add_competence(
             required=True,
         )
     except CommandTargetNotSpecifiedError:
-        await message.reply(
-            "Укажите пользователя через reply, text_mention или числовой telegram id.\n"
-            "Формат: /addcompetence <tg_id|@mention> Python,SQL"
-        )
+        await message.reply(competence_target_required("addcompetence"))
         return
     except UserNotFoundError:
-        await message.reply("Пользователь не найден.")
+        await message.reply(TARGET_NOT_FOUND)
         return
 
     competence_names = _extract_competence_names(message, target_source)
     if competence_names is None:
-        await message.reply("Укажите список компетенций через запятую. Пример: /addcompetence 12345 Python,SQL")
+        await message.reply(competence_list_required("addcompetence"))
         return
 
     try:
-        await user_service.add_user_competencies_by_names(target_user.id, competence_names)
+        await user_competence_service.add_user_competencies_by_names(target_user.id, competence_names)
     except UserNotFoundError:
-        await message.reply("Пользователь не найден.")
-    except ValueError as error:
-        await message.reply(f"Ошибка: {error}")
+        await message.reply(TARGET_NOT_FOUND)
+    except CompetenceNotFoundError as error:
+        missing_names = error.details.get("missing_names", [])
+        await message.reply(competence_missing_names_error(missing_names))
+    except ValueError:
+        await message.reply(competence_validation_error())
     except Exception:
         logger.exception("Unexpected error in handle_add_competence")
-        await message.reply("Неожиданная ошибка при добавлении компетенций.")
+        await message.reply(COMPETENCE_UNEXPECTED_ERROR)
     else:
-        await message.reply(
-            f"Компетенции добавлены пользователю {target_user.first_name}: {', '.join(competence_names)}"
-        )
+        await message.reply(competence_add_success(target_user.first_name, competence_names))
 
 
 @change_competence_global_router.message(
@@ -231,6 +244,7 @@ async def handle_add_competence(
 async def handle_remove_competence(
     message: Message,
     user_service: FromDishka[UserService],
+    user_competence_service: FromDishka[UserCompetenceService],
 ) -> None:
     try:
         target_user, target_source = await _resolve_target_user_for_command(
@@ -240,33 +254,31 @@ async def handle_remove_competence(
             required=True,
         )
     except CommandTargetNotSpecifiedError:
-        await message.reply(
-            "Укажите пользователя через reply, text_mention или числовой telegram id.\n"
-            "Формат: /removecompetence <tg_id|@mention> Python,SQL"
-        )
+        await message.reply(competence_target_required("removecompetence"))
         return
     except UserNotFoundError:
-        await message.reply("Пользователь не найден.")
+        await message.reply(TARGET_NOT_FOUND)
         return
 
     competence_names = _extract_competence_names(message, target_source)
     if competence_names is None:
-        await message.reply("Укажите список компетенций через запятую. Пример: /removecompetence 12345 Python,SQL")
+        await message.reply(competence_list_required("removecompetence"))
         return
 
     try:
-        await user_service.remove_user_competencies_by_names(target_user.id, competence_names)
+        await user_competence_service.remove_user_competencies_by_names(target_user.id, competence_names)
     except UserNotFoundError:
-        await message.reply("Пользователь не найден.")
-    except ValueError as error:
-        await message.reply(f"Ошибка: {error}")
+        await message.reply(TARGET_NOT_FOUND)
+    except CompetenceNotFoundError as error:
+        missing_names = error.details.get("missing_names", [])
+        await message.reply(competence_missing_names_error(missing_names))
+    except ValueError:
+        await message.reply(competence_validation_error())
     except Exception:
         logger.exception("Unexpected error in handle_remove_competence")
-        await message.reply("Неожиданная ошибка при удалении компетенций.")
+        await message.reply(COMPETENCE_UNEXPECTED_ERROR)
     else:
-        await message.reply(
-            f"Компетенции удалены у пользователя {target_user.first_name}: {', '.join(competence_names)}"
-        )
+        await message.reply(competence_remove_success(target_user.first_name, competence_names))
 
 
 @change_competence_global_router.message(
@@ -276,6 +288,7 @@ async def handle_remove_competence(
 async def handle_show_competences(
     message: Message,
     user_service: FromDishka[UserService],
+    user_competence_service: FromDishka[UserCompetenceService],
     user_id: int,
 ) -> None:
     try:
@@ -287,22 +300,42 @@ async def handle_show_competences(
             fallback_user_id=user_id,
         )
     except UserNotFoundError:
-        await message.reply("Пользователь не найден.")
+        await message.reply(TARGET_NOT_FOUND)
         return
 
     try:
-        competencies = await user_service.find_user_competencies(target_user.id)
+        competencies = await user_competence_service.find_user_competencies(target_user.id)
     except UserNotFoundError:
-        await message.reply("Пользователь не найден.")
+        await message.reply(TARGET_NOT_FOUND)
         return
     except Exception:
         logger.exception("Unexpected error in handle_show_competences")
-        await message.reply("Неожиданная ошибка при получении компетенций.")
+        await message.reply(COMPETENCE_UNEXPECTED_ERROR)
         return
 
     if not competencies:
-        await message.reply(f"У пользователя {target_user.first_name} пока нет компетенций.")
+        await message.reply(competence_none(target_user.first_name))
         return
 
-    competence_lines = "\n".join(f"- {competence.name}" for competence in competencies)
-    await message.reply(f"Компетенции пользователя {target_user.first_name}:\n{competence_lines}")
+    await message.reply(competence_list(target_user.first_name, competencies))
+
+
+@change_competence_global_router.message(
+    Command("competences"),
+    flags={"rate_limit": "moderate"},
+)
+async def handle_show_all_competences(
+    message: Message,
+    competence_service: FromDishka[CompetenceService],
+) -> None:
+    try:
+        competencies = await competence_service.find_all_competencies()
+    except Exception:
+        logger.exception("Unexpected error in handle_show_all_competences")
+        await message.reply(COMPETENCE_UNEXPECTED_ERROR)
+        return
+
+    await message.reply(
+        competence_catalog(competencies),
+        parse_mode="HTML",
+    )
