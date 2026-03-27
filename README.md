@@ -1,299 +1,315 @@
-# PyBot ITAcadem 🚀
+# PyBot ITAcadem
 
-Привет! Мы разрабатываем этот Telegram‑бот для ITAcadem StartUP.
-Цель проекта — дать участникам простой вход в экосистему академии: авторизация по номеру телефона, создание профиля и в дальнейшем работа с задачами, проектами и достижениями.
+Асинхронный Telegram-бот для ITAcadem на `Python 3.12`, `aiogram 3`, `Dishka`, `SQLAlchemy 2` и `Pydantic v2`.
 
----
+Сейчас проект закрывает не абстрактный "будущий MVP", а вполне конкретный набор сценариев:
 
-## О чём этот бот 🤖
+- регистрация пользователя через Telegram-диалог;
+- просмотр профиля с ролями, компетенциями и прогрессом по баллам;
+- role request flow с подтверждением или отклонением администратором;
+- админские команды для ролей, компетенций, баллов и рассылок;
+- health/readiness API;
+- Docker/runtime-контур с `Redis` и `TaskIQ`;
+- production deploy skeleton через `docker-compose.prod.yml`, GitHub Actions и Ansible.
 
-Цель проекта — создать удобную точку входа в экосистему академии: авторизация через Telegram, управление профилем, геймификация через баллы и уровни, и в будущем — работа с задачами и проектами.
+## Что реально есть в проекте сейчас
 
----
+### Пользовательские сценарии
 
-## Что умеет бот сейчас ✅
+- `/start` в личном чате:
+  - показывает профиль, если пользователь уже зарегистрирован;
+  - иначе запускает пошаговую регистрацию.
+- Регистрация через `aiogram-dialog`:
+  - запрос контакта;
+  - имя;
+  - фамилия;
+  - отчество;
+  - выбор компетенций с возможностью пропуска.
+- `/profile` показывает:
+  - академический уровень;
+  - репутационный уровень;
+  - баллы;
+  - роли;
+  - компетенции.
+- `/help`, `/info`, `/ping` и `/competences` работают как пользовательские команды.
+- `/showcompetences [@user|id|reply]` показывает компетенции конкретного пользователя.
 
-### Авторизация и профиль
+### Админские сценарии
 
-/start в личке:
-Если пользователь уже зарегистрирован — показывает профиль с прогресс-баром уровней
-Если нет — запускает диалог регистрации через номер телефона
+- `/academic_points @user <число> "причина"` и `/reputation_points @user <число> "причина"` меняют баллы пользователя.
+- `/addrole` и `/removerole` управляют ролями `Student`, `Mentor`, `Admin`.
+- `/addcompetence` и `/removecompetence` управляют компетенциями пользователя.
+- `/broadcast @all <текст>` рассылает сообщение всем.
+- `/broadcast <Role> <текст>` рассылает по роли.
+- `/broadcast <Competence> <текст>` рассылает по компетенции.
 
-- /profile — детальный просмотр профиля с:
-  - Академическим и репутационным уровнями
-  - Прогресс-баром до следующего уровня
-  - Текущим количеством баллов
+### Role request flow
 
-### Геймификация (админ-команды)
+- `/role_request <Student|Mentor|Admin>` создаёт запрос на роль.
+- Администратор получает уведомление с inline-кнопками одобрения и отклонения.
+- Есть защита от повторных активных запросов и cooldown после отклонения.
 
-- /academic_points @user 100 "за решение задачи" — начисление академических баллов
-- /reputation_points @user 50 "за помощь коллегам" — начисление репутационных баллов
-Автоматическое повышение/понижение уровня при изменении баллов
+### Инфраструктурные возможности
 
-### Система ролей
+- Отдельный FastAPI health API:
+  - `GET /health` для liveness;
+  - `GET /ready` для readiness с проверкой БД.
+- Поддержка `Redis`:
+  - как backend для FSM;
+  - как broker/schedule backend для `TaskIQ`.
+- Выделенные runtime-процессы:
+  - `bot`;
+  - `taskiq-worker`;
+  - `taskiq-scheduler`.
+- Seed-скрипт `fill_point_db.py` умеет наполнять роли, уровни, компетенции и фейковых пользователей.
 
-Поддержка ролей: Student, Mentor, Admin
-Проверка прав через middleware (флаг role="Admin" на хендлерах)
+## Что важно понимать про текущее состояние
 
-### Инфраструктурные фичи
-
-/ping — health-check с проверкой роли
-/info — информация о проекте и ссылка на репозиторий
-/help — справка по доступным командам
-
----
-
-## Стек технологий 🛠
-
-## Ядро
-
-- Python 3.12+ с асинхронным программированием (asyncio)
-- aiogram 3.22+ — современный фреймворк для Telegram-ботов
-- aiogram-dialog 2.4+ — управление многошаговыми диалогами
-- База данных
-- SQLite (основная БД для разработки и продакшена)
-- SQLAlchemy 2.0 Async — ORM с поддержкой асинхронных операций
-- Alembic — миграции схемы БД
-- Rich ORM Models — бизнес-логика инкапсулирована в моделях (User.add_role(), User.set_initial_levels())
+- Проект уже не ограничивается только регистрацией и профилем: в коде есть рабочие сценарии для roles, competencies, broadcasts, notification runtime и health-check.
+- В репозитории есть модели задач и решений, но пользовательский Telegram-flow для задач пока не является основным и не описывается как готовая публичная возможность.
+- README ниже описывает именно то, что уже есть в кодовой базе сейчас, а не желаемое состояние "на будущее".
 
 ## Архитектура
 
-- Dishka — внедрение зависимостей (DI-контейнер)
-- Repository Pattern — слой абстракции над БД (UserRepository, LevelRepository)
-- Middleware — кросс-катинговые задачи:
-  - RoleMiddleware — проверка прав доступа
-  - RateLimitMiddleware — защита от спама (3 уровня: cheap/moderate/expensive)
-  - UserActivityMiddleware — отслеживание активности пользователей
-  - LoggerMiddleware — структурированное логирование событий
-- Value Objects — семантические типы (Points для баллов)
-- DTO — валидация и сериализация данных на границах слоёв
+Проект следует `Layered Architecture` с элементами pragmatic DDD.
 
-### Вспомогательные инструменты
+- `src/pybot/bot/` - presentation layer: handlers, dialogs, filters, middlewares, keyboards, тексты.
+- `src/pybot/services/` - application services и orchestration.
+- `src/pybot/infrastructure/` - repositories, adapters, TaskIQ integration, внешние порты.
+- `src/pybot/db/` - SQLAlchemy models и database setup.
+- `src/pybot/dto/` - DTO и value objects.
+- `src/pybot/domain/` - domain exceptions и domain services.
+- `src/pybot/di/` - Dishka composition root.
+- `src/pybot/health/` - FastAPI health server.
 
-- loguru — логирование с поддержкой структурированных логов
-- tyro — CLI для скриптов, используется в `fill_point_db.py`
-- Faker — генерация тестовых данных
-- phonenumbers — валидация и нормализация телефонных номеров
-- uv — современный менеджер пакетов и зависимостей
+Ключевые архитектурные решения зафиксированы в ADR:
 
----
+- `008` - разделение `find_*` и `get_*` lookup semantics;
+- `010` - ports and adapters для внешних интеграций;
+- `011` - `TaskIQ + Redis` для фоновых задач и очередей.
 
-## Структура проекта 🌳
+## Технологический стек
 
-Ниже упрощённое дерево, чтобы было понятно, где что лежит:
+- `Python 3.12+`
+- `aiogram 3.22+`
+- `aiogram-dialog 2.4+`
+- `Dishka`
+- `SQLAlchemy 2` + `aiosqlite`
+- `Alembic`
+- `Pydantic v2` + `pydantic-settings`
+- `Redis`
+- `TaskIQ` + `taskiq-redis`
+- `FastAPI` + `uvicorn`
+- `loguru`
+- `uv`
+- `ruff`, `ty`, `pytest`, `pytest-aiogram`
+- `MkDocs Material`
 
-```plain text
+## Структура репозитория
+
+```text
 PyBot_ITAcadem/
-├── src/
-│   └── pybot/
-│       ├── bot/                         # Presentation layer: aiogram routers, dialogs, UI text
-│       │   ├── dialogs/                 # aiogram-dialog сценарии и окна
-│       │   ├── filters/                 # Telegram-specific filters and router factories
-│       │   ├── handlers/                # Thin handlers grouped by feature
-│       │   │   ├── broadcast/
-│       │   │   ├── common/
-│       │   │   ├── points/
-│       │   │   ├── profile/
-│       │   │   └── roles/
-│       │   ├── keyboards/               # Reply and inline keyboards
-│       │   ├── middlewares/             # Cross-cutting middleware
-│       │   ├── utils/                   # Bot-only helper functions
-│       │   ├── texts.py                 # Shared user-facing text constants
-│       │   └── tg_bot_run.py            # Telegram bot bootstrap
-│       ├── core/                        # Settings, enums, shared logger setup
-│       ├── db/                          # Database setup and rich ORM models
-│       │   ├── models/
-│       │   │   ├── level_module/
-│       │   │   ├── role_module/
-│       │   │   ├── task_module/
-│       │   │   └── user_module/
-│       │   ├── base_class.py
-│       │   └── database.py
-│       ├── di/                          # Dishka composition root and providers
-│       │   └── containers.py
-│       ├── domain/                      # Domain rules that do not belong to ORM or transport layers
-│       │   ├── exceptions.py
-│       │   └── services/
-│       ├── dto/                         # DTOs and value objects at layer boundaries
-│       │   ├── *_dto.py
-│       │   └── value_objects.py
-│       ├── health/                      # Health/readiness API and server wiring
-│       ├── infrastructure/              # Repositories, adapters, and external integrations
-│       │   ├── ports/                   # Concrete notification adapters
-│       │   ├── roles/                   # Role-related repositories
-│       │   └── taskiq/                  # Background jobs and scheduling integration
-│       ├── mappers/                     # Mapping helpers between transport/dialog data and DTOs
-│       ├── services/                    # Application layer orchestration
-│       │   ├── ports/                   # Service-level ports and contracts
-│       │   └── user_services/           # User-facing service specializations
-│       └── utils/                       # Shared project utilities
-├── fill_point_db.py                # CLI-скрипт для наполнения БД тестовыми данными
-├── db_reset_start.py               # Сброс БД + миграции + заполнение + запуск бота
-├── run.py                          # Запуск бота
-├── AGENTS.md                       # Operating contract for AI agents
-├── ARCHITECTURE.md                 # Архитектурный манифест и инварианты
-└── alembic/                        # Миграции БД
-
+├── src/pybot/
+│   ├── bot/                  # handlers, dialogs, middlewares, filters, keyboards
+│   ├── core/                 # settings, enums, logger
+│   ├── db/                   # SQLAlchemy setup и ORM models
+│   ├── di/                   # Dishka containers
+│   ├── domain/               # domain exceptions и domain services
+│   ├── dto/                  # DTO и value objects
+│   ├── health/               # FastAPI health app/server
+│   ├── infrastructure/       # repositories, adapters, TaskIQ runtime
+│   ├── mappers/              # layer mappers
+│   ├── services/             # application services
+│   └── utils/                # shared utils
+├── tests/                    # unit, integration, bot, health, script tests
+├── alembic/                  # migrations
+├── docs-project/             # MkDocs documentation
+├── ansible/                  # deploy/bootstrap playbooks
+├── docker-compose.yml
+├── docker-compose.prod.yml
+├── fill_point_db.py
+├── run.py
+└── db_reset_start.py
 ```
 
----
+## Локальный запуск
 
-## Как запустить локально 💻
+### 1. Требования
 
-1. Клонировать репозиторий:
+- `Python 3.12+`
+- `uv`
+- `just` - желательно, но не обязательно
+- `Redis` - нужен только если вы хотите локально использовать `FSM_STORAGE_BACKEND=redis` или поднимать полный Docker runtime
 
-   ```bash
-   git clone https://github.com/NikkiShuRA/PyBot-ITAcadem.git
-   cd PyBot-ITAcadem
-   ```
-
-2. Создать и активировать виртуальное окружение:
-
-   Создание:
-
-   ```bash
-   python -m venv .venv
-   ```
-
-   Активация:
-
-   ```bash
-   # bash
-   source .venv/bin/activate
-   ```
-
-3. Установить зависимости:
-
-   ```bash
-   uv sync
-   ```
-
-   Если хотите без dev-зависимостей:
-
-   ```bash
-   uv sync --no-dev
-   ```
-
-4. Создать `.env` в корне проекта:
-
-   ```plain text
-   # Production токен (если используете)
-   BOT_TOKEN=your_production_bot_token_here
-
-   # Тестовый токен (используется в `config.py` как BOT_TOKEN)
-   BOT_TOKEN_TEST=your_test_bot_token_here
-
-   # SQLite connection
-   DATABASE_URL=sqlite+aiosqlite:///./your_name.db
-
-   DEBUG=True
-   LOG_LEVEL=INFO
-   ```
-
-5. Запустить скрипт автозаполнения БД:
-
-   ```bash
-   python fill_point_db.py
-
-   # Показать CLI-параметры seed-скрипта
-   python fill_point_db.py --help
-
-   # Непосредственно запустить только нужные этапы
-   python fill_point_db.py --skip-levels --skip-roles --skip-competencies --num-fake-users 10
-   ```
-
-6. Запустить бота:
-
-   ```bash
-   python run.py
-   ```
-
----
-
-## 📚 Документация
-
-ARCHITECTURE.md — принципы проектирования и архитектурные ограничения
-ADR (Architecture Decision Records) — решения по ключевым архитектурным вопросам:
-
-- 001 — Введение DTO и доменных сущностей
-- 002 — Иммутабельность DTO
-- 003 — Value Objects (паттерн Points)
-- 004 — Миграция с PostgreSQL на SQLite
-- 005 — Middleware + Dishka DI
-- 006 — Внедрение репозиториев и сервисов
-- 007 - Замена Domain entities на Rich ORM Models
-
----
-
-## Куда всё движется дальше 📈
-
-То, что сейчас есть — это онбординг и фундамент.
-Дальше планируем:
-
-- завязать на бота задачи (выдача, решения, статусы);
-- добавить геймификацию: уровни, компетенции, достижения, баллы;
-- расширить роли (студент, ментор, админ) и дать им разные возможности прямо в Telegram.
-
-Если хочешь что‑то предложить или помочь с разработкой — форкай, открывай PR или заводи issue 🙂
-
----
-
-## Health API
-
-Минимальные эндпоинты наблюдаемости запускаются в отдельном процессе.
-
-В `.env`:
+### 2. Установка зависимостей
 
 ```bash
-HEALTH_API_ENABLED=True
-HEALTH_API_HOST=0.0.0.0
+git clone https://github.com/NikkiShuRA/PyBot-ITAcadem.git
+cd PyBot-ITAcadem
+uv sync --all-groups
+```
+
+Если нужна только основная среда без dev/doc extras:
+
+```bash
+uv sync
+```
+
+### 3. Настройте `.env`
+
+Минимальный рабочий пример для локальной разработки:
+
+```env
+BOT_TOKEN=your_production_bot_token
+BOT_TOKEN_TEST=your_test_bot_token
+BOT_MODE=test
+
+DATABASE_URL=sqlite+aiosqlite:///./pybot_itacadem.db
+
+ROLE_REQUEST_ADMIN_TG_ID=123456789
+AUTO_ADMIN_TELEGRAM_IDS=
+
+NOTIFICATION_BACKEND=telegram
+TELEGRAM_PROXY_URL=
+FSM_STORAGE_BACKEND=memory
+REDIS_URL=redis://localhost:6379/0
+
+LOG_LEVEL=INFO
+DEBUG=false
+
+HEALTH_API_ENABLED=false
+HEALTH_API_HOST=127.0.0.1
 HEALTH_API_PORT=8001
 ```
 
-Эндпоинты:
+Что важно:
 
-- `GET /health` — liveness
-- `GET /ready` — readiness (проверка БД)
+- сейчас `settings` требуют и `BOT_TOKEN`, и `BOT_TOKEN_TEST`, даже если вы запускаете только один режим;
+- `BOT_MODE=test` использует `BOT_TOKEN_TEST`, `BOT_MODE=prod` использует `BOT_TOKEN`;
+- `ROLE_REQUEST_ADMIN_TG_ID` обязателен, потому что role request flow уже является частью рабочего сценария;
+- `TELEGRAM_PROXY_URL` опционален и нужен только там, где Telegram Bot API доступен через proxy;
+- при `FSM_STORAGE_BACKEND=memory` Redis для обычного локального запуска не нужен.
 
----
+### 4. Примените миграции
 
-## Runbook
+```bash
+uv run alembic upgrade head
+```
 
-### Deploy
+### 5. При необходимости заполните БД тестовыми данными
 
-1. Prepare release:
-   - pull code (`git pull`) or checkout target tag/commit;
-   - verify `.env` values (`BOT_TOKEN`, `DATABASE_URL`, health API settings);
-   - run `just quality-gate`.
-2. Prepare data:
-   - create DB backup (for SQLite: copy `.db` file before release);
-   - confirm migrations are up to date.
-3. Roll out:
-   - apply migrations: `uv run alembic upgrade head`;
-   - restart app:
-     - systemd/local: restart service;
-     - Docker: `docker compose up -d --build`.
-4. Verify startup logs:
-   - no DI/DB/Bot initialization errors;
-   - polling is running.
+```bash
+uv run python fill_point_db.py --help
+uv run python fill_point_db.py
+```
 
-### Smoke-check
+Скрипт умеет отдельно включать и отключать:
 
-1. Check health endpoints:
-   - `GET /health` returns 200;
-   - `GET /ready` returns 200.
-2. Check Telegram bot basics:
-   - `/start` opens expected flow;
-   - `/ping` returns expected response;
-   - `/profile` works without errors.
-3. Check logs:
-   - no traceback in middlewares/handlers;
-   - no DB connection/session close errors.
+- уровни;
+- роли;
+- компетенции;
+- фейковых пользователей.
 
-### Rollback
+### 6. Запустите бота
 
-1. Stop current release or switch traffic away.
-2. Checkout previous stable tag/commit.
-3. Restore DB from backup if release included incompatible migrations/data changes.
-4. Restart application on previous version.
-5. Repeat smoke-check and confirm normal operation.
+```bash
+uv run run.py
+```
+
+или:
+
+```bash
+just run
+```
+
+Если `HEALTH_API_ENABLED=true`, `run.py` дополнительно поднимет отдельный процесс health API.
+
+## Запуск через Docker Compose
+
+Локальный compose поднимает:
+
+- `bot`
+- `taskiq-worker`
+- `taskiq-scheduler`
+- `redis`
+
+Команда:
+
+```bash
+docker compose up --build
+```
+
+Особенности локального compose:
+
+- контейнер бота при старте применяет миграции;
+- если `AUTO_SEED_DB=true`, контейнер также запускает `fill_point_db.py`;
+- по умолчанию в compose уже прокинуты `DATABASE_URL`, `TELEGRAM_PROXY_URL`, `FSM_STORAGE_BACKEND=redis` и `REDIS_URL`.
+
+## Проверка качества
+
+Основной обязательный локальный gate:
+
+```bash
+just quality-gate
+```
+
+Также доступны:
+
+```bash
+uv run pytest -q
+just docs-build
+just test-coverage
+```
+
+## Документация
+
+Перед значимыми изменениями по проекту сначала читайте:
+
+1. `README.md`
+2. `ARCHITECTURE.md`
+3. `CONTRIBUTING.md`
+4. `DEPLOYMENT.md`
+5. `SECURITY.md`
+6. релевантные ADR из `src/pybot/docs/adr/`
+
+Локальный запуск MkDocs:
+
+```bash
+uv sync --extra docs
+just docs-serve
+```
+
+## Production и деплой
+
+В репозитории уже есть production deployment skeleton:
+
+- `docker-compose.prod.yml` - image-based runtime;
+- `.github/workflows/deploy.yml` - CD flow;
+- `ansible/` - bootstrap/deploy playbooks.
+
+Production compose использует отдельные one-shot сервисы:
+
+- `migrate` - для `alembic upgrade head`;
+- `seed` - для управляемого initial seed.
+
+Подробнее:
+
+- `DEPLOYMENT.md`
+- `ansible/playbooks/deploy.yml`
+- `docker-compose.prod.yml`
+
+## Полезные команды
+
+```bash
+just
+just quality-gate
+just docs-build
+just migrate-apply
+just migrate-create "add new field"
+uv run pytest -q
+uv run python fill_point_db.py --help
+```
+
+## Лицензия
+
+Проект распространяется под лицензией `LICENSE` в корне репозитория.
