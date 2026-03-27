@@ -2,6 +2,88 @@
 
 <!-- version list -->
 
+## v0.19.0 (2026-03-27)
+
+### Bug Fixes
+
+- Regenerate uv lock after docs cherry-pick
+  ([#86](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/86),
+  [`92becac`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/92becaca1a7f1bddea5c3b3d0cf7ca6c80cf3ca7))
+
+- Улучшил ответы команд и role request flow
+  ([#86](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/86),
+  [`92becac`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/92becaca1a7f1bddea5c3b3d0cf7ca6c80cf3ca7))
+
+- **seed**: Убрал слишком общие типы в seed-скрипте
+  ([#86](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/86),
+  [`92becac`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/92becaca1a7f1bddea5c3b3d0cf7ca6c80cf3ca7))
+
+### Chores
+
+- **docs**: Добавил MK Doc Material документацию к проекту
+  ([#86](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/86),
+  [`92becac`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/92becaca1a7f1bddea5c3b3d0cf7ca6c80cf3ca7))
+
+- **lock**: Обновил uv.lock ([#86](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/86),
+  [`92becac`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/92becaca1a7f1bddea5c3b3d0cf7ca6c80cf3ca7))
+
+### Documentation
+
+- **architecture**: Зафиксировал ADR для runtime и интеграций
+  ([#86](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/86),
+  [`92becac`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/92becaca1a7f1bddea5c3b3d0cf7ca6c80cf3ca7))
+
+### Features
+
+- Добавил поддержку proxy для Telegram Bot API
+  ([#86](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/86),
+  [`92becac`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/92becaca1a7f1bddea5c3b3d0cf7ca6c80cf3ca7))
+
+- Улучшить UX бота, регистрацию и документацию проекта
+  ([#86](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/86),
+  [`92becac`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/92becaca1a7f1bddea5c3b3d0cf7ca6c80cf3ca7))
+
+- **UI**: Добавил util-функцию для создания вечных html-ссылок в telegram
+  ([#86](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/86),
+  [`92becac`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/92becaca1a7f1bddea5c3b3d0cf7ca6c80cf3ca7))
+
+- **UI**: Привёл весь текст в системе тг-бота к единому стилю и выделил слой текстов
+  ([#86](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/86),
+  [`92becac`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/92becaca1a7f1bddea5c3b3d0cf7ca6c80cf3ca7))
+
+### Refactoring
+
+- Добавил обозначение шагов в регистрацию
+  ([#86](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/86),
+  [`92becac`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/92becaca1a7f1bddea5c3b3d0cf7ca6c80cf3ca7))
+
+- Небольшие изменения в текстовом слое ([#86](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/86),
+  [`92becac`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/92becaca1a7f1bddea5c3b3d0cf7ca6c80cf3ca7))
+
+- Удалил ненужный движок для генерации асинхронных сессий.
+  ([#86](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/86),
+  [`92becac`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/92becaca1a7f1bddea5c3b3d0cf7ca6c80cf3ca7))
+
+- Улучшил вывод /help в лс ([#86](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/86),
+  [`92becac`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/92becaca1a7f1bddea5c3b3d0cf7ca6c80cf3ca7))
+
+- Улучшил отображение админских и нет команд в /help
+  ([#86](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/86),
+  [`92becac`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/92becaca1a7f1bddea5c3b3d0cf7ca6c80cf3ca7))
+
+- **core**: Переименовал типы баллов и обновил пользовательские сценарии
+  ([#86](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/86),
+  [`92becac`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/92becaca1a7f1bddea5c3b3d0cf7ca6c80cf3ca7))
+
+- **user-activity**: Перенёс трекинг активности пользователя в сервисный слой
+  ([#86](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/86),
+  [`92becac`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/92becaca1a7f1bddea5c3b3d0cf7ca6c80cf3ca7))
+
+- **user-services**: Декомпозировал сервисы пользователей и связанные сценарии
+  ([#86](https://github.com/NikkiShuRA/PyBot-ITAcadem/pull/86),
+  [`92becac`](https://github.com/NikkiShuRA/PyBot-ITAcadem/commit/92becaca1a7f1bddea5c3b3d0cf7ca6c80cf3ca7))
+
+
 ## v0.18.1 (2026-03-19)
 
 ### Bug Fixes
