@@ -7,7 +7,7 @@ import pytest
 from aiogram.types import Chat, Message, User
 
 from pybot.bot.handlers.roles.role_request_flow import cmd_role_request
-from pybot.bot.texts import role_request_cooldown_until
+from pybot.bot.texts import ROLE_REQUEST_USAGE, role_request_cooldown_until
 from pybot.domain.exceptions import RoleRequestCooldownError
 
 
@@ -81,3 +81,22 @@ async def test_cmd_role_request_replies_with_absolute_cooldown_for_longer_wait(
     reply_mock.assert_awaited_once_with(
         role_request_cooldown_until("24 марта 2026 в 14:30 (через 2 дня 2 часа 30 минут)")
     )
+
+
+@pytest.mark.asyncio
+async def test_cmd_role_request_explains_correct_format_for_unknown_role(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    role_request_service = AsyncMock()
+    message = _build_message(text="/role_request Curator")
+    reply_mock = AsyncMock()
+    monkeypatch.setattr(Message, "reply", reply_mock)
+
+    await cmd_role_request(
+        message=message,
+        role_request_service=role_request_service,
+        user_id=1,
+    )
+
+    role_request_service.create_role_request.assert_not_awaited()
+    reply_mock.assert_awaited_once_with(ROLE_REQUEST_USAGE)

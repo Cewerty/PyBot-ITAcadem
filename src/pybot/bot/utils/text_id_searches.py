@@ -6,7 +6,7 @@ from aiogram.types import Message
 from ...dto import UserReadDTO
 from ...services.user_services import UserService
 from ..filters.message_value_filters import check_text_message_correction
-from ..texts import TARGET_REQUIRED, target_selected_mention, target_selected_reply
+from ..texts import TARGET_NOT_FOUND, TARGET_REQUIRED, target_selected_mention, target_selected_reply
 
 
 async def _get_target_user_id_from_reply(message: Message) -> int | None:
@@ -47,7 +47,7 @@ async def _get_target_user_id_from_text(message: Message, user_service: UserServ
     user_parsed_id = int(match.group(1))
     user_from_id: UserReadDTO | None = await user_service.find_user_by_telegram_id(user_parsed_id)
     if user_from_id is None:
-        await message.reply(TARGET_REQUIRED)
+        await message.reply(TARGET_NOT_FOUND)
         return None
 
     return user_from_id.telegram_id

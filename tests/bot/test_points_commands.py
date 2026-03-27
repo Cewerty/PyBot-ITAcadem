@@ -150,7 +150,7 @@ async def test_handle_points_command_changes_points_and_enqueues_notification(
 
     reply_mock.assert_awaited_once()
     reply_text = _last_reply_text(reply_mock)
-    assert str(recipient.telegram_id) in reply_text
+    assert recipient.first_name in reply_text
     assert "Great progress" in reply_text
 
 

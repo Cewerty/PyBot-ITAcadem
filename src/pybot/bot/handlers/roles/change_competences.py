@@ -8,7 +8,7 @@ from aiogram.types import Message
 from dishka.integrations.aiogram import FromDishka
 
 from ....core import logger
-from ....domain.exceptions import CommandTargetNotSpecifiedError, UserNotFoundError
+from ....domain.exceptions import CommandTargetNotSpecifiedError, CompetenceNotFoundError, UserNotFoundError
 from ....dto import UserReadDTO
 from ....services import CompetenceService
 from ....services.user_services import UserCompetenceService, UserService
@@ -20,6 +20,7 @@ from ...texts import (
     competence_catalog,
     competence_list,
     competence_list_required,
+    competence_missing_names_error,
     competence_none,
     competence_remove_success,
     competence_target_required,
@@ -224,8 +225,11 @@ async def handle_add_competence(
         await user_competence_service.add_user_competencies_by_names(target_user.id, competence_names)
     except UserNotFoundError:
         await message.reply(TARGET_NOT_FOUND)
-    except ValueError as error:
-        await message.reply(competence_validation_error(str(error)))
+    except CompetenceNotFoundError as error:
+        missing_names = error.details.get("missing_names", [])
+        await message.reply(competence_missing_names_error(missing_names))
+    except ValueError:
+        await message.reply(competence_validation_error())
     except Exception:
         logger.exception("Unexpected error in handle_add_competence")
         await message.reply(COMPETENCE_UNEXPECTED_ERROR)
@@ -265,8 +269,11 @@ async def handle_remove_competence(
         await user_competence_service.remove_user_competencies_by_names(target_user.id, competence_names)
     except UserNotFoundError:
         await message.reply(TARGET_NOT_FOUND)
-    except ValueError as error:
-        await message.reply(competence_validation_error(str(error)))
+    except CompetenceNotFoundError as error:
+        missing_names = error.details.get("missing_names", [])
+        await message.reply(competence_missing_names_error(missing_names))
+    except ValueError:
+        await message.reply(competence_validation_error())
     except Exception:
         logger.exception("Unexpected error in handle_remove_competence")
         await message.reply(COMPETENCE_UNEXPECTED_ERROR)

@@ -14,7 +14,9 @@ from pybot.bot.handlers.roles.change_competences import (
     handle_show_all_competences,
     handle_show_competences,
 )
+from pybot.bot.texts import TARGET_NOT_FOUND
 from pybot.core.constants import PointsTypeEnum
+from pybot.domain.exceptions import CompetenceNotFoundError
 from pybot.dto import CompetenceReadDTO, UserReadDTO
 from pybot.dto.value_objects import Points
 
@@ -161,7 +163,8 @@ async def test_removecompetence_invalid_list_returns_error_message(
         users_by_id={target_user.id: target_user},
     )
     user_competence_service = StubUserCompetenceService(
-        users_by_id={target_user.id: target_user}, remove_error=ValueError("Competence names not found: ['Unknown']")
+        users_by_id={target_user.id: target_user},
+        remove_error=CompetenceNotFoundError(missing_names=["Unknown"]),
     )
     message = _build_message(text="/removecompetence 200002 Unknown", from_user_id=100_002)
 
@@ -175,7 +178,9 @@ async def test_removecompetence_invalid_list_returns_error_message(
     )
 
     assert user_competence_service.remove_calls == [(target_user.id, ["Unknown"])]
-    assert "Не удалось обработать список компетенций" in _last_reply_text(reply_mock)
+    reply_text = _last_reply_text(reply_mock)
+    assert "Unknown" in reply_text
+    assert "Python, SQL" in reply_text
 
 
 @pytest.mark.asyncio
@@ -253,7 +258,7 @@ async def test_addcompetence_unknown_names_returns_validation_error(
     )
     user_competence_service = StubUserCompetenceService(
         users_by_id={target_user.id: target_user},
-        add_error=ValueError("Competence names not found: ['Unknown']"),
+        add_error=CompetenceNotFoundError(missing_names=["Unknown"]),
     )
     message = _build_message(text="/addcompetence 500001 Unknown", from_user_id=500_002)
 
@@ -267,7 +272,9 @@ async def test_addcompetence_unknown_names_returns_validation_error(
     )
 
     assert user_competence_service.add_calls == [(target_user.id, ["Unknown"])]
-    assert "Не удалось обработать список компетенций" in _last_reply_text(reply_mock)
+    reply_text = _last_reply_text(reply_mock)
+    assert "Unknown" in reply_text
+    assert "Python, SQL" in reply_text
 
 
 @pytest.mark.asyncio
@@ -295,7 +302,7 @@ async def test_addcompetence_distinguishes_missing_target_from_not_found_target(
         user_competence_service=user_competence_service,
     )
     second_reply = _last_reply_text(reply_mock)
-    assert second_reply == "Пользователь не найден."
+    assert second_reply == TARGET_NOT_FOUND
 
 
 @pytest.mark.asyncio

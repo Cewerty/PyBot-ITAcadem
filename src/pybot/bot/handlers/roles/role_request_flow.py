@@ -24,7 +24,6 @@ from ....services.role_request import RoleRequestService
 from ...filters import check_text_message_correction, create_chat_type_routers
 from ...keyboards.role_request_keyboard import RoleRequestCB
 from ...texts import (
-    ROLE_COMMAND_INVALID_FORMAT,
     ROLE_REQUEST_ADMIN_ALREADY_ASSIGNED,
     ROLE_REQUEST_ADMIN_ALREADY_PROCESSED,
     ROLE_REQUEST_ADMIN_APPROVED,
@@ -43,7 +42,8 @@ from ...texts import (
     ROLE_REQUEST_NOTIFY_UNEXPECTED,
     ROLE_REQUEST_NOTIFY_USER_NOT_FOUND,
     ROLE_REQUEST_UNEXPECTED_ERROR,
-    role_not_specified,
+    ROLE_REQUEST_USAGE,
+    role_request_admin_notification_with_status,
     role_request_cooldown_until,
     role_request_created,
 )
@@ -56,29 +56,33 @@ async def _finalize_role_request_callback(callback_query: CallbackQuery, answer_
         message = callback_query.message
         if isinstance(message, Message):
             try:
-                await message.edit_reply_markup(reply_markup=None)
+                rendered_text = role_request_admin_notification_with_status(
+                    message.html_text or message.text,
+                    answer_text,
+                )
+                await message.edit_text(rendered_text, parse_mode="HTML", reply_markup=None)
             except Exception:
-                logger.exception("Failed to clear role-request inline keyboard")
+                logger.exception("Failed to update role-request admin message")
     await callback_query.answer(answer_text)
 
 
 async def _extract_role(message: Message) -> RoleEnum | None:
     text = check_text_message_correction(message)
     if text is None:
-        await message.reply(ROLE_COMMAND_INVALID_FORMAT)
+        await message.reply(ROLE_REQUEST_USAGE)
         return None
 
     role_pattern = r"\b(" + "|".join(role.value for role in RoleEnum) + r")\b"
     role_match = re.search(role_pattern, text)
 
     if not role_match:
-        await message.reply(role_not_specified())
+        await message.reply(ROLE_REQUEST_USAGE)
         return None
 
     try:
         return RoleEnum(role_match.group(1))
     except ValueError:
-        await message.reply(role_not_specified())
+        await message.reply(ROLE_REQUEST_USAGE)
         return None
 
 

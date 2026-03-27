@@ -117,7 +117,7 @@ async def _handle_points_command(
     if prepared_context is None:
         return
 
-    target_user_id, points, reason, recipient_user, giver_user = prepared_context
+    _target_user_id, points, reason, recipient_user, giver_user = prepared_context
 
     try:
         await points_service.change_points(
@@ -147,7 +147,7 @@ async def _handle_points_command(
             telegram_id=recipient_user.telegram_id,
         )
 
-    await message.reply(points_change_success(target_user_id, points, reason))
+    await message.reply(points_change_success(recipient_user.first_name, points, reason))
 
 
 @grand_points_global_router.message(Command("academic_points"), flags={"role": "Admin", "rate_limit": "expensive"})
