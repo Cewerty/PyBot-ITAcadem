@@ -69,13 +69,13 @@ class HealthService:
                 checks=[check],
                 timestamp=datetime.now(UTC),
             )
-        except Exception:
+        except Exception as err:
             latency_ms = int((time.perf_counter() - start) * 1000)
             logger.exception("Database readiness check failed")
             check = HealthCheckDTO(
                 name="database",
                 status="fail",
-                details="database unavailable",
+                details=str(err),
                 latency_ms=latency_ms,
             )
             status = HealthStatusDTO(
