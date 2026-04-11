@@ -2,6 +2,78 @@
 
 <!-- version list -->
 
+## v0.23.0 (2026-04-11)
+
+### Bug Fixes
+
+- Включил html-рендеринг профиля и ошибку регистрации
+  ([#89](https://github.com/Cewerty/PyBot-ITAcadem/pull/89),
+  [`0988b09`](https://github.com/Cewerty/PyBot-ITAcadem/commit/0988b0976ecd931511cbdd00f98c431fc4aa06dd))
+
+- Включил sqlite foreign keys в runtime ([#89](https://github.com/Cewerty/PyBot-ITAcadem/pull/89),
+  [`0988b09`](https://github.com/Cewerty/PyBot-ITAcadem/commit/0988b0976ecd931511cbdd00f98c431fc4aa06dd))
+
+- Исправил выборку пользователей по роли ([#89](https://github.com/Cewerty/PyBot-ITAcadem/pull/89),
+  [`0988b09`](https://github.com/Cewerty/PyBot-ITAcadem/commit/0988b0976ecd931511cbdd00f98c431fc4aa06dd))
+
+- Исправил реггрессию в тестах с healthAPI
+  ([#89](https://github.com/Cewerty/PyBot-ITAcadem/pull/89),
+  [`0988b09`](https://github.com/Cewerty/PyBot-ITAcadem/commit/0988b0976ecd931511cbdd00f98c431fc4aa06dd))
+
+- Исправлеине реггрессий в валидации ([#89](https://github.com/Cewerty/PyBot-ITAcadem/pull/89),
+  [`0988b09`](https://github.com/Cewerty/PyBot-ITAcadem/commit/0988b0976ecd931511cbdd00f98c431fc4aa06dd))
+
+- Обработал ожидаемые ошибки рассылки ([#89](https://github.com/Cewerty/PyBot-ITAcadem/pull/89),
+  [`0988b09`](https://github.com/Cewerty/PyBot-ITAcadem/commit/0988b0976ecd931511cbdd00f98c431fc4aa06dd))
+
+- Скрываю детали readiness ошибки базы ([#89](https://github.com/Cewerty/PyBot-ITAcadem/pull/89),
+  [`0988b09`](https://github.com/Cewerty/PyBot-ITAcadem/commit/0988b0976ecd931511cbdd00f98c431fc4aa06dd))
+
+- Убрал текст из callback role request ([#89](https://github.com/Cewerty/PyBot-ITAcadem/pull/89),
+  [`0988b09`](https://github.com/Cewerty/PyBot-ITAcadem/commit/0988b0976ecd931511cbdd00f98c431fc4aa06dd))
+
+- **ci/cd**: Добавил параметр для перехода к современному node.js для устранения warning при запуске
+  Github actions ([#89](https://github.com/Cewerty/PyBot-ITAcadem/pull/89),
+  [`0988b09`](https://github.com/Cewerty/PyBot-ITAcadem/commit/0988b0976ecd931511cbdd00f98c431fc4aa06dd))
+
+- **docs**: Добавил .gitkeep для overrides
+  ([#89](https://github.com/Cewerty/PyBot-ITAcadem/pull/89),
+  [`0988b09`](https://github.com/Cewerty/PyBot-ITAcadem/commit/0988b0976ecd931511cbdd00f98c431fc4aa06dd))
+
+### Chores
+
+- **docs**: Изменение в настройках MK Doc Material и небольшие правки в тесте
+  ([#89](https://github.com/Cewerty/PyBot-ITAcadem/pull/89),
+  [`0988b09`](https://github.com/Cewerty/PyBot-ITAcadem/commit/0988b0976ecd931511cbdd00f98c431fc4aa06dd))
+
+### Features
+
+- Добавил журнал транзакций баллов ([#89](https://github.com/Cewerty/PyBot-ITAcadem/pull/89),
+  [`0988b09`](https://github.com/Cewerty/PyBot-ITAcadem/commit/0988b0976ecd931511cbdd00f98c431fc4aa06dd))
+
+- Добавил команду leaderboard ([#89](https://github.com/Cewerty/PyBot-ITAcadem/pull/89),
+  [`0988b09`](https://github.com/Cewerty/PyBot-ITAcadem/commit/0988b0976ecd931511cbdd00f98c431fc4aa06dd))
+
+- Добавил просмотр каталога и ролей пользователя
+  ([#89](https://github.com/Cewerty/PyBot-ITAcadem/pull/89),
+  [`0988b09`](https://github.com/Cewerty/PyBot-ITAcadem/commit/0988b0976ecd931511cbdd00f98c431fc4aa06dd))
+
+### Performance Improvements
+
+- Оптимизация кэширования слоев и времени сборки Dockerfile
+  ([#89](https://github.com/Cewerty/PyBot-ITAcadem/pull/89),
+  [`0988b09`](https://github.com/Cewerty/PyBot-ITAcadem/commit/0988b0976ecd931511cbdd00f98c431fc4aa06dd))
+
+- Улучшил кэшировние в Dockerfile для ускорения деплоя системы на VDS
+  ([#89](https://github.com/Cewerty/PyBot-ITAcadem/pull/89),
+  [`0988b09`](https://github.com/Cewerty/PyBot-ITAcadem/commit/0988b0976ecd931511cbdd00f98c431fc4aa06dd))
+
+### Refactoring
+
+- Упростил async-конфиг alembic ([#89](https://github.com/Cewerty/PyBot-ITAcadem/pull/89),
+  [`0988b09`](https://github.com/Cewerty/PyBot-ITAcadem/commit/0988b0976ecd931511cbdd00f98c431fc4aa06dd))
+
+
 ## v0.22.1 (2026-04-11)
 
 
