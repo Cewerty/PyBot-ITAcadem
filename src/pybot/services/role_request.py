@@ -115,6 +115,6 @@ class RoleRequestService:
         await self.notification_service.send_message(
             NotifyDTO(
                 message=role_request_user_status(request.role.name, request.status),
-                user_id=user.telegram_id,
+                recipient_id=user.telegram_id,
             )
         )

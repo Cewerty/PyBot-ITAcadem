@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 import re
 from datetime import datetime
 
@@ -106,6 +108,7 @@ async def cmd_role_request(
     role_request_service: FromDishka[RoleRequestService],
     user_id: int,
 ) -> None:
+    """Обработчик команды /role_request."""
     role = await _extract_role(message)
     if role is None:
         return
@@ -140,48 +143,49 @@ async def accept_role_request(
     role_request_service: FromDishka[RoleRequestService],
     notification_service: FromDishka[NotificationPort],
 ) -> None:
+    """Форматирует текст для ролей."""
     answer_text = ROLE_REQUEST_ADMIN_NOT_FOUND
     lock_buttons = False
     try:
         await role_request_service.change_request_status(callback_data.request_id, RequestStatus.APPROVED)
     except UserNotFoundError:
         await notification_service.send_message(
-            NotifyDTO(message=ROLE_REQUEST_NOTIFY_USER_NOT_FOUND, user_id=callback_query.from_user.id)
+            NotifyDTO(message=ROLE_REQUEST_NOTIFY_USER_NOT_FOUND, recipient_id=callback_query.from_user.id)
         )
         answer_text = ROLE_REQUEST_ADMIN_USER_NOT_FOUND
         lock_buttons = True
     except RoleNotFoundError:
         await notification_service.send_message(
-            NotifyDTO(message=ROLE_REQUEST_NOTIFY_ROLE_NOT_FOUND, user_id=callback_query.from_user.id)
+            NotifyDTO(message=ROLE_REQUEST_NOTIFY_ROLE_NOT_FOUND, recipient_id=callback_query.from_user.id)
         )
         answer_text = ROLE_REQUEST_ADMIN_ROLE_NOT_FOUND
         lock_buttons = True
     except RoleRequestNotFoundError:
         await notification_service.send_message(
-            NotifyDTO(message=ROLE_REQUEST_NOTIFY_NOT_FOUND, user_id=callback_query.from_user.id)
+            NotifyDTO(message=ROLE_REQUEST_NOTIFY_NOT_FOUND, recipient_id=callback_query.from_user.id)
         )
         answer_text = ROLE_REQUEST_ADMIN_NOT_FOUND
         lock_buttons = True
     except RoleRequestAlreadyProcessedError:
         await notification_service.send_message(
-            NotifyDTO(message=ROLE_REQUEST_NOTIFY_ALREADY_PROCESSED, user_id=callback_query.from_user.id)
+            NotifyDTO(message=ROLE_REQUEST_NOTIFY_ALREADY_PROCESSED, recipient_id=callback_query.from_user.id)
         )
         answer_text = ROLE_REQUEST_ADMIN_ALREADY_PROCESSED
         lock_buttons = True
     except RoleAlreadyAssignedError:
         await notification_service.send_message(
-            NotifyDTO(message=ROLE_REQUEST_NOTIFY_ALREADY_ASSIGNED, user_id=callback_query.from_user.id)
+            NotifyDTO(message=ROLE_REQUEST_NOTIFY_ALREADY_ASSIGNED, recipient_id=callback_query.from_user.id)
         )
         answer_text = ROLE_REQUEST_ADMIN_ALREADY_ASSIGNED
         lock_buttons = True
     except Exception:
         await notification_service.send_message(
-            NotifyDTO(message=ROLE_REQUEST_NOTIFY_UNEXPECTED, user_id=callback_query.from_user.id)
+            NotifyDTO(message=ROLE_REQUEST_NOTIFY_UNEXPECTED, recipient_id=callback_query.from_user.id)
         )
         logger.exception("Unexpected error in accept_role_request")
     else:
         await notification_service.send_message(
-            NotifyDTO(message=ROLE_REQUEST_NOTIFY_APPROVED, user_id=callback_query.from_user.id)
+            NotifyDTO(message=ROLE_REQUEST_NOTIFY_APPROVED, recipient_id=callback_query.from_user.id)
         )
         answer_text = ROLE_REQUEST_ADMIN_APPROVED
         lock_buttons = True
@@ -198,42 +202,43 @@ async def reject_role_request(
     role_request_service: FromDishka[RoleRequestService],
     notification_service: FromDishka[NotificationPort],
 ) -> None:
+    """Форматирует текст для ролей."""
     answer_text = ROLE_REQUEST_ADMIN_NOT_FOUND
     lock_buttons = False
     try:
         await role_request_service.change_request_status(callback_data.request_id, RequestStatus.REJECTED)
     except UserNotFoundError:
         await notification_service.send_message(
-            NotifyDTO(message=ROLE_REQUEST_NOTIFY_USER_NOT_FOUND, user_id=callback_query.from_user.id)
+            NotifyDTO(message=ROLE_REQUEST_NOTIFY_USER_NOT_FOUND, recipient_id=callback_query.from_user.id)
         )
         answer_text = ROLE_REQUEST_ADMIN_USER_NOT_FOUND
         lock_buttons = True
     except RoleNotFoundError:
         await notification_service.send_message(
-            NotifyDTO(message=ROLE_REQUEST_NOTIFY_ROLE_NOT_FOUND, user_id=callback_query.from_user.id)
+            NotifyDTO(message=ROLE_REQUEST_NOTIFY_ROLE_NOT_FOUND, recipient_id=callback_query.from_user.id)
         )
         answer_text = ROLE_REQUEST_ADMIN_ROLE_NOT_FOUND
         lock_buttons = True
     except RoleRequestNotFoundError:
         await notification_service.send_message(
-            NotifyDTO(message=ROLE_REQUEST_NOTIFY_NOT_FOUND, user_id=callback_query.from_user.id)
+            NotifyDTO(message=ROLE_REQUEST_NOTIFY_NOT_FOUND, recipient_id=callback_query.from_user.id)
         )
         answer_text = ROLE_REQUEST_ADMIN_NOT_FOUND
         lock_buttons = True
     except RoleRequestAlreadyProcessedError:
         await notification_service.send_message(
-            NotifyDTO(message=ROLE_REQUEST_NOTIFY_ALREADY_PROCESSED, user_id=callback_query.from_user.id)
+            NotifyDTO(message=ROLE_REQUEST_NOTIFY_ALREADY_PROCESSED, recipient_id=callback_query.from_user.id)
         )
         answer_text = ROLE_REQUEST_ADMIN_ALREADY_PROCESSED
         lock_buttons = True
     except Exception:
         await notification_service.send_message(
-            NotifyDTO(message=ROLE_REQUEST_NOTIFY_UNEXPECTED, user_id=callback_query.from_user.id)
+            NotifyDTO(message=ROLE_REQUEST_NOTIFY_UNEXPECTED, recipient_id=callback_query.from_user.id)
         )
         logger.exception("Unexpected error in reject_role_request")
     else:
         await notification_service.send_message(
-            NotifyDTO(message=ROLE_REQUEST_NOTIFY_REJECTED, user_id=callback_query.from_user.id)
+            NotifyDTO(message=ROLE_REQUEST_NOTIFY_REJECTED, recipient_id=callback_query.from_user.id)
         )
         answer_text = ROLE_REQUEST_ADMIN_REJECTED
         lock_buttons = True

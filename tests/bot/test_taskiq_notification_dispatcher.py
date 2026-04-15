@@ -38,7 +38,7 @@ async def test_notification_dispatcher_immediate_smoke_returns_task_id(
     assert result == "task-42", (
         "Immediate dispatch lost the TaskIQ task id. Debugging queued jobs would become painful."
     )
-    fake_task.kiq.assert_awaited_once_with(NotifyDTO(user_id=101, message="hello"))
+    fake_task.kiq.assert_awaited_once_with(NotifyDTO(recipient_id=101, message="hello"))
 
 
 @pytest.mark.asyncio
@@ -57,7 +57,7 @@ async def test_notification_dispatcher_schedules_at_specific_time_with_shared_so
     fake_task.schedule_by_time.assert_awaited_once_with(
         fake_source,
         schedule.as_taskiq_datetime(),
-        notification_data=NotifyDTO(user_id=202, message="later"),
+        notification_data=NotifyDTO(recipient_id=202, message="later"),
     )
 
 
@@ -89,9 +89,23 @@ async def test_notification_dispatcher_schedules_interval_and_cron_paths(
     fake_task.schedule_by_interval.assert_awaited_once_with(
         fake_source,
         timedelta(minutes=15),
-        notification_data=NotifyDTO(user_id=303, message="tick"),
+        notification_data=NotifyDTO(recipient_id=303, message="tick"),
     )
     assert cron_result == "schedule-cron-1"
+
+
+@pytest.mark.asyncio
+async def test_notification_dispatcher_passes_parse_mode_for_immediate_dispatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_task = SimpleNamespace(kiq=AsyncMock(return_value=SimpleNamespace(task_id="task-77")))
+    monkeypatch.setattr(TaskIQNotificationDispatcher, "_task", staticmethod(lambda: fake_task))
+    dispatcher = TaskIQNotificationDispatcher(schedule_source=_fake_schedule_source())
+
+    result = await dispatcher.dispatch_message(707, "<b>hello</b>", TaskSchedule.immediate(), parse_mode="HTML")
+
+    assert result == "task-77"
+    fake_task.kiq.assert_awaited_once_with(NotifyDTO(recipient_id=707, message="<b>hello</b>", parse_mode="HTML"))
 
 
 @pytest.mark.asyncio

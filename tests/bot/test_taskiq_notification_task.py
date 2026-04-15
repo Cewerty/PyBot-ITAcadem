@@ -81,13 +81,13 @@ async def _run_task(notification_port: NotificationPort, notification_data: Noti
 async def test_send_notification_task_smoke_sends_trimmed_message() -> None:
     notification_port = NotificationPortSpy(AsyncMock())
 
-    result = await _run_task(notification_port, NotifyDTO(user_id=111, message="  hello world  "))
+    result = await _run_task(notification_port, NotifyDTO(recipient_id=111, message="  hello world  "))
 
     assert result.status == "sent", (
         "Notification task stopped reporting successful delivery. Start from payload validation."
     )
     assert result.message == "hello world"
-    notification_port.send_message_mock.assert_awaited_once_with(NotifyDTO(user_id=111, message="hello world"))
+    notification_port.send_message_mock.assert_awaited_once_with(NotifyDTO(recipient_id=111, message="hello world"))
 
 
 @pytest.mark.asyncio
@@ -96,17 +96,17 @@ async def test_send_notification_task_returns_temporary_failure_payload() -> Non
         AsyncMock(side_effect=NotificationTemporaryError("network wobble", retry_after_seconds=1.0))
     )
 
-    result = await _run_task(notification_port, NotifyDTO(user_id=222, message="hello world"))
+    result = await _run_task(notification_port, NotifyDTO(recipient_id=222, message="hello world"))
 
     assert result.status == "failed_temporary"
-    assert result.user_id == 222
+    assert result.recipient_id == 222
 
 
 @pytest.mark.asyncio
 async def test_send_notification_task_returns_permanent_failure_payload() -> None:
     notification_port = NotificationPortSpy(AsyncMock(side_effect=NotificationPermanentError("blocked")))
 
-    result = await _run_task(notification_port, NotifyDTO(user_id=333, message="hello world"))
+    result = await _run_task(notification_port, NotifyDTO(recipient_id=333, message="hello world"))
 
     assert result.status == "failed_permanent"
     assert result.message == "hello world"
@@ -114,4 +114,23 @@ async def test_send_notification_task_returns_permanent_failure_payload() -> Non
 
 def test_notify_dto_rejects_blank_message_before_task_execution() -> None:
     with pytest.raises(ValidationError, match="message must not be empty"):
-        NotifyDTO(user_id=444, message="   ")
+        NotifyDTO(recipient_id=444, message="   ")
+
+
+def test_notify_dto_rejects_zero_recipient_id_before_task_execution() -> None:
+    with pytest.raises(ValidationError, match="equal to 0"):
+        NotifyDTO(recipient_id=0, message="hello")
+
+
+@pytest.mark.asyncio
+async def test_send_notification_task_preserves_parse_mode() -> None:
+    notification_port = NotificationPortSpy(AsyncMock())
+
+    await _run_task(
+        notification_port,
+        NotifyDTO(recipient_id=555, message="<b>hello</b>", parse_mode="HTML"),
+    )
+
+    notification_port.send_message_mock.assert_awaited_once_with(
+        NotifyDTO(recipient_id=555, message="<b>hello</b>", parse_mode="HTML")
+    )

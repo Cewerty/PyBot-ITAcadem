@@ -24,4 +24,9 @@ class NotificationFacade:
         except (ValidationError, TaskScheduleError) as err:
             raise TaskScheduleError(f"Invalid notification schedule: {err}") from err
 
-        await self._dispatch_port.dispatch_message(user_id=data.user_id, message_text=data.message, schedule=schedule)
+        await self._dispatch_port.dispatch_message(
+            recipient_id=data.recipient_id,
+            message_text=data.message,
+            schedule=schedule,
+            parse_mode=data.parse_mode,
+        )

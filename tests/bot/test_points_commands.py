@@ -142,7 +142,7 @@ async def test_handle_points_command_changes_points_and_enqueues_notification(
 
     notification_facade.notify_user.assert_awaited_once()
     notify_dto = notification_facade.notify_user.await_args.args[0]
-    assert notify_dto.user_id == recipient.telegram_id
+    assert notify_dto.recipient_id == recipient.telegram_id
     assert notify_dto.kind is TaskScheduleKind.IMMEDIATE
     assert giver.first_name in notify_dto.message
     assert "академических" in notify_dto.message

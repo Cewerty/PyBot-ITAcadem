@@ -7,9 +7,8 @@ class NotificationPort(ABC):
     """Outbound notifications contract for application services.
 
     Notes:
-        The semantic meaning of ``user_id`` depends on a concrete transport
-        implementation. For Telegram-based implementations, ``user_id`` maps to
-        Telegram ``telegram_id``.
+        ``recipient_id`` semantics are transport-specific. In Telegram adapters
+        this maps to ``telegram_id``/``chat_id``.
     """
 
     @abstractmethod
@@ -38,8 +37,8 @@ class NotificationPort(ABC):
         """Send a direct message to a single recipient.
 
         Args:
-            message_data: Validated notification payload. Recipient identifier
-                semantics depend on the transport implementation.
+            message_data: Validated notification payload with recipient id and
+                optional parse mode.
 
         Raises:
             NotificationTemporaryError: Transient delivery error, retry is allowed.

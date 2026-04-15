@@ -25,7 +25,8 @@ class TelegramNotificationService(NotificationPort):
     """Telegram implementation of :class:`NotificationPort`.
 
     Notes:
-        ``user_id`` in this adapter is interpreted as Telegram ``telegram_id``.
+        ``recipient_id`` in direct notifications is interpreted as Telegram
+        ``telegram_id``/``chat_id``.
     """
 
     def __init__(self, bot: Bot) -> None:
@@ -93,13 +94,26 @@ class TelegramNotificationService(NotificationPort):
             raise NotificationPermanentError(message="Unexpected notification delivery failure") from exc
 
     async def send_message(self, message_data: NotifyDTO) -> None:
+        cleaned_text = message_data.message
+        recipient_id = message_data.recipient_id
+        parse_mode = message_data.parse_mode
+
         try:
-            cleaned_text, user_id = message_data.message, message_data.user_id
-            await self.bot.send_message(chat_id=user_id, text=cleaned_text)
+            if parse_mode is not None:
+                await self.bot.send_message(
+                    chat_id=recipient_id,
+                    text=cleaned_text,
+                    parse_mode=parse_mode,
+                )
+            else:
+                await self.bot.send_message(
+                    chat_id=recipient_id,
+                    text=cleaned_text,
+                )
         except TelegramRetryAfter as exc:
             logger.warning(
-                "Telegram retry-after while sending message | user_id={user_id} retry_after={retry_after}",
-                user_id=user_id,
+                "Telegram retry-after while sending message | recipient_id={recipient_id} retry_after={retry_after}",
+                recipient_id=recipient_id,
                 retry_after=exc.retry_after,
             )
             raise NotificationTemporaryError(
@@ -108,8 +122,8 @@ class TelegramNotificationService(NotificationPort):
             ) from exc
         except (TelegramNetworkError, TelegramServerError, RestartingTelegram) as exc:
             logger.warning(
-                "Temporary Telegram failure while sending message | user_id={user_id} error={error}",
-                user_id=user_id,
+                "Temporary Telegram failure while sending message | recipient_id={recipient_id} error={error}",
+                recipient_id=recipient_id,
                 error=str(exc),
             )
             raise NotificationTemporaryError(message="Temporary Telegram delivery failure") from exc
@@ -121,22 +135,22 @@ class TelegramNotificationService(NotificationPort):
             TelegramEntityTooLarge,
         ) as exc:
             logger.warning(
-                "Permanent Telegram failure while sending message | user_id={user_id} error={error}",
-                user_id=user_id,
+                "Permanent Telegram failure while sending message | recipient_id={recipient_id} error={error}",
+                recipient_id=recipient_id,
                 error=str(exc),
             )
             raise NotificationPermanentError(message="Permanent Telegram delivery failure") from exc
         except TelegramAPIError as exc:
             logger.warning(
-                "Telegram API error while sending message | user_id={user_id} error={error}",
-                user_id=user_id,
+                "Telegram API error while sending message | recipient_id={recipient_id} error={error}",
+                recipient_id=recipient_id,
                 error=str(exc),
             )
             raise NotificationPermanentError(message="Telegram API delivery failure") from exc
         except Exception as exc:
             logger.exception(
-                "Failed to send direct notification | user_id={user_id} message_preview={message_preview}",
-                user_id=user_id,
+                "Failed to send direct notification | recipient_id={recipient_id} message_preview={message_preview}",
+                recipient_id=recipient_id,
                 message_preview=cleaned_text[:120],
             )
             raise NotificationPermanentError(message="Unexpected notification delivery failure") from exc

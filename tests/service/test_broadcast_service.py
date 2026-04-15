@@ -61,16 +61,16 @@ class ScriptedNotificationPort(NotificationPort):
         return None
 
     async def send_message(self, message_data: NotifyDTO) -> None:
-        user_id = message_data.user_id
-        self.call_counts[user_id] += 1
-        self.messages_by_user[user_id].append(message_data.message)
+        recipient_id = message_data.recipient_id
+        self.call_counts[recipient_id] += 1
+        self.messages_by_user[recipient_id].append(message_data.message)
 
         if self.started_event is not None and not self.started_event.is_set():
             self.started_event.set()
         if self.release_event is not None:
             await self.release_event.wait()
 
-        outcomes = self._plans.get(user_id)
+        outcomes = self._plans.get(recipient_id)
         outcome = outcomes.popleft() if outcomes else DeliveryOutcome.OK
 
         if outcome is DeliveryOutcome.TEMPORARY:

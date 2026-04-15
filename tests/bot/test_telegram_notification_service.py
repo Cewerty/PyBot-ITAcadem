@@ -177,15 +177,28 @@ async def test_send_role_request_to_admin_maps_unexpected_error_to_permanent_err
 async def test_send_message_sends_trimmed_text(fake_bot: BotFixture) -> None:
     service = TelegramNotificationService(fake_bot.bot)
 
-    await service.send_message(NotifyDTO(user_id=RECIPIENT_USER_ID, message="  hello  "))
+    await service.send_message(NotifyDTO(recipient_id=RECIPIENT_USER_ID, message="  hello  "))
 
     fake_bot.send_message.assert_awaited_once_with(chat_id=RECIPIENT_USER_ID, text="hello")
 
 
 @pytest.mark.asyncio
+async def test_send_message_passes_parse_mode_only_when_set(fake_bot: BotFixture) -> None:
+    service = TelegramNotificationService(fake_bot.bot)
+
+    await service.send_message(NotifyDTO(recipient_id=RECIPIENT_USER_ID, message="hello", parse_mode="HTML"))
+
+    fake_bot.send_message.assert_awaited_once_with(
+        chat_id=RECIPIENT_USER_ID,
+        text="hello",
+        parse_mode="HTML",
+    )
+
+
+@pytest.mark.asyncio
 async def test_send_message_raises_on_blank_text(fake_bot: BotFixture) -> None:
     with pytest.raises(ValueError, match="message must not be empty"):
-        NotifyDTO(user_id=RECIPIENT_USER_ID, message="   ")
+        NotifyDTO(recipient_id=RECIPIENT_USER_ID, message="   ")
 
     fake_bot.send_message.assert_not_awaited()
 
@@ -196,7 +209,7 @@ async def test_send_message_maps_retry_after_to_temporary_error(fake_bot: BotFix
     service = TelegramNotificationService(fake_bot.bot)
 
     with pytest.raises(NotificationTemporaryError) as exc_info:
-        await service.send_message(NotifyDTO(user_id=RECIPIENT_USER_ID, message="hello"))
+        await service.send_message(NotifyDTO(recipient_id=RECIPIENT_USER_ID, message="hello"))
 
     retry_after = exc_info.value.retry_after_seconds
     _expect(retry_after is not None, "retry_after_seconds must not be None")
@@ -212,7 +225,7 @@ async def test_send_message_maps_network_error_to_temporary_error(fake_bot: BotF
     service = TelegramNotificationService(fake_bot.bot)
 
     with pytest.raises(NotificationTemporaryError):
-        await service.send_message(NotifyDTO(user_id=RECIPIENT_USER_ID, message="hello"))
+        await service.send_message(NotifyDTO(recipient_id=RECIPIENT_USER_ID, message="hello"))
 
     fake_bot.send_message.assert_awaited_once()
 
@@ -223,7 +236,7 @@ async def test_send_message_maps_bad_request_to_permanent_error(fake_bot: BotFix
     service = TelegramNotificationService(fake_bot.bot)
 
     with pytest.raises(NotificationPermanentError):
-        await service.send_message(NotifyDTO(user_id=RECIPIENT_USER_ID, message="hello"))
+        await service.send_message(NotifyDTO(recipient_id=RECIPIENT_USER_ID, message="hello"))
 
     fake_bot.send_message.assert_awaited_once()
 
@@ -234,7 +247,7 @@ async def test_send_message_maps_generic_api_error_to_permanent_error(fake_bot: 
     service = TelegramNotificationService(fake_bot.bot)
 
     with pytest.raises(NotificationPermanentError):
-        await service.send_message(NotifyDTO(user_id=RECIPIENT_USER_ID, message="hello"))
+        await service.send_message(NotifyDTO(recipient_id=RECIPIENT_USER_ID, message="hello"))
 
     fake_bot.send_message.assert_awaited_once()
 
@@ -245,6 +258,6 @@ async def test_send_message_maps_unexpected_error_to_permanent_error(fake_bot: B
     service = TelegramNotificationService(fake_bot.bot)
 
     with pytest.raises(NotificationPermanentError, match="Unexpected notification delivery failure"):
-        await service.send_message(NotifyDTO(user_id=RECIPIENT_USER_ID, message="hello"))
+        await service.send_message(NotifyDTO(recipient_id=RECIPIENT_USER_ID, message="hello"))
 
     fake_bot.send_message.assert_awaited_once()

@@ -38,7 +38,7 @@ class SystemRuntimeAlertsService:
         )
         await self._notification_facade.notify_user(
             NotifyUserDTO(
-                user_id=chat_id,
+                recipient_id=chat_id,
                 message=message,
                 kind=TaskScheduleKind.IMMEDIATE,
             )
@@ -51,4 +51,4 @@ class SystemRuntimeAlertsService:
             return
 
         message = runtime_shutdown_notification(bot_mode=settings.bot_mode)
-        await self._notification_port.send_message(NotifyDTO(user_id=chat_id, message=message))
+        await self._notification_port.send_message(NotifyDTO(recipient_id=chat_id, message=message))
