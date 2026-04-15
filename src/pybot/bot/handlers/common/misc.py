@@ -32,3 +32,9 @@ async def cmd_ping(
 
     is_admin = await user_roles_service.check_user_role(user.id, "Admin")
     await message.answer(ping_status(user.first_name, is_admin))
+
+
+@misc_global_router.message(Command("chat_id"), flags={"rate_limit": "cheap", "role": {"Admin"}})
+async def cmd_chat_id(message: Message) -> None:
+    """Возвращает идентификатор текущего чата для отладки и настройки."""
+    await message.answer(f"chat.id: {message.chat.id}")
