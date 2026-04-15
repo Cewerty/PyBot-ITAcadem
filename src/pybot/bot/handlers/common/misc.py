@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 from aiogram.filters import Command
 from aiogram.types import Message
 from dishka import FromDishka
@@ -17,6 +19,7 @@ async def cmd_ping(
     user_roles_service: FromDishka[UserRolesService],
     user_id: int,
 ) -> None:
+    """Обработчик команды /ping."""
     if message.from_user is None:
         await message.answer(PING_ANONYMOUS)
         return

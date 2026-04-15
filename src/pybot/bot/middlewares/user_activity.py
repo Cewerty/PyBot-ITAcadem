@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -18,6 +20,7 @@ class UserActivityMiddleware(BaseMiddleware):
         event: TelegramObject,
         data: dict[str, Any],
     ) -> Any:
+        """Вспомогательная функция __call__."""
         # Background activity tracking for the current Telegram user.
         user = data.get("event_from_user")
         if not user:

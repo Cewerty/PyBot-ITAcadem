@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -12,7 +14,10 @@ from ...core.config import settings
 
 
 class RateLimitMiddleware(BaseMiddleware):
+    """Класс для RateLimitMiddleware."""
+
     def __init__(self) -> None:
+        """Инициализирует объект."""
         super().__init__()
         self.enable_rate_limit = settings.enable_rate_limit
         if self.enable_rate_limit:
@@ -54,6 +59,7 @@ class RateLimitMiddleware(BaseMiddleware):
         event: TelegramObject,
         data: dict[str, Any],
     ) -> Any:
+        """Вспомогательная функция __call__."""
         # 🛑 Rate limit отключён
         if not self.enable_rate_limit:
             return await handler(event, data)

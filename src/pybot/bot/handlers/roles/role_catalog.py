@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 from aiogram.filters.command import Command
 from aiogram.types import Message
 from dishka.integrations.aiogram import FromDishka
@@ -18,6 +20,7 @@ async def handle_show_all_roles(
     message: Message,
     user_roles_service: FromDishka[UserRolesService],
 ) -> None:
+    """Форматирует текст для ролей."""
     try:
         roles = await user_roles_service.find_all_roles()
     except Exception:

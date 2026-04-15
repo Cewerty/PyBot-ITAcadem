@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 from aiogram.fsm.state import State, StatesGroup
 
 

@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 from aiogram import Dispatcher
 from aiogram.filters import ExceptionTypeFilter
 from aiogram.types import CallbackQuery, ErrorEvent
@@ -8,6 +10,7 @@ from ...texts import STALE_DIALOG_MESSAGE
 
 
 async def handle_unknown_intent(event: ErrorEvent) -> bool:
+    """Вспомогательная функция handle_unknown_intent."""
     callback: CallbackQuery | None = event.update.callback_query
     if callback is None:
         logger.warning(
@@ -31,4 +34,5 @@ async def handle_unknown_intent(event: ErrorEvent) -> bool:
 
 
 def register_dialog_error_handlers(dp: Dispatcher) -> None:
+    """Возвращает текст сообщения об ошибке."""
     dp.errors.register(handle_unknown_intent, ExceptionTypeFilter(UnknownIntent))

@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 from aiogram.types import Message
 
 

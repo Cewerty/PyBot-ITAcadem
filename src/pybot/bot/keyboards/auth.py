@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
 from ..texts import BUTTON_SEND_CONTACT

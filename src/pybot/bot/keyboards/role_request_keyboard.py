@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 from __future__ import annotations
 
 from aiogram.filters.callback_data import CallbackData
@@ -8,11 +10,14 @@ from ..texts import BUTTON_APPROVE, BUTTON_REJECT
 
 
 class RoleRequestCB(CallbackData, prefix="role_req"):
+    """Класс для RoleRequestCB."""
+
     action: RequestStatus
     request_id: int
 
 
 def get_admin_decision_kb(request_id: int) -> InlineKeyboardMarkup:
+    """Вспомогательная функция get_admin_decision_kb."""
     approve_callback_data = RoleRequestCB(action=RequestStatus.APPROVED, request_id=request_id).pack()
     reject_callback_data = RoleRequestCB(action=RequestStatus.REJECTED, request_id=request_id).pack()
 

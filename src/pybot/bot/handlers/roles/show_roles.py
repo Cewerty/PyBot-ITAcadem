@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 from __future__ import annotations
 
 import re
@@ -146,6 +148,7 @@ async def handle_show_roles(
     user_roles_service: FromDishka[UserRolesService],
     user_id: int,
 ) -> None:
+    """Форматирует текст для ролей."""
     try:
         target_user = await _resolve_target_user(
             message=message,

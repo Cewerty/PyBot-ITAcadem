@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 from aiogram import Router
 
 from .chat_filters import IS_ANY_CHAT, IS_GROUP, IS_PRIVATE

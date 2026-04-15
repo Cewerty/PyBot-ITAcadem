@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 from aiogram.filters import Command
 from aiogram.types import Message
 from dishka.integrations.aiogram import FromDishka
@@ -16,6 +18,7 @@ async def handle_leaderboard(
     message: Message,
     leaderboard_service: FromDishka[LeaderboardService],
 ) -> None:
+    """Форматирует текст для таблицы лидеров."""
     try:
         academic_rows = await leaderboard_service.get_previous_calendar_week_leaderboard(
             points_type=PointsTypeEnum.ACADEMIC,
