@@ -131,7 +131,6 @@ class RuntimeDependencies:
 @lru_cache(maxsize=1)
 def _get_runtime_dependencies() -> RuntimeDependencies:
     """Load and cache runtime-only application dependencies."""
-
     constants_module = import_module("src.pybot.core.constants")
     db_models_module = import_module("src.pybot.db.models")
     containers_module = import_module("src.pybot.di.containers")
@@ -161,7 +160,6 @@ def _get_runtime_dependencies() -> RuntimeDependencies:
 @lru_cache(maxsize=1)
 def _get_runtime_logger() -> Logger:
     """Create the configured application logger lazily for runtime execution."""
-
     logger_module = import_module("src.pybot.core.logger")
     return logger_module.setup_logger()
 
@@ -241,7 +239,6 @@ class FillDatabaseConfig:
         Raises:
             ValueError: If one of the numeric limits or point steps is invalid.
         """
-
         if self.num_fake_users < 0:
             raise ValueError("num_fake_users must be greater than or equal to 0")
         if self.num_levels_per_type < 0:
@@ -302,7 +299,6 @@ def build_seed_config(cli_config: FillDatabaseCLIConfig) -> FillDatabaseConfig:
     Returns:
         Internal runtime configuration for the async seed flow.
     """
-
     competencies_preset = CompetencePreset(cli_config.competencies_preset)
 
     return FillDatabaseConfig(
@@ -331,7 +327,6 @@ def parse_cli_args(args: Sequence[str] | None = None) -> FillDatabaseCLIConfig:
     Returns:
         Parsed CLI configuration.
     """
-
     return tyro.cli(FillDatabaseCLIConfig, args=list(args) if args is not None else None)
 
 
@@ -344,7 +339,6 @@ def _get_competence_seed_entries(config: FillDatabaseConfig) -> tuple[Competence
     Returns:
         Competence entries mapped from the selected preset.
     """
-
     return _COMPETENCE_PRESETS[config.competencies_preset]
 
 
@@ -407,7 +401,6 @@ def calculate_xp(n: int) -> int:
     Returns:
         Required points for the requested level.
     """
-
     if n <= 0:
         return 0
     return 50 * n * (n - 1)
@@ -422,7 +415,6 @@ def _build_faker(config: FillDatabaseConfig) -> Faker:
     Returns:
         Configured Faker instance.
     """
-
     return Faker(config.faker_locale)
 
 
@@ -441,7 +433,6 @@ async def generate_levels_data(
     Returns:
         Existing or newly created levels.
     """
-
     runtime = _get_runtime_dependencies()
     logger.info("Starting level generation")
 
@@ -487,7 +478,6 @@ def _sanitize_phone_number(phone_raw: str, fake_data: Faker) -> str:
     Returns:
         Sanitized phone number prefixed with `+`.
     """
-
     phone_cleaned = "".join(filter(str.isdigit, phone_raw))
 
     if phone_cleaned.startswith("8"):
@@ -515,11 +505,11 @@ async def generate_users_data(
 
     Args:
         user_service: Service used to register users and assign competences.
+        user_competence_service: Service used to attach competences to users.
         points_service: Service used to seed points through business logic.
         competencies: Available competences that may be attached to users.
         config: Seed configuration.
     """
-
     logger.info("Starting generation of %s fake users", config.num_fake_users)
 
     fake_data = _build_faker(config)
@@ -592,7 +582,6 @@ def _generate_fake_users_data(
     Returns:
         User payloads ready to be passed into registration.
     """
-
     users_data: list[UserDataDict] = []
     state = UserGenerationState(
         used_telegram_ids=set(),
@@ -631,7 +620,6 @@ def _build_fake_user_data(
     Returns:
         Tuple of generated user payload and next Telegram id seed.
     """
-
     first_name = fake_data.first_name()
     last_name = fake_data.last_name()
     patronymic = fake_data.middle_name() if fake_data.boolean(chance_of_getting_true=80) else None
@@ -675,7 +663,6 @@ def _pick_competence_ids(
     Returns:
         Selected competence identifiers.
     """
-
     if not competencies or config.max_competencies_per_user == 0:
         return []
 
@@ -700,7 +687,6 @@ async def _register_seed_user(
     Returns:
         Newly created user id or `None` if the created DTO does not contain it.
     """
-
     logger.debug(
         "Creating user %s/%s: %s %s",
         idx,
@@ -745,7 +731,6 @@ async def _seed_registered_user(
         user_data: Generated user payload.
         config: Seed configuration.
     """
-
     runtime = _get_runtime_dependencies()
     giver_id = _select_seed_giver_id(created_user_ids, user_id)
     await _apply_seed_points(
@@ -783,7 +768,6 @@ def _select_seed_giver_id(created_user_ids: Sequence[int], recipient_id: int) ->
     Returns:
         Identifier of the giver user.
     """
-
     if len(created_user_ids) <= 1:
         return recipient_id
 
@@ -808,7 +792,6 @@ async def _apply_seed_points(
         points: Points value object to apply.
         reason: Reason stored with the seeded valuation.
     """
-
     if points.value == 0:
         return
 
@@ -832,7 +815,6 @@ async def get_all_roles(session: AsyncSession) -> Sequence[Role]:
     Returns:
         Stored role entities.
     """
-
     runtime = _get_runtime_dependencies()
     stmt = select(runtime.role_model)
     result = await session.execute(stmt)
@@ -848,7 +830,6 @@ async def role_exists(session: AsyncSession) -> bool:
     Returns:
         `True` when roles are already present in the database.
     """
-
     runtime = _get_runtime_dependencies()
     stmt = select(runtime.role_model).limit(1)
     result = await session.execute(stmt)
@@ -864,7 +845,6 @@ async def add_roles_data(session: AsyncSession) -> Sequence[Role]:
     Returns:
         Existing or newly created role entities.
     """
-
     runtime = _get_runtime_dependencies()
     logger.info("Starting role generation")
 
@@ -892,7 +872,6 @@ async def add_competencies_data(
     Returns:
         Existing or newly created competence DTOs.
     """
-
     runtime = _get_runtime_dependencies()
     logger.info("Starting competence generation")
 
@@ -925,7 +904,6 @@ async def fill_database(config: FillDatabaseConfig | None = None) -> None:
         config: Optional seed configuration. Defaults to the standard script
             behavior when omitted.
     """
-
     _ensure_project_root_on_path()
     runtime = _get_runtime_dependencies()
     runtime_logger = _get_runtime_logger()
@@ -982,7 +960,6 @@ async def fill_database(config: FillDatabaseConfig | None = None) -> None:
 
 def _ensure_project_root_on_path() -> None:
     """Ensure the repository root is available in `sys.path` for script runs."""
-
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
@@ -994,7 +971,6 @@ def main(cli_config: FillDatabaseCLIConfig | None = None) -> None:
     Args:
         cli_config: Optional CLI configuration for programmatic invocation.
     """
-
     resolved_cli_config = cli_config or parse_cli_args()
     _ensure_project_root_on_path()
     asyncio.run(fill_database(build_seed_config(resolved_cli_config)))
