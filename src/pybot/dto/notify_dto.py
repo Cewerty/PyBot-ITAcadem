@@ -1,3 +1,5 @@
+"""DTO для параметров уведомлений и конфигурации задач отправки сообщений."""
+
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Literal
@@ -16,6 +18,8 @@ NotificationStatus = Literal["sent", "failed_temporary", "failed_permanent"]
 
 @dataclass(slots=True)
 class NotificationTaskPayload:
+    """Внутренний DTO для передачи задачи отправки уведомления обработчику очереди."""
+
     status: NotificationStatus
     user_id: int
     message: str
@@ -57,6 +61,8 @@ class NotifyDTO(BaseDTO):
 
 @dataclass(frozen=True, slots=True)
 class NotificationLogEvent:
+    """Событие для логирования результатов или попыток отправки уведомлений."""
+
     event_type: Literal["role_request_to_admin", "direct_message"]
     recipient_user_id: int
     message_text: str
@@ -66,6 +72,11 @@ class NotificationLogEvent:
 
 
 class NotifyUserDTO(BaseDTO):
+    """DTO конфигурации уведомления пользователя с поддержкой отложенной и периодической отправки.
+
+    Используется для постановки сложных задач рассылки через TaskIQ с учётом расписания.
+    """
+
     model_config = ConfigDict(from_attributes=True, extra="forbid", frozen=True, arbitrary_types_allowed=True)
 
     user_id: int = Field(..., alias="user_id", ge=1)

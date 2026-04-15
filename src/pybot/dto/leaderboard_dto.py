@@ -1,3 +1,5 @@
+"""DTO для построения и отображения таблиц лидеров."""
+
 from datetime import datetime
 
 from pydantic import computed_field
@@ -7,6 +9,8 @@ from .base_dto import BaseDTO
 
 
 class WeeklyLeaderboardRowDTO(BaseDTO):
+    """DTO строки еженедельной таблицы лидеров для конкретного пользователя."""
+
     user_id: int
     telegram_id: int
     first_name: str
@@ -20,6 +24,7 @@ class WeeklyLeaderboardRowDTO(BaseDTO):
     @computed_field
     @property
     def display_name(self) -> str:
+        """Возвращает полное имя пользователя в удобном для чтения формате."""
         name_parts = [
             self.last_name,
             self.first_name,
