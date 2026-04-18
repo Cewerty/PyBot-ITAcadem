@@ -5,10 +5,12 @@ from dataclasses import dataclass
 from dishka import AsyncContainer
 from dishka.integrations.taskiq import setup_dishka
 from taskiq import AsyncBroker, TaskiqEvents, TaskiqScheduler, TaskiqState
+from taskiq.middlewares.smart_retry_middleware import SmartRetryMiddleware
 from taskiq_redis import ListRedisScheduleSource, RedisStreamBroker
 
 from ...core import logger, settings
 from ...di.containers import setup_taskiq_container
+from ...services.ports import NotificationTemporaryError
 from .taskiq_weekly_leaderboard_schedule import (
     LEADERBOARD_WEEKLY_SCHEDULE_ID,
     LEADERBOARD_WEEKLY_TASK_NAME,
@@ -106,6 +108,18 @@ def get_taskiq_broker() -> AsyncBroker:
     register_weekly_leaderboard_wiring(
         broker,
         ensure_weekly_leaderboard_schedule=ensure_weekly_leaderboard_schedule,
+    )
+    broker.add_middlewares(
+        SmartRetryMiddleware(
+            default_retry_count=settings.leaderboard_weekly_retry_max_retries,
+            default_retry_label=False,
+            default_delay=float(settings.leaderboard_weekly_retry_delay_s),
+            use_jitter=settings.leaderboard_weekly_retry_use_jitter,
+            use_delay_exponent=settings.leaderboard_weekly_retry_use_exponential_backoff,
+            max_delay_exponent=float(settings.leaderboard_weekly_retry_max_delay_s),
+            schedule_source=get_taskiq_schedule_source(),
+            types_of_exceptions=(NotificationTemporaryError,),
+        )
     )
 
     _runtime_state.broker = broker

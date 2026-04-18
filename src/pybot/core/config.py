@@ -124,6 +124,39 @@ class BotSettings(BaseSettings):
         description="Max rows per leaderboard section in weekly publication",
         ge=1,
     )
+    leaderboard_weekly_retry_enabled: bool = Field(
+        True,
+        alias="LEADERBOARD_WEEKLY_RETRY_ENABLED",
+        description="Enable retry labels for weekly leaderboard task execution",
+    )
+    leaderboard_weekly_retry_max_retries: int = Field(
+        3,
+        alias="LEADERBOARD_WEEKLY_RETRY_MAX_RETRIES",
+        description="Maximum retry attempts for weekly leaderboard task",
+        ge=1,
+    )
+    leaderboard_weekly_retry_delay_s: int = Field(
+        30,
+        alias="LEADERBOARD_WEEKLY_RETRY_DELAY_S",
+        description="Base retry delay in seconds for weekly leaderboard task",
+        ge=1,
+    )
+    leaderboard_weekly_retry_use_jitter: bool = Field(
+        True,
+        alias="LEADERBOARD_WEEKLY_RETRY_USE_JITTER",
+        description="Use jitter for weekly leaderboard retry delays",
+    )
+    leaderboard_weekly_retry_use_exponential_backoff: bool = Field(
+        True,
+        alias="LEADERBOARD_WEEKLY_RETRY_USE_EXPONENTIAL_BACKOFF",
+        description="Use exponential backoff for weekly leaderboard retry delays",
+    )
+    leaderboard_weekly_retry_max_delay_s: int = Field(
+        300,
+        alias="LEADERBOARD_WEEKLY_RETRY_MAX_DELAY_S",
+        description="Maximum retry delay in seconds for weekly leaderboard task",
+        ge=1,
+    )
 
     # Middleware toggles
     enable_logging_middleware: bool = Field(
@@ -276,6 +309,14 @@ class BotSettings(BaseSettings):
     def validate_weekly_leaderboard_config(self: Self) -> Self:
         if self.leaderboard_weekly_enabled and self.leaderboard_weekly_recipient_id is None:
             raise ValueError("LEADERBOARD_WEEKLY_RECIPIENT_ID must be set when LEADERBOARD_WEEKLY_ENABLED=true")
+        return self
+
+    @model_validator(mode="after")
+    def validate_weekly_leaderboard_retry_config(self: Self) -> Self:
+        if self.leaderboard_weekly_retry_max_delay_s < self.leaderboard_weekly_retry_delay_s:
+            raise ValueError(
+                "LEADERBOARD_WEEKLY_RETRY_MAX_DELAY_S must be greater than or equal to LEADERBOARD_WEEKLY_RETRY_DELAY_S"
+            )
         return self
 
 

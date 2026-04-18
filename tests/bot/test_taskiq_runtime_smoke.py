@@ -13,6 +13,7 @@ from pybot.infrastructure.taskiq import taskiq_app
 from pybot.infrastructure.taskiq import taskiq_weekly_leaderboard_wiring
 from pybot.infrastructure.taskiq.tasks import publish_weekly_leaderboard_task
 from pybot.infrastructure.taskiq.tasks.system import system_ping_task
+from pybot.services.ports import NotificationTemporaryError
 
 
 @pytest.fixture(autouse=True)
@@ -39,9 +40,13 @@ async def test_taskiq_runtime_smoke_builds_singletons_and_wires_worker_hooks(
         def __init__(self, url: str) -> None:
             self.url = url
             self.handlers: list[tuple[object, object]] = []
+            self.middlewares: list[object] = []
 
         def add_event_handler(self, event: object, handler: object) -> None:
             self.handlers.append((event, handler))
+
+        def add_middlewares(self, *middlewares: object) -> None:
+            self.middlewares.extend(middlewares)
 
     class FakeScheduleSource:
         def __init__(self, url: str) -> None:
@@ -52,10 +57,38 @@ async def test_taskiq_runtime_smoke_builds_singletons_and_wires_worker_hooks(
             self.broker = broker
             self.sources = sources
 
+    class FakeSmartRetryMiddleware:
+        def __init__(
+            self,
+            *,
+            default_retry_count: int,
+            default_retry_label: bool,
+            default_delay: float,
+            use_jitter: bool,
+            use_delay_exponent: bool,
+            max_delay_exponent: float,
+            schedule_source: object,
+            types_of_exceptions: tuple[type[BaseException], ...],
+        ) -> None:
+            self.default_retry_count = default_retry_count
+            self.default_retry_label = default_retry_label
+            self.default_delay = default_delay
+            self.use_jitter = use_jitter
+            self.use_delay_exponent = use_delay_exponent
+            self.max_delay_exponent = max_delay_exponent
+            self.schedule_source = schedule_source
+            self.types_of_exceptions = types_of_exceptions
+
     monkeypatch.setattr(taskiq_app.settings, "redis_url", "redis://smoke-test:6379/7")
+    monkeypatch.setattr(taskiq_app.settings, "leaderboard_weekly_retry_max_retries", 4)
+    monkeypatch.setattr(taskiq_app.settings, "leaderboard_weekly_retry_delay_s", 42)
+    monkeypatch.setattr(taskiq_app.settings, "leaderboard_weekly_retry_use_jitter", False)
+    monkeypatch.setattr(taskiq_app.settings, "leaderboard_weekly_retry_use_exponential_backoff", True)
+    monkeypatch.setattr(taskiq_app.settings, "leaderboard_weekly_retry_max_delay_s", 512)
     monkeypatch.setattr(taskiq_app, "RedisStreamBroker", FakeBroker)
     monkeypatch.setattr(taskiq_app, "ListRedisScheduleSource", FakeScheduleSource)
     monkeypatch.setattr(taskiq_app, "TaskiqScheduler", FakeScheduler)
+    monkeypatch.setattr(taskiq_app, "SmartRetryMiddleware", FakeSmartRetryMiddleware)
 
     broker = cast(FakeBroker, taskiq_app.get_taskiq_broker())
     second_broker = cast(FakeBroker, taskiq_app.get_taskiq_broker())
@@ -73,6 +106,17 @@ async def test_taskiq_runtime_smoke_builds_singletons_and_wires_worker_hooks(
     assert source.url == "redis://smoke-test:6379/7"
     assert scheduler.broker is broker
     assert scheduler.sources == [source]
+    assert len(broker.middlewares) == 1
+    retry_middleware = broker.middlewares[0]
+    assert isinstance(retry_middleware, FakeSmartRetryMiddleware)
+    assert retry_middleware.default_retry_count == 4
+    assert retry_middleware.default_retry_label is False
+    assert retry_middleware.default_delay == 42.0
+    assert retry_middleware.use_jitter is False
+    assert retry_middleware.use_delay_exponent is True
+    assert retry_middleware.max_delay_exponent == 512.0
+    assert retry_middleware.schedule_source is source
+    assert retry_middleware.types_of_exceptions == (NotificationTemporaryError,)
     assert broker.handlers == [
         (taskiq_app.TaskiqEvents.WORKER_STARTUP, taskiq_app._on_worker_startup),
         (taskiq_app.TaskiqEvents.WORKER_SHUTDOWN, taskiq_app._on_worker_shutdown),
