@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 
 import pytest
 
@@ -55,8 +55,8 @@ def _row(
         patronymic=None,
         total_points_delta=total_points_delta,
         points_type=points_type,
-        period_start=datetime(2026, 4, 6, 0, 0, 0),
-        period_end=datetime(2026, 4, 13, 0, 0, 0),
+        period_start=datetime(2026, 4, 6, 0, 0, 0, tzinfo=UTC),
+        period_end=datetime(2026, 4, 13, 0, 0, 0, tzinfo=UTC),
     )
 
 

@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,10 +18,20 @@ class PointsTransactionRepository:
         db: AsyncSession,
         *,
         points_type: PointsTypeEnum,
-        start_at: datetime,
-        end_at: datetime,
+        period_start: datetime,
+        period_end: datetime,
         limit: int = 10,
     ) -> Sequence[WeeklyLeaderboardRowDTO]:
+        """Вернуть топ получателей с положительным чистым приростом баллов за период.
+
+        ``period_start`` / ``period_end`` - timezone-aware local period boundaries.
+        They are converted to UTC-naive bounds for SQL WHERE filtering.
+        DTO rows keep the original local period for user-facing rendering.
+        Пользователи с нулевым или отрицательным чистым приростом в результат не попадают.
+        """
+        start_at = period_start.astimezone(UTC).replace(tzinfo=None)
+        end_at = period_end.astimezone(UTC).replace(tzinfo=None)
+
         total_points_delta = func.sum(PointsTransaction.amount).label("total_points_delta")
         stmt = (
             select(
@@ -35,9 +45,6 @@ class PointsTransactionRepository:
             .join(PointsTransaction, PointsTransaction.recipient_id == User.id)
             .where(
                 PointsTransaction.points_type == points_type,
-                # Leaderboard shows weekly growth only, so negative adjustments
-                # do not reduce the aggregated score.
-                PointsTransaction.amount > 0,
                 PointsTransaction.created_at >= start_at,
                 PointsTransaction.created_at < end_at,
             )
@@ -47,6 +54,9 @@ class PointsTransactionRepository:
                 User.last_name,
                 User.patronymic,
             )
+            # Показываем только тех, у кого чистый прирост за неделю положительный.
+            # Вычеты снижают итоговый балл, но не выносят пользователя в топ.
+            .having(total_points_delta > 0)
             .order_by(total_points_delta.desc(), User.id.asc())
             .limit(limit)
         )
@@ -63,8 +73,8 @@ class PointsTransactionRepository:
                 patronymic=row.patronymic,
                 total_points_delta=row.total_points_delta,
                 points_type=points_type,
-                period_start=start_at,
-                period_end=end_at,
+                period_start=period_start,
+                period_end=period_end,
             )
             for row in rows
         ]
