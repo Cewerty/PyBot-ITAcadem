@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 from aiogram.filters import Command
 from aiogram.types import Message
 from aiogram_dialog import DialogManager
@@ -22,6 +24,7 @@ async def cmd_profile_private(
     user_service: FromDishka[UserService],
     user_profile_service: FromDishka[UserProfileService],
 ) -> None:
+    """Обработчик команды /profile_private."""
     if message.from_user:
         user = await user_service.find_user_by_telegram_id(message.from_user.id)
         if user:

@@ -28,7 +28,7 @@ class LoggingNotificationService(NotificationPort):
         text = f"New role request\n\nRequest ID: {request_id}\nRole: {role_name}\nUser: {mention}"
         event = NotificationLogEvent(
             event_type="role_request_to_admin",
-            recipient_user_id=admin_tg_id,
+            recipient_id=admin_tg_id,
             message_text=text,
             request_id=request_id,
             requester_user_id=requester_user_id,
@@ -56,25 +56,29 @@ class LoggingNotificationService(NotificationPort):
 
     async def send_message(self, message_data: NotifyDTO) -> None:
         """Log direct message notification and store event in ring buffer."""
-        user_id, cleaned_text = message_data.user_id, message_data.message
+        recipient_id, cleaned_text = message_data.recipient_id, message_data.message
 
         event = NotificationLogEvent(
             event_type="direct_message",
-            recipient_user_id=user_id,
+            recipient_id=recipient_id,
             message_text=cleaned_text,
         )
 
         try:
             logger.info(
-                "Direct notification (logging backend) | user_id={user_id} message_preview={message_preview}",
-                user_id=user_id,
+                "Direct notification (logging backend) | recipient_id={recipient_id} "
+                "message_preview={message_preview} parse_mode={parse_mode}",
+                recipient_id=recipient_id,
                 message_preview=cleaned_text[:120],
+                parse_mode=message_data.parse_mode,
             )
             self._events.append(event)
         except Exception as exc:
             logger.exception(
-                "Failed to log direct notification | user_id={user_id} message_preview={message_preview}",
-                user_id=user_id,
+                "Failed to log direct notification | recipient_id={recipient_id} "
+                "message_preview={message_preview} parse_mode={parse_mode}",
+                recipient_id=recipient_id,
                 message_preview=cleaned_text[:120],
+                parse_mode=message_data.parse_mode,
             )
             raise NotificationPermanentError(message="Failed to log direct notification") from exc

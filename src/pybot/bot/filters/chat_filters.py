@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 from aiogram import F
 
 IS_PRIVATE = F.chat.type == "private"

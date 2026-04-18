@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 import html
 import re
 import textwrap
@@ -301,71 +303,88 @@ LEADERBOARD_PLACE_MEDALS = {
 
 
 def button_cancel() -> str:
+    """Возвращает текст кнопки."""
     return BUTTON_CANCEL
 
 
 def button_back() -> str:
+    """Возвращает текст кнопки."""
     return BUTTON_BACK
 
 
 def button_skip() -> str:
+    """Возвращает текст кнопки."""
     return BUTTON_SKIP
 
 
 def registration_existing_profile(_user_id: int) -> str:
+    """Форматирует текст профиля пользователя."""
     return REGISTRATION_ALREADY_EXISTS
 
 
 def registration_profile_created(first_name: str) -> str:
+    """Форматирует текст профиля пользователя."""
     return REGISTRATION_PROFILE_CREATED.format(first_name=first_name)
 
 
 def registration_name_too_long(max_length: int) -> str:
+    """Вспомогательная функция registration_name_too_long."""
     return REGISTRATION_NAME_TOO_LONG.format(max_length=max_length)
 
 
 def ping_status(first_name: str, is_admin: bool) -> str:
+    """Вспомогательная функция ping_status."""
     role_hint = " У вас есть доступ к командам администратора." if is_admin else ""
     return PING_STATUS.format(first_name=first_name, role_hint=role_hint)
 
 
 def target_selected_reply(target: str) -> str:
+    """Вспомогательная функция target_selected_reply."""
     return TARGET_SELECTED_REPLY.format(target=target)
 
 
 def target_selected_mention(target: str) -> str:
+    """Вспомогательная функция target_selected_mention."""
     return TARGET_SELECTED_MENTION.format(target=target)
 
 
 def role_not_specified() -> str:
+    """Форматирует текст для ролей."""
     return ROLE_NOT_SPECIFIED.format(roles=AVAILABLE_ROLES)
 
 
 def role_unknown() -> str:
+    """Форматирует текст для ролей."""
     return ROLE_UNKNOWN.format(roles=AVAILABLE_ROLES)
 
 
 def role_target_required(command_name: str) -> str:
+    """Форматирует текст для ролей."""
     return ROLE_TARGET_REQUIRED.format(command=command_name)
 
 
 def role_add_success(first_name: str, role_name: str, reason: str | None) -> str:
+    """Возвращает текст сообщения об успешном действии."""
     return ROLE_ADD_SUCCESS.format(first_name=first_name, role=role_name, reason=reason or ROLE_REASON_FALLBACK)
 
 
 def role_remove_success(first_name: str, role_name: str, reason: str | None) -> str:
+    """Возвращает текст сообщения об успешном действии."""
     return ROLE_REMOVE_SUCCESS.format(first_name=first_name, role=role_name, reason=reason or ROLE_REASON_FALLBACK)
 
 
 def role_request_created(role_name: str) -> str:
+    """Форматирует текст для ролей."""
     return ROLE_REQUEST_CREATED.format(role=role_name)
 
 
 def role_request_cooldown_until(available_at: str) -> str:
+    """Форматирует текст для ролей."""
     return ROLE_REQUEST_COOLDOWN_UNTIL.format(available_at=available_at)
 
 
 def role_request_user_status(role_name: str, status: RequestStatus) -> str:
+    """Форматирует текст для ролей."""
     status_text_map = {
         RequestStatus.APPROVED: "одобрена",
         RequestStatus.REJECTED: "отклонена",
@@ -376,10 +395,12 @@ def role_request_user_status(role_name: str, status: RequestStatus) -> str:
 
 
 def role_request_admin_notification(request_id: int, role_name: str, mention: str) -> str:
+    """Форматирует текст для ролей."""
     return ROLE_REQUEST_ADMIN_NOTIFICATION.format(request_id=request_id, role_name=role_name, mention=mention)
 
 
 def role_request_admin_notification_with_status(message_text: str | None, status_text: str) -> str:
+    """Форматирует текст для ролей."""
     base_text = (message_text or "").strip()
     status_block_pattern = re.compile(r"\n\n<b>Статус:</b> .+\Z", re.DOTALL)
     clean_text = status_block_pattern.sub("", base_text).strip()
@@ -391,40 +412,49 @@ def role_request_admin_notification_with_status(message_text: str | None, status
 
 
 def competence_target_required(command_name: str) -> str:
+    """Форматирует текст для списка компетенций."""
     return COMPETENCE_TARGET_REQUIRED.format(command=command_name)
 
 
 def competence_list_required(command_name: str) -> str:
+    """Форматирует текст для списка компетенций."""
     return COMPETENCE_LIST_REQUIRED.format(command=command_name)
 
 
 def competence_add_success(first_name: str, competence_names: Sequence[str]) -> str:
+    """Возвращает текст сообщения об успешном действии."""
     return COMPETENCE_ADD_SUCCESS.format(first_name=first_name, competencies=", ".join(competence_names))
 
 
 def competence_remove_success(first_name: str, competence_names: Sequence[str]) -> str:
+    """Возвращает текст сообщения об успешном действии."""
     return COMPETENCE_REMOVE_SUCCESS.format(first_name=first_name, competencies=", ".join(competence_names))
 
 
 def competence_none(first_name: str) -> str:
+    """Форматирует текст для списка компетенций."""
     return COMPETENCE_NONE.format(first_name=first_name)
 
 
 def competence_list(first_name: str, competencies: Sequence[CompetenceReadDTO]) -> str:
+    """Форматирует текст для списка компетенций."""
     competence_lines = "\n".join(f"- {competence.name}" for competence in competencies)
     return COMPETENCE_LIST.format(first_name=first_name, competence_lines=competence_lines)
 
 
 def user_role_none(first_name: str) -> str:
+    """Форматирует текст для ролей."""
     return f"У пользователя {first_name} пока нет ролей."
 
 
 def user_role_list(first_name: str, user_roles: Sequence[str]) -> str:
+    """Форматирует текст для ролей."""
     role_lines = "\n".join(f"- {role_name}" for role_name in user_roles)
     return f"🎭 Роли пользователя {first_name}:\n{role_lines}"
 
 
 def competence_catalog(competencies: Sequence[CompetenceReadDTO]) -> str:
+    """Форматирует текст для списка компетенций."""
     if not competencies:
         return COMPETENCE_CATALOG_EMPTY
 
@@ -433,6 +463,7 @@ def competence_catalog(competencies: Sequence[CompetenceReadDTO]) -> str:
 
 
 def roles_catalog(roles: Sequence[RoleReadDTO]) -> str:
+    """Форматирует текст для ролей."""
     if not roles:
         return ROLE_CATALOG_EMPTY
 
@@ -441,19 +472,23 @@ def roles_catalog(roles: Sequence[RoleReadDTO]) -> str:
 
 
 def competence_validation_error() -> str:
+    """Возвращает текст сообщения об ошибке."""
     return COMPETENCE_VALIDATION_ERROR
 
 
 def competence_missing_names_error(missing_names: Sequence[str]) -> str:
+    """Возвращает текст сообщения об ошибке."""
     return COMPETENCE_MISSING_NAMES_ERROR.format(names=", ".join(missing_names))
 
 
 def broadcast_unknown_target(competencies: Sequence[CompetenceReadDTO]) -> str:
+    """Вспомогательная функция broadcast_unknown_target."""
     competences_list = ", ".join(competence.name for competence in competencies) or "нет доступных"
     return BROADCAST_UNKNOWN_TARGET.format(roles=AVAILABLE_ROLES, competencies=competences_list)
 
 
 def points_label(points_type: PointsTypeEnum) -> str:
+    """Вспомогательная функция points_label."""
     match points_type:
         case PointsTypeEnum.ACADEMIC:
             return "академических"
@@ -464,12 +499,14 @@ def points_label(points_type: PointsTypeEnum) -> str:
 
 
 def points_reason_line(reason: str | None) -> str:
+    """Вспомогательная функция points_reason_line."""
     if not reason:
         return ""
     return POINTS_REASON_LINE.format(reason=reason)
 
 
 def points_notification(points: Points, points_type: PointsTypeEnum, giver_name: str, reason: str | None) -> str:
+    """Вспомогательная функция points_notification."""
     action = "начислил" if points.is_positive() else "снял"
     return POINTS_NOTIFICATION.format(
         giver_name=giver_name,
@@ -481,11 +518,13 @@ def points_notification(points: Points, points_type: PointsTypeEnum, giver_name:
 
 
 def points_change_success(target_name: str, points: Points, reason: str | None) -> str:
+    """Возвращает текст сообщения об успешном действии."""
     reason_text = f" Причина: {reason}" if reason else ""
     return POINTS_CHANGE_SUCCESS.format(target_name=target_name, points=points.value, reason_text=reason_text)
 
 
 def points_invalid_value(value: object) -> str:
+    """Возвращает текст сообщения об ошибке."""
     return POINTS_INVALID_VALUE.format(value=value)
 
 
@@ -494,6 +533,7 @@ def render_leaderboard_message(
     academic_rows: Sequence[WeeklyLeaderboardRowDTO],
     reputation_rows: Sequence[WeeklyLeaderboardRowDTO],
 ) -> str:
+    """Форматирует текст для таблицы лидеров."""
     title_lines = [LEADERBOARD_TITLE]
     period_line = _leaderboard_period_line(academic_rows, reputation_rows)
     if period_line is not None:
@@ -504,19 +544,23 @@ def render_leaderboard_message(
 
 
 def profile_point_section(title: str, level_name: str, progress_bar: str, points: Points) -> str:
+    """Форматирует текст профиля пользователя."""
     return "\n".join([title, level_name, progress_bar, f"Всего баллов: {points.value}"])
 
 
 def profile_empty_section(title: str) -> str:
+    """Форматирует текст профиля пользователя."""
     return "\n".join([title, "Пока не указаны"])
 
 
 def profile_competence_section(title: str, competencies: Sequence[CompetenceReadDTO]) -> str:
+    """Форматирует текст профиля пользователя."""
     competence_lines = "\n".join(_format_competence_catalog_line(competence) for competence in competencies)
     return "\n".join([title, competence_lines])
 
 
 def profile_roles_section(title: str, roles: Sequence[str]) -> str:
+    """Форматирует текст профиля пользователя."""
     role_lines = "\n".join(f"- {role}" for role in roles)
     return "\n".join([title, role_lines])
 
@@ -524,6 +568,7 @@ def profile_roles_section(title: str, roles: Sequence[str]) -> str:
 def profile_message(
     first_name: str, academic_section: str, reputation_section: str, roles_section: str, competencies_section: str
 ) -> str:
+    """Форматирует текст профиля пользователя."""
     return "\n\n".join(
         [
             f"👋 Здравствуйте, {first_name}!",
@@ -537,6 +582,7 @@ def profile_message(
 
 
 def render_profile_message(user_profile_data: ProfileViewDTO) -> str:
+    """Форматирует текст профиля пользователя."""
     academic_section = profile_point_section(
         title="<b>📘 Академический уровень</b>",
         level_name=user_profile_data.academic_level.current_level.name,

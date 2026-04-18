@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 from aiogram import flags
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
@@ -30,6 +32,7 @@ async def cmd_start_private(
     user_service: FromDishka[UserService],
     user_profile_service: FromDishka[UserProfileService],
 ) -> None:
+    """Обработчик команды /start_private."""
     if not message.from_user:
         await message.answer(START_USER_ERROR)
         return
@@ -45,16 +48,19 @@ async def cmd_start_private(
 
 @start_global_router.message(CommandStart())
 async def cmd_start_group(message: Message) -> None:
+    """Обработчик команды /start_group."""
     await message.answer(START_GROUP_GREETING)
 
 
 @start_global_router.message(Command("info"))
 async def cmd_info(message: Message) -> None:
+    """Обработчик команды /info."""
     await message.answer(INFO_GLOBAL)
 
 
 @start_private_router.message(Command("help"))
 async def cmd_help_private(message: Message, user_roles_service: FromDishka[UserRolesService], user_id: int) -> None:
+    """Обработчик команды /help_private."""
     user_roles = await user_roles_service.find_user_roles(user_id)
     if user_roles and has_any_role(set(user_roles), {"Admin"}):
         await message.answer(HELP_PRIVATE)
@@ -64,4 +70,5 @@ async def cmd_help_private(message: Message, user_roles_service: FromDishka[User
 
 @start_group_router.message(Command("help"))
 async def cmd_help_group(message: Message) -> None:
+    """Обработчик команды /help_group."""
     await message.answer(HELP_GROUP)

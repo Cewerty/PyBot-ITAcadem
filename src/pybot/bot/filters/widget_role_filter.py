@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 from collections.abc import Callable
 
 from aiogram_dialog import DialogManager

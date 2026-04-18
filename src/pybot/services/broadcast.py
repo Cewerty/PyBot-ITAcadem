@@ -53,7 +53,7 @@ class BroadcastService:
         jitter_ms = random.randint(settings.broadcast_jitter_min_ms, settings.broadcast_jitter_max_ms)  # noqa: S311
         return (settings.broadcast_batch_pause_ms + jitter_ms) / 1000
 
-    async def _send_with_retry(self, user_id: int, message: str) -> None:
+    async def _send_with_retry(self, recipient_id: int, message: str) -> None:
         retrying = AsyncRetrying(
             stop=stop_after_attempt(settings.broadcast_retry_attempts),
             retry=retry_if_exception_type(NotificationTemporaryError),
@@ -62,26 +62,33 @@ class BroadcastService:
         )
         async for attempt in retrying:
             with attempt:
-                await self.notification_service.send_message(NotifyDTO(message=message, user_id=user_id))
+                await self.notification_service.send_message(NotifyDTO(message=message, recipient_id=recipient_id))
 
-    async def _send_one_user(self, user_id: int, message: str, result: BroadcastResult) -> None:
+    async def _send_one_user(self, recipient_id: int, message: str, result: BroadcastResult) -> None:
         result.attempted += 1
-        if user_id <= 0:
+        if recipient_id <= 0:
             result.skipped_invalid_user += 1
-            logger.warning("Broadcast skipped invalid telegram user id: {user_id}", user_id=user_id)
+            logger.warning("Broadcast skipped invalid telegram recipient id: {recipient_id}", recipient_id=recipient_id)
             return
 
         try:
-            await self._send_with_retry(user_id=user_id, message=message)
+            await self._send_with_retry(recipient_id=recipient_id, message=message)
         except NotificationTemporaryError:
             result.failed_temporary += 1
-            logger.warning("Broadcast temporary delivery failure for user_id={user_id}", user_id=user_id)
+            logger.warning(
+                "Broadcast temporary delivery failure for recipient_id={recipient_id}", recipient_id=recipient_id
+            )
         except NotificationPermanentError:
             result.failed_permanent += 1
-            logger.warning("Broadcast permanent delivery failure for user_id={user_id}", user_id=user_id)
+            logger.warning(
+                "Broadcast permanent delivery failure for recipient_id={recipient_id}", recipient_id=recipient_id
+            )
         except Exception:
             result.failed_permanent += 1
-            logger.exception("Broadcast unexpected delivery failure for user_id={user_id}", user_id=user_id)
+            logger.exception(
+                "Broadcast unexpected delivery failure for recipient_id={recipient_id}",
+                recipient_id=recipient_id,
+            )
         else:
             result.sent += 1
 

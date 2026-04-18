@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 import operator
 
 from aiogram.types import ContentType

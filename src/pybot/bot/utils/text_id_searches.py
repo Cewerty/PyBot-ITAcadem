@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 import re
 from re import Match
 

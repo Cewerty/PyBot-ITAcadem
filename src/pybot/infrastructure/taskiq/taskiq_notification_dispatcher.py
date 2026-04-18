@@ -26,25 +26,41 @@ class TaskIQNotificationDispatcher(NotificationDispatchPort):
         notification_module = import_module(".tasks.notification", package=__package__)
         return notification_module.send_notification_task
 
-    async def dispatch_message(self, user_id: int, message_text: str, schedule: TaskSchedule) -> str:
+    async def dispatch_message(
+        self,
+        recipient_id: int,
+        message_text: str,
+        schedule: TaskSchedule,
+        parse_mode: str | None = None,
+    ) -> str:
         notification_task = self._task()
 
         match schedule.kind:
             case TaskScheduleKind.IMMEDIATE:
-                result = await notification_task.kiq(NotifyDTO(user_id=user_id, message=message_text))
+                result = await notification_task.kiq(
+                    NotifyDTO(recipient_id=recipient_id, message=message_text, parse_mode=parse_mode)
+                )
                 return result.task_id
             case TaskScheduleKind.AT:
                 created = await notification_task.schedule_by_time(
                     self._schedule_source,
                     schedule.as_taskiq_datetime(),
-                    notification_data=NotifyDTO(user_id=user_id, message=message_text),
+                    notification_data=NotifyDTO(
+                        recipient_id=recipient_id,
+                        message=message_text,
+                        parse_mode=parse_mode,
+                    ),
                 )
                 return created.schedule_id
             case TaskScheduleKind.INTERVAL:
                 created = await notification_task.schedule_by_interval(
                     self._schedule_source,
                     schedule.as_interval(),
-                    notification_data=NotifyDTO(user_id=user_id, message=message_text),
+                    notification_data=NotifyDTO(
+                        recipient_id=recipient_id,
+                        message=message_text,
+                        parse_mode=parse_mode,
+                    ),
                 )
                 return created.schedule_id
             case TaskScheduleKind.CRON:
@@ -54,7 +70,11 @@ class TaskIQNotificationDispatcher(NotificationDispatchPort):
                     .schedule_by_cron(
                         self._schedule_source,
                         schedule.as_cron_expression(),
-                        notification_data=NotifyDTO(user_id=user_id, message=message_text),
+                        notification_data=NotifyDTO(
+                            recipient_id=recipient_id,
+                            message=message_text,
+                            parse_mode=parse_mode,
+                        ),
                     )
                 )
                 return created.schedule_id

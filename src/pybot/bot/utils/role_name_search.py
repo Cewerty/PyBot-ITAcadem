@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 from aiogram.types import Message
 
 from .text_id_searches import check_text_message_correction

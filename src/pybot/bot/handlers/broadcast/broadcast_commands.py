@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 from collections.abc import Sequence
 
 from aiogram.filters.command import Command
@@ -83,6 +85,7 @@ async def broadcast_command(
     broadcast_service: FromDishka[BroadcastService],
     competence_service: FromDishka[CompetenceService],
 ) -> None:
+    """Вспомогательная функция broadcast_command."""
     target_token = _extract_target_token(message)
     if target_token is None:
         await message.reply(BROADCAST_USAGE)

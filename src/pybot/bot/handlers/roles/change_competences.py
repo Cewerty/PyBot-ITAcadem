@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 from __future__ import annotations
 
 import re
@@ -202,6 +204,7 @@ async def handle_add_competence(
     user_service: FromDishka[UserService],
     user_competence_service: FromDishka[UserCompetenceService],
 ) -> None:
+    """Форматирует текст для списка компетенций."""
     try:
         target_user, target_source = await _resolve_target_user_for_command(
             message,
@@ -246,6 +249,7 @@ async def handle_remove_competence(
     user_service: FromDishka[UserService],
     user_competence_service: FromDishka[UserCompetenceService],
 ) -> None:
+    """Форматирует текст для списка компетенций."""
     try:
         target_user, target_source = await _resolve_target_user_for_command(
             message,
@@ -291,6 +295,7 @@ async def handle_show_competences(
     user_competence_service: FromDishka[UserCompetenceService],
     user_id: int,
 ) -> None:
+    """Форматирует текст для списка компетенций."""
     try:
         target_user, _ = await _resolve_target_user_for_command(
             message,
@@ -328,6 +333,7 @@ async def handle_show_all_competences(
     message: Message,
     competence_service: FromDishka[CompetenceService],
 ) -> None:
+    """Форматирует текст для списка компетенций."""
     try:
         competencies = await competence_service.find_all_competencies()
     except Exception:

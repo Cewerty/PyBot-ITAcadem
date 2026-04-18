@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 import re
 
 from aiogram.filters.command import Command
@@ -136,7 +138,7 @@ async def _handle_points_command(
     try:
         await notification_facade.notify_user(
             NotifyUserDTO(
-                user_id=recipient_user.telegram_id,
+                recipient_id=recipient_user.telegram_id,
                 message=_build_points_notification_message(points, points_type, giver_user, reason),
                 kind=TaskScheduleKind.IMMEDIATE,
             )
@@ -157,6 +159,7 @@ async def handle_academic_points(
     points_service: FromDishka[PointsService],
     notification_facade: FromDishka[NotificationFacade],
 ) -> None:
+    """Вспомогательная функция handle_academic_points."""
     try:
         await _handle_points_command(
             message,
@@ -188,6 +191,7 @@ async def handle_reputation_points(
     points_service: FromDishka[PointsService],
     notification_facade: FromDishka[NotificationFacade],
 ) -> None:
+    """Вспомогательная функция handle_reputation_points."""
     try:
         await _handle_points_command(
             message,

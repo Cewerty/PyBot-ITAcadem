@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 import re
 
 from aiogram.filters.command import Command
@@ -99,6 +101,7 @@ async def handle_set_role(
     user_roles_service: FromDishka[UserRolesService],
     user_id: int,
 ) -> None:
+    """Форматирует текст для ролей."""
     target_id = await _get_target_user_id_from_reply(message)
     if not target_id:
         target_id = await _get_target_user_id_from_mention(message, user_service)
@@ -135,6 +138,7 @@ async def handle_remove_role(
     user_service: FromDishka[UserService],
     user_roles_service: FromDishka[UserRolesService],
 ) -> None:
+    """Форматирует текст для ролей."""
     target_id = await _get_target_user_id_from_reply(message)
     if not target_id:
         target_id = await _get_target_user_id_from_mention(message, user_service)

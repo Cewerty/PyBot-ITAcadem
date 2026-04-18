@@ -177,7 +177,7 @@ async def test_change_request_status_updates_pending_request(
     assert updated.status == RequestStatus.APPROVED
     assert await service.user_repository.has_role(db, user_id=user.id, role_name=role.name)
     assert any(
-        item.user_id == user.telegram_id and item.message_text == "Ваша заявка на роль Mentor была одобрена."
+        item.recipient_id == user.telegram_id and item.message_text == "Ваша заявка на роль Mentor была одобрена."
         for item in notification_service.direct_messages
     )
 
@@ -203,7 +203,7 @@ async def test_change_request_status_sends_russian_notification_for_rejected_req
     updated = (await db.execute(stmt)).scalar_one()
     assert updated.status == RequestStatus.REJECTED
     assert any(
-        item.user_id == user.telegram_id and item.message_text == "Ваша заявка на роль Admin была отклонена."
+        item.recipient_id == user.telegram_id and item.message_text == "Ваша заявка на роль Admin была отклонена."
         for item in notification_service.direct_messages
     )
 

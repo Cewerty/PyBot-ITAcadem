@@ -10,6 +10,8 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 from pybot.infrastructure.taskiq import taskiq_app
+from pybot.infrastructure.taskiq import taskiq_weekly_leaderboard_wiring
+from pybot.infrastructure.taskiq.tasks import publish_weekly_leaderboard_task
 from pybot.infrastructure.taskiq.tasks.system import system_ping_task
 
 
@@ -74,6 +76,7 @@ async def test_taskiq_runtime_smoke_builds_singletons_and_wires_worker_hooks(
     assert broker.handlers == [
         (taskiq_app.TaskiqEvents.WORKER_STARTUP, taskiq_app._on_worker_startup),
         (taskiq_app.TaskiqEvents.WORKER_SHUTDOWN, taskiq_app._on_worker_shutdown),
+        (taskiq_app.TaskiqEvents.CLIENT_STARTUP, taskiq_weekly_leaderboard_wiring._on_client_startup_weekly),
     ], "Worker lifecycle hooks were not attached. Startup and shutdown diagnostics would become misleading."
 
 
@@ -114,6 +117,10 @@ async def test_system_ping_task_smoke_returns_pong() -> None:
     result = await system_ping_task()
 
     assert result == "pong", "The TaskIQ canary task stopped replying with 'pong'. Start from the worker wiring first."
+
+
+def test_weekly_leaderboard_task_is_registered_in_tasks_module() -> None:
+    assert publish_weekly_leaderboard_task.task_name == "leaderboard.publish_weekly"
 
 
 def test_taskiq_entrypoint_smoke_exposes_broker_scheduler_and_registers_tasks(

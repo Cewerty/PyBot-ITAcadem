@@ -30,6 +30,7 @@ from ..services import (
     UserRegistrationService,
     UserRolesService,
     UserService,
+    WeeklyLeaderboardPublisherService,
 )
 from ..services.broadcast import BroadcastService
 from ..services.competence import CompetenceService
@@ -151,6 +152,14 @@ class ServiceProvider(Provider):
         points_transaction_repository: PointsTransactionRepository,
     ) -> LeaderboardService:
         return LeaderboardService(db, points_transaction_repository)
+
+    @provide(scope=Scope.REQUEST)
+    def weekly_leaderboard_publisher_service(
+        self,
+        leaderboard_service: LeaderboardService,
+        notification_service: NotificationPort,
+    ) -> WeeklyLeaderboardPublisherService:
+        return WeeklyLeaderboardPublisherService(leaderboard_service, notification_service)
 
     @provide(scope=Scope.REQUEST)
     def role_request_service(

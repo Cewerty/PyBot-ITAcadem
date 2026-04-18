@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 from aiogram_dialog import DialogManager
 
 type CompetenceOption = tuple[int, str]
@@ -8,6 +10,7 @@ async def get_registration_competencies(
     dialog_manager: DialogManager,
     **kwargs: object,
 ) -> dict[str, list[CompetenceOption]]:
+    """Вспомогательная функция get_registration_competencies."""
     del kwargs
     raw_options = dialog_manager.dialog_data.get("registration_competencies")
     return {"registration_competencies": _normalize_competence_options(raw_options)}

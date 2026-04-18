@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import Annotated, Literal, Self
 
 from pydantic import Field, field_validator, model_validator
+from pydantic_extra_types.cron import CronStr
+from pydantic_extra_types.timezone_name import TimeZoneName
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from .constants import RoleEnum
@@ -96,6 +98,32 @@ class BotSettings(BaseSettings):
     broadcast_jitter_max_ms: int = Field(160, alias="BROADCAST_JITTER_MAX_MS", ge=50, le=2000)
     broadcast_retry_attempts: int = Field(5, alias="BROADCAST_RETRY_ATTEMPTS", ge=1, le=10)
     broadcast_retry_max_wait_s: int = Field(30, alias="BROADCAST_RETRY_MAX_WAIT_S", ge=1, le=120)
+    leaderboard_weekly_enabled: bool = Field(
+        False,
+        alias="LEADERBOARD_WEEKLY_ENABLED",
+        description="Enable weekly leaderboard publication via TaskIQ scheduler",
+    )
+    leaderboard_weekly_recipient_id: int | None = Field(
+        None,
+        alias="LEADERBOARD_WEEKLY_RECIPIENT_ID",
+        description="Transport recipient id for weekly leaderboard publication",
+    )
+    leaderboard_weekly_cron: CronStr = Field(
+        default_factory=lambda: CronStr("0 9 * * 1"),
+        alias="LEADERBOARD_WEEKLY_CRON",
+        description="Cron expression for weekly leaderboard publication",
+    )
+    leaderboard_weekly_timezone: TimeZoneName = Field(
+        default_factory=lambda: TimeZoneName("Asia/Yekaterinburg"),
+        alias="LEADERBOARD_WEEKLY_TIMEZONE",
+        description="Timezone used for weekly leaderboard cron scheduling",
+    )
+    leaderboard_weekly_limit: int = Field(
+        10,
+        alias="LEADERBOARD_WEEKLY_LIMIT",
+        description="Max rows per leaderboard section in weekly publication",
+        ge=1,
+    )
 
     # Middleware toggles
     enable_logging_middleware: bool = Field(
@@ -180,6 +208,25 @@ class BotSettings(BaseSettings):
             return None
         return normalized
 
+    @field_validator("leaderboard_weekly_recipient_id", mode="before")
+    @classmethod
+    def parse_weekly_recipient_id(cls, value: int | str | None) -> int | None:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            normalized = value.strip()
+            if not normalized:
+                return None
+            return int(normalized)
+        return value
+
+    @field_validator("leaderboard_weekly_recipient_id")
+    @classmethod
+    def validate_weekly_recipient_id(cls, value: int | None) -> int | None:
+        if value == 0:
+            raise ValueError("LEADERBOARD_WEEKLY_RECIPIENT_ID must not be equal to 0")
+        return value
+
     @field_validator("broadcast_allowed_roles", mode="before")
     @classmethod
     def parse_broadcast_allowed_roles(cls, value: object) -> set[str]:
@@ -223,6 +270,12 @@ class BotSettings(BaseSettings):
     def validate_runtime_alerts_config(self: Self) -> Self:
         if self.runtime_alerts_enabled and self.runtime_alerts_chat_id is None:
             raise ValueError("RUNTIME_ALERTS_CHAT_ID must be set when RUNTIME_ALERTS_ENABLED=true")
+        return self
+
+    @model_validator(mode="after")
+    def validate_weekly_leaderboard_config(self: Self) -> Self:
+        if self.leaderboard_weekly_enabled and self.leaderboard_weekly_recipient_id is None:
+            raise ValueError("LEADERBOARD_WEEKLY_RECIPIENT_ID must be set when LEADERBOARD_WEEKLY_ENABLED=true")
         return self
 
 

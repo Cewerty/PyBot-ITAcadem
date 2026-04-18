@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from pybot.bot.texts import LEADERBOARD_EMPTY, render_leaderboard_message
 from pybot.core.constants import PointsTypeEnum
@@ -21,8 +21,8 @@ def _row(
         patronymic=None,
         total_points_delta=total_points_delta,
         points_type=PointsTypeEnum.ACADEMIC,
-        period_start=datetime(2026, 3, 24, 0, 0, 0),
-        period_end=datetime(2026, 3, 31, 0, 0, 0),
+        period_start=datetime(2026, 3, 24, 0, 0, 0, tzinfo=UTC),
+        period_end=datetime(2026, 3, 31, 0, 0, 0, tzinfo=UTC),
     )
 
 

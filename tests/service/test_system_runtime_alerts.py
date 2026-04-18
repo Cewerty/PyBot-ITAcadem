@@ -64,7 +64,7 @@ async def test_runtime_alerts_service_dispatches_startup_via_notification_facade
 
     assert len(startup_facade.calls) == 1
     notify_dto = startup_facade.calls[0]
-    assert notify_dto.user_id == 123456789
+    assert notify_dto.recipient_id == 123456789
     assert notify_dto.kind is TaskScheduleKind.IMMEDIATE
     assert "bot startup" in notify_dto.message
     assert "Mode: prod" in notify_dto.message
@@ -89,6 +89,6 @@ async def test_runtime_alerts_service_sends_shutdown_directly_via_notification_p
     assert startup_facade.calls == []
     assert len(notification_port.message_calls) == 1
     notify_dto = notification_port.message_calls[0]
-    assert notify_dto.user_id == 987654321
+    assert notify_dto.recipient_id == 987654321
     assert "bot shutdown" in notify_dto.message
     assert "Mode: test" in notify_dto.message

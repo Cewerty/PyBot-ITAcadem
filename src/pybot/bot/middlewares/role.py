@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -14,12 +16,15 @@ from ..texts import ROLE_ACCESS_DENIED, ROLE_AUTH_ERROR
 
 
 class RoleMiddleware(BaseMiddleware):
+    """Класс для RoleMiddleware."""
+
     async def __call__(
         self,
         handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
         event: TelegramObject,
         data: dict[str, Any],
     ) -> Any:
+        """Вспомогательная функция __call__."""
         required_role = get_flag(data, "role")
 
         if not required_role:

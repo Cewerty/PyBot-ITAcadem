@@ -1,3 +1,5 @@
+"""Модуль бота IT Academ."""
+
 from collections.abc import Sequence
 
 from aiogram.types import CallbackQuery, Contact, Message, ReplyKeyboardRemove
@@ -32,6 +34,7 @@ from ...texts import (
 
 
 async def on_other_messages(message: Message, message_input: MessageInput, manager: DialogManager) -> None:
+    """Вспомогательная функция on_other_messages."""
     del message_input, manager
     await message.answer(REGISTRATION_VALUE_INVALID)
 
@@ -55,6 +58,7 @@ async def request_contact_prompt(
     button: Button,
     manager: DialogManager,
 ) -> None:
+    """Вспомогательная функция request_contact_prompt."""
     del button
     if callback.message is not None:
         await callback.message.answer(
@@ -72,6 +76,7 @@ async def on_contact_input(
     manager: DialogManager,
     user_service: FromDishka[UserService],
 ) -> None:
+    """Вспомогательная функция on_contact_input."""
     del message_input
     await _handle_contact_input(message, manager, user_service)
 
@@ -111,6 +116,7 @@ async def on_first_name_input(
     widget: MessageInput,
     manager: DialogManager,
 ) -> None:
+    """Вспомогательная функция on_first_name_input."""
     del widget
     first_name = message.text or ""
     try:
@@ -128,6 +134,7 @@ async def on_last_name_input(
     widget: MessageInput,
     manager: DialogManager,
 ) -> None:
+    """Вспомогательная функция on_last_name_input."""
     del widget
     last_name = message.text or ""
     try:
@@ -147,6 +154,7 @@ async def on_patronymic_input(
     manager: DialogManager,
     competence_service: FromDishka[CompetenceService],
 ) -> None:
+    """Вспомогательная функция on_patronymic_input."""
     await _on_patronymic_input_impl(
         message=message,
         widget=widget,
@@ -181,6 +189,7 @@ async def on_patronymic_skip(
     manager: DialogManager,
     competence_service: FromDishka[CompetenceService],
 ) -> None:
+    """Вспомогательная функция on_patronymic_skip."""
     del button
     await _on_patronymic_skip_impl(
         callback=callback,
@@ -206,6 +215,7 @@ async def on_competence_selection_changed(
     manager: DialogManager,
     item_id: int,
 ) -> None:
+    """Форматирует текст для списка компетенций."""
     del callback, item_id
     manager.dialog_data["competence_ids"] = widget.get_checked()
 
@@ -218,6 +228,7 @@ async def on_competence_submit(
     user_reg_service: FromDishka[UserRegistrationService],
     user_profile_service: FromDishka[UserProfileService],
 ) -> None:
+    """Форматирует текст для списка компетенций."""
     del button
     await _on_competence_submit_impl(
         callback=callback,
@@ -258,6 +269,7 @@ async def on_competence_skip(
     user_reg_service: FromDishka[UserRegistrationService],
     user_profile_service: FromDishka[UserProfileService],
 ) -> None:
+    """Форматирует текст для списка компетенций."""
     del button
     await _on_competence_skip_impl(
         callback=callback,

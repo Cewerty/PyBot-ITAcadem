@@ -17,18 +17,30 @@ async def send_notification_task(
     *,
     notification_port: FromDishka[NotificationPort],
 ) -> NotificationTaskPayload:
-    """Отправить уведомление через настроенный notification port."""
-    user_id, message = notification_data.user_id, notification_data.message
+    """Send a notification via configured notification port."""
+    recipient_id, message = notification_data.recipient_id, notification_data.message
 
     try:
-        logger.info("событие=отправка_уведомления status=started user_id={user_id}", user_id=user_id)
+        logger.info(
+            "событие=отправка_уведомления status=started recipient_id={recipient_id}",
+            recipient_id=recipient_id,
+        )
         await notification_port.send_message(notification_data)
-        logger.info("событие=отправка_уведомления status=sent user_id={user_id}", user_id=user_id)
+        logger.info(
+            "событие=отправка_уведомления status=sent recipient_id={recipient_id}",
+            recipient_id=recipient_id,
+        )
     except NotificationTemporaryError:
-        logger.warning("событие=отправка_уведомления status=failed_temporary user_id={user_id}", user_id=user_id)
-        return NotificationTaskPayload(status="failed_temporary", user_id=user_id, message=message)
+        logger.warning(
+            "событие=отправка_уведомления status=failed_temporary recipient_id={recipient_id}",
+            recipient_id=recipient_id,
+        )
+        return NotificationTaskPayload(status="failed_temporary", recipient_id=recipient_id, message=message)
     except NotificationPermanentError:
-        logger.warning("событие=отправка_уведомления status=failed_permanent user_id={user_id}", user_id=user_id)
-        return NotificationTaskPayload(status="failed_permanent", user_id=user_id, message=message)
+        logger.warning(
+            "событие=отправка_уведомления status=failed_permanent recipient_id={recipient_id}",
+            recipient_id=recipient_id,
+        )
+        return NotificationTaskPayload(status="failed_permanent", recipient_id=recipient_id, message=message)
     else:
-        return NotificationTaskPayload(status="sent", user_id=user_id, message=message)
+        return NotificationTaskPayload(status="sent", recipient_id=recipient_id, message=message)

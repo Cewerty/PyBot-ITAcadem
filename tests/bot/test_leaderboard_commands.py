@@ -43,8 +43,8 @@ def _build_row(
         patronymic=None,
         total_points_delta=total_points_delta,
         points_type=points_type,
-        period_start=datetime(2026, 3, 24, 0, 0, 0),
-        period_end=datetime(2026, 3, 31, 0, 0, 0),
+        period_start=datetime(2026, 3, 24, 0, 0, 0, tzinfo=UTC),
+        period_end=datetime(2026, 3, 31, 0, 0, 0, tzinfo=UTC),
     )
 
 
