@@ -2,6 +2,24 @@
 
 <!-- version list -->
 
+## v0.26.0 (2026-04-18)
+
+### Bug Fixes
+
+- **leaderboard**: Show week period when sections are empty
+  ([`c369399`](https://github.com/Cewerty/PyBot-ITAcadem/commit/c36939940ee1f72c5b60833432961c41475ff4a8))
+
+### Chores
+
+- **lockfile**: Bump workspace package version to 0.25.0
+  ([`5aed622`](https://github.com/Cewerty/PyBot-ITAcadem/commit/5aed622b15f2d620178d6fdef16e9900f8467967))
+
+### Features
+
+- **taskiq**: Configure weekly leaderboard retry policy
+  ([`ce78b0c`](https://github.com/Cewerty/PyBot-ITAcadem/commit/ce78b0c4f5350cf38ec6875067a9a27af0cc51e7))
+
+
 ## v0.25.0 (2026-04-18)
 
 ### Bug Fixes
