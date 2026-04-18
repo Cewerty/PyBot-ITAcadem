@@ -147,11 +147,19 @@ At minimum, set:
 - `AUTO_SEED_DB=false`
 - `LOG_LEVEL=INFO`
 - `HEALTH_API_ENABLED=false`
+- `LEADERBOARD_WEEKLY_RETRY_ENABLED=true`
+- `LEADERBOARD_WEEKLY_RETRY_MAX_RETRIES=3`
+- `LEADERBOARD_WEEKLY_RETRY_DELAY_S=30`
+- `LEADERBOARD_WEEKLY_RETRY_USE_JITTER=true`
+- `LEADERBOARD_WEEKLY_RETRY_USE_EXPONENTIAL_BACKOFF=true`
+- `LEADERBOARD_WEEKLY_RETRY_MAX_DELAY_S=300`
 
 Important:
 
 - if you use SQLite in production, keep `DATABASE_URL` under `./data/...`
 - paths like `sqlite+aiosqlite:///./pybot_itacadem.db` will place the database outside the mounted volume and break one-shot migration/seed containers
+- weekly leaderboard retries are applied only for temporary delivery failures (`NotificationTemporaryError`)
+- retry policy for weekly publishing is controlled by `LEADERBOARD_WEEKLY_RETRY_*` env settings
 
 ## Next hardening steps
 

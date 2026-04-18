@@ -9,7 +9,12 @@ from ..taskiq_app import get_taskiq_broker
 broker = get_taskiq_broker()
 
 
-@broker.task(task_name="leaderboard.publish_weekly")
+@broker.task(
+    task_name="leaderboard.publish_weekly",
+    retry_on_error=settings.leaderboard_weekly_retry_enabled,
+    max_retries=settings.leaderboard_weekly_retry_max_retries,
+    delay=settings.leaderboard_weekly_retry_delay_s,
+)
 @inject(patch_module=True)
 async def publish_weekly_leaderboard_task(
     *,

@@ -5,6 +5,7 @@ from typing import Protocol, cast
 
 import pytest
 
+from pybot.core import settings
 from pybot.infrastructure.taskiq.tasks.leaderboard import publish_weekly_leaderboard_task
 from pybot.services.weekly_leaderboard_publisher import WeeklyLeaderboardPublisherService
 
@@ -83,3 +84,9 @@ async def test_publish_weekly_leaderboard_task_uses_service_and_returns_payload(
         "limit": 12,
     }
     assert service.calls == [(-100_200_300, 12, "Asia/Yekaterinburg")]
+
+
+def test_publish_weekly_leaderboard_task_has_retry_labels() -> None:
+    assert publish_weekly_leaderboard_task.labels["retry_on_error"] == settings.leaderboard_weekly_retry_enabled
+    assert publish_weekly_leaderboard_task.labels["max_retries"] == settings.leaderboard_weekly_retry_max_retries
+    assert publish_weekly_leaderboard_task.labels["delay"] == settings.leaderboard_weekly_retry_delay_s
