@@ -290,6 +290,33 @@ def test_fill_point_db_help_does_not_require_runtime_env(tmp_path: Path) -> None
     assert "BOT_TOKEN" not in result.stderr
 
 
+def test_fill_point_db_module_help_does_not_require_runtime_env(tmp_path: Path) -> None:
+    runtime_env = os.environ.copy()
+    project_root = Path(__file__).resolve().parents[2]
+    runtime_env["PYTHONPATH"] = os.pathsep.join(
+        [
+            str(project_root / "src"),
+            str(project_root),
+            runtime_env.get("PYTHONPATH", ""),
+        ]
+    )
+    for key in ("BOT_TOKEN", "BOT_TOKEN_TEST", "ROLE_REQUEST_ADMIN_TG_ID", "DATABASE_URL"):
+        runtime_env.pop(key, None)
+
+    result = subprocess.run(  # noqa: S603
+        [sys.executable, "-m", "pybot.cli.seed", "--help"],  # noqa: S607
+        capture_output=True,
+        check=False,
+        cwd=tmp_path,
+        env=runtime_env,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "Public CLI configuration for database seed generation." in result.stdout
+    assert "BOT_TOKEN" not in result.stderr
+
+
 @pytest.mark.asyncio
 async def test_fill_database_uses_dishka_container_and_closes_it(monkeypatch: pytest.MonkeyPatch) -> None:
     fake_session = FakeFillDatabaseSession()

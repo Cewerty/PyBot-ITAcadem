@@ -336,6 +336,7 @@ def get_settings() -> BotSettings:
     return BotSettings()
 
 
+# TODO Проверить надобность
 class SettingsProxy:
     """Lazy proxy to defer BotSettings evaluation until an attribute is actually accessed."""
 
