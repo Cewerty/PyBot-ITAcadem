@@ -342,5 +342,8 @@ class SettingsProxy:
     def __getattr__(self, name: str) -> Any:
         return getattr(get_settings(), name)
 
+    def __setattr__(self, name: str, value: Any) -> None:
+        setattr(get_settings(), name, value)
+
 
 settings: BotSettings = cast(BotSettings, SettingsProxy())
