@@ -4,7 +4,7 @@ import subprocess
 import sys
 
 
-def test_import_pybot_core_without_required_env(tmp_path: Path) -> None:
+def test_import_pybot_core_fails_fast_without_required_env(tmp_path: Path) -> None:
     runtime_env = os.environ.copy()
     project_root = Path(__file__).resolve().parents[2]
     runtime_env["PYTHONPATH"] = os.pathsep.join(
@@ -26,6 +26,9 @@ def test_import_pybot_core_without_required_env(tmp_path: Path) -> None:
         text=True,
     )
 
-    assert result.returncode == 0
-    assert result.stdout.strip() == "ok"
-    assert "ValidationError" not in result.stderr
+    # settings is instantiated during module import, so missing required env vars
+    # must fail fast with a clear validation error.
+    assert result.returncode != 0
+    assert "ValidationError" in result.stderr
+    for env_name in ("BOT_TOKEN", "BOT_TOKEN_TEST", "ROLE_REQUEST_ADMIN_TG_ID", "DATABASE_URL"):
+        assert env_name in result.stderr
