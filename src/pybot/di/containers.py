@@ -8,8 +8,8 @@ from dishka.integrations.taskiq import TaskiqProvider
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from ..core import logger
-from ..core.config import BotSettings, get_settings, settings
-from ..db.database import get_configured_database_engine
+from ..core.config import BotSettings, get_settings
+from ..db.database import create_database_engine
 from ..domain.services.level_calculator import LevelCalculator
 from ..infrastructure import (
     CompetenceRepository,
@@ -48,9 +48,9 @@ class DatabaseProvider(Provider):
     """Providers for database resources."""
 
     @provide(scope=Scope.APP)
-    async def engine(self) -> AsyncGenerator[AsyncEngine, None]:
+    async def engine(self, settings: BotSettings) -> AsyncGenerator[AsyncEngine, None]:
         """Provide one SQLAlchemy engine for the whole app lifecycle."""
-        engine = get_configured_database_engine() if global_engine is None else global_engine
+        engine = create_database_engine(settings.database_url) if global_engine is None else global_engine
         try:
             yield engine
         finally:
@@ -244,7 +244,7 @@ class BotProvider(Provider):
     """Telegram Bot provider with APP scope."""
 
     @provide(scope=Scope.APP)
-    async def bot(self) -> AsyncGenerator[Bot, None]:
+    async def bot(self, settings: BotSettings) -> AsyncGenerator[Bot, None]:
         if settings.telegram_proxy_url is not None:
             bot = Bot(
                 settings.active_bot_token,
@@ -261,7 +261,7 @@ class BotProvider(Provider):
 
 class PortsProvider(Provider):
     @provide(scope=Scope.APP)
-    async def notification_port(self, bot: Bot) -> NotificationPort:
+    async def notification_port(self, settings: BotSettings, bot: Bot) -> NotificationPort:
         if settings.notification_backend == "telegram":
             return TelegramNotificationService(bot)
         if settings.notification_backend == "logging":
