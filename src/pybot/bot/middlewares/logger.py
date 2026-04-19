@@ -192,55 +192,57 @@ class LoggerMiddleware(BaseMiddleware):
 
         event_info = self._extract_minimal_info(event, data)
         handler_name = self._get_handler_name(data)
-        logger.info(
-            "событие=получен_update event_id={event_id} тип={event_type} handler={handler_name} "
-            'user_id={user_id} username={username} chat_id={chat_id} chat_type={chat_type} content="{content}"',
-            event_id=event_info["event_id"],
-            event_type=event_info["event_type"],
-            handler_name=handler_name,
-            user_id=event_info["user_id"],
-            username=event_info["username"],
-            chat_id=event_info["chat_id"],
-            chat_type=event_info["chat_type"],
-            content=self._normalize_content(event_info["content"]),
-        )
 
-        start_time = time.monotonic()
-        try:
-            result = await handler(event, data)
-            elapsed = time.monotonic() - start_time
-
+        with logger.contextualize(update_id=event_info["event_id"], request_id=event_info["event_id"]):
             logger.info(
-                "событие=обработан_update event_id={event_id} тип={event_type} handler={handler_name} "
-                "status=success elapsed_ms={elapsed_ms}",
+                "событие=получен_update event_id={event_id} тип={event_type} handler={handler_name} "
+                'user_id={user_id} username={username} chat_id={chat_id} chat_type={chat_type} content="{content}"',
                 event_id=event_info["event_id"],
                 event_type=event_info["event_type"],
                 handler_name=handler_name,
-                elapsed_ms=round(elapsed * 1000),
+                user_id=event_info["user_id"],
+                username=event_info["username"],
+                chat_id=event_info["chat_id"],
+                chat_type=event_info["chat_type"],
+                content=self._normalize_content(event_info["content"]),
             )
 
-            if elapsed > 1.0:
-                logger.warning(
-                    "событие=медленный_handler event_id={event_id} тип={event_type} handler={handler_name} "
-                    "elapsed_ms={elapsed_ms}",
+            start_time = time.monotonic()
+            try:
+                result = await handler(event, data)
+                elapsed = time.monotonic() - start_time
+
+                logger.info(
+                    "событие=обработан_update event_id={event_id} тип={event_type} handler={handler_name} "
+                    "status=success elapsed_ms={elapsed_ms}",
                     event_id=event_info["event_id"],
                     event_type=event_info["event_type"],
                     handler_name=handler_name,
                     elapsed_ms=round(elapsed * 1000),
                 )
-        except Exception as exc:
-            elapsed = time.monotonic() - start_time
-            logger.error(
-                "событие=ошибка_handler event_id={event_id} тип={event_type} handler={handler_name} "
-                'error_type={error_type} error="{error}" elapsed_ms={elapsed_ms}',
-                event_id=event_info["event_id"],
-                event_type=event_info["event_type"],
-                handler_name=handler_name,
-                error_type=type(exc).__name__,
-                error=self._normalize_content(str(exc)[:160]),
-                elapsed_ms=round(elapsed * 1000),
-                exc_info=True,
-            )
-            raise
-        else:
-            return result
+
+                if elapsed > 1.0:
+                    logger.warning(
+                        "событие=медленный_handler event_id={event_id} тип={event_type} handler={handler_name} "
+                        "elapsed_ms={elapsed_ms}",
+                        event_id=event_info["event_id"],
+                        event_type=event_info["event_type"],
+                        handler_name=handler_name,
+                        elapsed_ms=round(elapsed * 1000),
+                    )
+            except Exception as exc:
+                elapsed = time.monotonic() - start_time
+                logger.error(
+                    "событие=ошибка_handler event_id={event_id} тип={event_type} handler={handler_name} "
+                    'error_type={error_type} error="{error}" elapsed_ms={elapsed_ms}',
+                    event_id=event_info["event_id"],
+                    event_type=event_info["event_type"],
+                    handler_name=handler_name,
+                    error_type=type(exc).__name__,
+                    error=self._normalize_content(str(exc)[:160]),
+                    elapsed_ms=round(elapsed * 1000),
+                    exc_info=True,
+                )
+                raise
+            else:
+                return result
