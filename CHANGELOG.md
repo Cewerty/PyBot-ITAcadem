@@ -2,6 +2,28 @@
 
 <!-- version list -->
 
+## v0.26.1 (2026-04-19)
+
+### Bug Fixes
+
+- Исправил логику с инвертированной тернарной логикой внутри application service, проверки None в
+  Middelware проверки ролей и обновил тесты под новые use case в UserService.
+  ([`6418ed2`](https://github.com/Cewerty/PyBot-ITAcadem/commit/6418ed2d924e5d0198782abd30d4b8522d896d0f))
+
+### Build System
+
+- Configure tach architecture linter
+  ([`d944e62`](https://github.com/Cewerty/PyBot-ITAcadem/commit/d944e6260dbb0933d9c8f8668a3fd1ce805578bd))
+
+- **deps**: Install tach linter dependency
+  ([`714ca02`](https://github.com/Cewerty/PyBot-ITAcadem/commit/714ca020d1dbcb86e6c0d1246ca48515751a2b96))
+
+### Refactoring
+
+- **arch**: Resolve architectural violations for tach
+  ([`8e138cb`](https://github.com/Cewerty/PyBot-ITAcadem/commit/8e138cbe2544e68c33d0a6fa057eddaa8086dc44))
+
+
 ## v0.26.0 (2026-04-18)
 
 ### Bug Fixes
