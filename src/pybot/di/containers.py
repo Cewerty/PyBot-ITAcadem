@@ -8,7 +8,7 @@ from dishka.integrations.taskiq import TaskiqProvider
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from ..core import logger
-from ..core.config import settings
+from ..core.config import BotSettings, get_settings, settings
 from ..db.database import get_configured_database_engine
 from ..domain.services.level_calculator import LevelCalculator
 from ..infrastructure import (
@@ -232,6 +232,14 @@ class DomainServiceProvider(Provider):
         return LevelCalculator()
 
 
+class ConfigProvider(Provider):
+    """Configuration object."""
+
+    @provide(scope=Scope.APP)
+    def config(self) -> BotSettings:
+        return get_settings()
+
+
 class BotProvider(Provider):
     """Telegram Bot provider with APP scope."""
 
@@ -291,6 +299,7 @@ async def setup_container() -> AsyncContainer:
         BotProvider(),
         PortsProvider(),
         FacadeProvider(),
+        ConfigProvider(),
     )
 
 
@@ -300,6 +309,7 @@ def setup_health_container() -> AsyncContainer:
         DatabaseProvider(),
         SessionProvider(),
         HealthProvider(),
+        ConfigProvider(),
     )
 
 
@@ -314,4 +324,5 @@ def setup_taskiq_container() -> AsyncContainer:
         BotProvider(),
         PortsProvider(),
         TaskiqProvider(),
+        ConfigProvider(),
     )
