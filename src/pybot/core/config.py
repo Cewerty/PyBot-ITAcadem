@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 from typing import Annotated, Literal, Self
 
 from pydantic import Field, field_validator, model_validator
@@ -78,6 +79,15 @@ class BotSettings(BaseSettings):
 
     # General settings
     log_level: str = Field("INFO", alias="LOG_LEVEL", description="Logging level")
+    log_format: Literal["text", "json"] = Field(
+        "text",
+        alias="LOG_FORMAT",
+        description=(
+            "Log output format. Use 'text' for human-readable coloured output (default, dev/local), "
+            "'json' for structured machine-readable output (recommended for production log collectors "
+            "such as Loki, CloudWatch, or ELK)."
+        ),
+    )
     debug: bool = Field(False, alias="DEBUG", description="Debug mode")
 
     # Rate limit settings
@@ -320,4 +330,10 @@ class BotSettings(BaseSettings):
         return self
 
 
-settings: BotSettings = BotSettings()
+@functools.lru_cache(maxsize=1)
+def get_settings() -> BotSettings:
+    """Return the application settings as a cached singleton."""
+    return BotSettings()
+
+
+settings: BotSettings = get_settings()
