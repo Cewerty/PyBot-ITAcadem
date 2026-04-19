@@ -54,7 +54,7 @@ class RoleMiddleware(BaseMiddleware):
 
         logger.info("Checking role '{required_role}' for user {user_id}", required_role=required_role, user_id=user.id)
 
-        if has_any_role(permissions, required_role) and permissions is not None:
+        if permissions is not None and has_any_role(permissions, required_role):
             return await handler(event, data)
 
         logger.warning(

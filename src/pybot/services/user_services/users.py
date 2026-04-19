@@ -60,7 +60,7 @@ class UserService:
 
     async def find_all_user_roles(self, user_id: int) -> set[str] | None:
         roles = await self.user_repository.find_all_user_roles_by_pk(self.db, user_id)
-        return roles if len(roles) == 0 else None
+        return roles if roles else None
 
     async def find_user_by_phone(
         self,
