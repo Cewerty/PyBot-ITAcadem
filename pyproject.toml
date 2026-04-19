@@ -22,7 +22,6 @@ dependencies = [
     "uvicorn>=0.30.0",
     "tenacity>=9.0.0",
     "alembic>=1.17.2",
-    "faker>=38.2.0",
     "redis>=6.4.0",
     "starlette-dishka>=1.0.1",
     "taskiq>=0.12.1",
@@ -31,6 +30,9 @@ dependencies = [
     "pydantic-extra-types[cron,pendulum]>=2.11.0",
     "tyro>=1.0.10",
 ]
+
+[project.scripts]
+pybot-seed = "pybot.cli.seed:main"
 
 [project.optional-dependencies]
 docs = [
@@ -43,8 +45,9 @@ docs = [
     "Pygments>=2.17.0",
 ]
 
-[dependency-groups]
-dev = [
+[tool.uv]
+package = true
+dev-dependencies = [
     "pytest-coverage>=0.0",
     "pre-commit>=4.5.0",
     "pytest>=9.0.1",
@@ -58,6 +61,8 @@ dev = [
     "httpie>=3.2.4",
     "pytest-aiogram>=0.1.0",
     "tach>=0.34.1",
+    # Seed script dependency — not needed in the production runtime image.
+    "faker>=38.2.0",
 ]
 
 [tool.ruff]
@@ -202,3 +207,16 @@ prerelease = false
 pythonpath = ["src", "."]
 testpaths = ["tests"]
 addopts = "-q --strict-markers"
+
+# ── uv build settings ────────────────────────────────────────────────────────────
+# Required so that uv installs [project.scripts] entry points (pybot-seed).
+# Without package = true, uv skips script installation for non-packaged projects.
+
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+# The pybot package lives under src/, tell hatchling where to find it.
+packages = ["src/pybot"]
