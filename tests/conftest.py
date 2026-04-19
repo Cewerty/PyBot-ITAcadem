@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import random
 from collections.abc import AsyncGenerator, Generator
 from pathlib import Path
@@ -14,6 +15,12 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Mapper
 from sqlalchemy.pool import ConnectionPoolEntry
+
+# Ensure import-time settings resolution works in CI even without repository .env.
+os.environ.setdefault("BOT_TOKEN", "123456:TEST_TOKEN")
+os.environ.setdefault("BOT_TOKEN_TEST", "123456:TEST_TOKEN")
+os.environ.setdefault("ROLE_REQUEST_ADMIN_TG_ID", "999999999")
+os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///./tests/bootstrap.sqlite3")
 
 from pybot.core.config import settings
 from pybot.db.models import Base
