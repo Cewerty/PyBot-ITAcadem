@@ -42,7 +42,7 @@ async def test_logger_middleware_reuses_same_event_id_for_start_and_finish_logs(
     mocker,
 ) -> None:
     monkeypatch.setattr(settings, "enable_logging_middleware", True)
-    middleware = LoggerMiddleware(enabled=True)
+    middleware = LoggerMiddleware(settings, enabled=True)
     message = _build_message(text="/start", from_user_id=700_000)
     handler = AsyncMock(return_value="handled")
     data: dict[str, object] = {
@@ -242,7 +242,7 @@ async def test_user_activity_middleware_enriches_data_and_persists_last_activity
 @pytest.mark.asyncio
 async def test_rate_limit_middleware_skips_limiting_when_flag_is_missing() -> None:
     # Given
-    middleware = RateLimitMiddleware()
+    middleware = RateLimitMiddleware(settings)
     message = _build_message(from_user_id=700_444)
     assert message.from_user is not None
     handler = AsyncMock(return_value="handled-without-rate-limit")
@@ -273,7 +273,7 @@ async def test_rate_limit_middleware_falls_back_to_moderate_limits(
     # Given
     monkeypatch.setattr(settings, "rate_limit_moderate", 7)
     monkeypatch.setattr(settings, "time_limit_moderate", 13)
-    middleware = RateLimitMiddleware()
+    middleware = RateLimitMiddleware(settings)
     if override_invalid_limit is not None:
         middleware.limits["cheap"] = override_invalid_limit
 
