@@ -5,7 +5,7 @@ from aiogram import Bot as AiogramBot
 from aiogram.client.session.aiohttp import AiohttpSession
 from dishka import make_async_container
 
-from pybot.core.config import settings
+from pybot.core.config import BotSettings
 from pybot.di import containers as di_containers
 
 
@@ -13,6 +13,7 @@ from pybot.di import containers as di_containers
 async def test_container_provides_bot_and_closes_session(
     monkeypatch: pytest.MonkeyPatch,
     mocker,
+    settings_obj: BotSettings,
 ) -> None:
     class FakeBot:
         def __init__(self, token: str, session=None, **_: object) -> None:
@@ -20,9 +21,9 @@ async def test_container_provides_bot_and_closes_session(
             self.session = session or SimpleNamespace(close=mocker.AsyncMock())
 
     monkeypatch.setattr(di_containers, "Bot", FakeBot)
-    monkeypatch.setattr(settings, "bot_mode", "test")
-    monkeypatch.setattr(settings, "bot_token_test", "123456:TEST_TOKEN")
-    monkeypatch.setattr(settings, "telegram_proxy_url", None)
+    settings_obj.bot_mode = "test"
+    settings_obj.bot_token_test = "123456:TEST_TOKEN"
+    settings_obj.telegram_proxy_url = None
 
     container = make_async_container(di_containers.ConfigProvider(), di_containers.BotProvider())
     bot = await container.get(AiogramBot)
@@ -39,6 +40,7 @@ async def test_container_provides_bot_and_closes_session(
 async def test_container_uses_prod_token_when_bot_mode_is_prod(
     monkeypatch: pytest.MonkeyPatch,
     mocker,
+    settings_obj: BotSettings,
 ) -> None:
     class FakeBot:
         def __init__(self, token: str, session=None, **_: object) -> None:
@@ -46,10 +48,10 @@ async def test_container_uses_prod_token_when_bot_mode_is_prod(
             self.session = session or SimpleNamespace(close=mocker.AsyncMock())
 
     monkeypatch.setattr(di_containers, "Bot", FakeBot)
-    monkeypatch.setattr(settings, "bot_mode", "prod")
-    monkeypatch.setattr(settings, "bot_token", "123456:PROD_TOKEN")
-    monkeypatch.setattr(settings, "bot_token_test", "123456:TEST_TOKEN")
-    monkeypatch.setattr(settings, "telegram_proxy_url", None)
+    settings_obj.bot_mode = "prod"
+    settings_obj.bot_token = "123456:PROD_TOKEN"
+    settings_obj.bot_token_test = "123456:TEST_TOKEN"
+    settings_obj.telegram_proxy_url = None
 
     container = make_async_container(di_containers.ConfigProvider(), di_containers.BotProvider())
     bot = await container.get(AiogramBot)
@@ -64,6 +66,7 @@ async def test_container_uses_prod_token_when_bot_mode_is_prod(
 @pytest.mark.asyncio
 async def test_container_uses_proxy_session_when_proxy_url_is_configured(
     monkeypatch: pytest.MonkeyPatch,
+    settings_obj: BotSettings,
 ) -> None:
     class FakeBot:
         def __init__(self, token: str, session=None, **_: object) -> None:
@@ -71,9 +74,9 @@ async def test_container_uses_proxy_session_when_proxy_url_is_configured(
             self.session = session
 
     monkeypatch.setattr(di_containers, "Bot", FakeBot)
-    monkeypatch.setattr(settings, "bot_mode", "test")
-    monkeypatch.setattr(settings, "bot_token_test", "123456:TEST_TOKEN")
-    monkeypatch.setattr(settings, "telegram_proxy_url", "socks5://127.0.0.1:1080")
+    settings_obj.bot_mode = "test"
+    settings_obj.bot_token_test = "123456:TEST_TOKEN"
+    settings_obj.telegram_proxy_url = "socks5://127.0.0.1:1080"
 
     container = make_async_container(di_containers.ConfigProvider(), di_containers.BotProvider())
     try:

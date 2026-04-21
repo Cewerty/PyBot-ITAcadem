@@ -6,7 +6,6 @@ from typing import Protocol, cast
 import pytest
 from taskiq.brokers.inmemory_broker import InMemoryBroker
 
-from pybot.core import settings
 from pybot.core.config import BotSettings
 from pybot.infrastructure.taskiq.tasks.leaderboard import publish_weekly_leaderboard_task, register_tasks
 from pybot.services.weekly_leaderboard_publisher import WeeklyLeaderboardPublisherService
@@ -73,10 +72,10 @@ def _build_registered_task(settings_obj: BotSettings) -> TaskCallable:
 
 
 @pytest.mark.asyncio
-async def test_publish_weekly_leaderboard_task_uses_service_and_returns_payload() -> None:
+async def test_publish_weekly_leaderboard_task_uses_service_and_returns_payload(settings_obj: BotSettings) -> None:
     service = WeeklyPublisherServiceSpy()
-    task = _build_registered_task(settings)
-    dishka_container = DishkaContainerStub(service, settings)
+    task = _build_registered_task(settings_obj)
+    dishka_container = DishkaContainerStub(service, settings_obj)
 
     payload = await task(
         recipient_id=-100_200_300,
@@ -88,14 +87,14 @@ async def test_publish_weekly_leaderboard_task_uses_service_and_returns_payload(
         "recipient_id": -100_200_300,
         "limit": 12,
     }
-    assert service.calls == [(-100_200_300, 12, str(settings.leaderboard_weekly_timezone))]
+    assert service.calls == [(-100_200_300, 12, str(settings_obj.leaderboard_weekly_timezone))]
 
 
-def test_publish_weekly_leaderboard_task_has_retry_labels() -> None:
-    task = register_tasks(broker=InMemoryBroker(), settings=settings)
+def test_publish_weekly_leaderboard_task_has_retry_labels(settings_obj: BotSettings) -> None:
+    task = register_tasks(broker=InMemoryBroker(), settings=settings_obj)
 
     assert task.task_name == "leaderboard.publish_weekly"
-    assert task.labels["retry_on_error"] == settings.leaderboard_weekly_retry_enabled
-    assert task.labels["max_retries"] == settings.leaderboard_weekly_retry_max_retries
-    assert task.labels["delay"] == settings.leaderboard_weekly_retry_delay_s
+    assert task.labels["retry_on_error"] == settings_obj.leaderboard_weekly_retry_enabled
+    assert task.labels["max_retries"] == settings_obj.leaderboard_weekly_retry_max_retries
+    assert task.labels["delay"] == settings_obj.leaderboard_weekly_retry_delay_s
     assert callable(publish_weekly_leaderboard_task)
