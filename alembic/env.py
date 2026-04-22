@@ -8,11 +8,13 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from alembic import context
-from src.pybot.core.config import settings
+from src.pybot.core.config import get_settings
 from src.pybot.db.base_class import Base
 
 # Импортируем модели, чтобы Base.metadata собрался
 from src.pybot.db.models import *  # noqa: F403  # только для Alembic!
+
+settings = get_settings()
 
 # ====================== НАСТРОЙКИ ПРОЕКТА ======================
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))

@@ -3,7 +3,9 @@ import subprocess
 import sys
 from urllib.parse import urlparse
 
-from src.pybot.core.config import settings
+from src.pybot.core.config import get_settings
+
+settings = get_settings()
 
 
 # Парсер URL для установки пути к БД
