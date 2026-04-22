@@ -8,7 +8,8 @@ import pytest
 from fastapi.responses import JSONResponse
 
 from pybot.dto.health_dto import HealthStatusDTO
-from pybot.health.app import ready
+from pybot.health.routers.health import health as health_endpoint
+from pybot.health.routers.readiness import ready
 from pybot.services.health import HealthService, SupportsExecute
 
 
@@ -81,3 +82,27 @@ async def test_ready_endpoint_returns_503_on_fail() -> None:
     payload = json.loads(bytes(response.body).decode("utf-8"))
     assert payload["status"] == "fail", "Payload should report fail status."
     assert payload["checks"][0]["details"] == "db down", "Payload should include failure details."
+
+
+@pytest.mark.asyncio
+async def test_health_endpoint_returns_200_payload() -> None:
+    """Ensure /health endpoint function returns a healthy DTO payload."""
+    service = HealthService(_FakeSession(should_fail=False))
+
+    response = await health_endpoint(service)
+
+    assert isinstance(response, HealthStatusDTO), "Expected DTO response from /health endpoint."
+    assert response.status == "ok", "Health endpoint must always report process liveness as ok."
+    assert response.checks == [], "Liveness payload should not include dependency checks."
+
+
+@pytest.mark.asyncio
+async def test_ready_endpoint_can_hide_checks_when_requested() -> None:
+    """Ensure include_checks=False removes checks from readiness response payload."""
+    service = HealthService(_FakeSession(should_fail=False))
+
+    response = await ready(service, include_checks=False)
+
+    assert isinstance(response, HealthStatusDTO), "Expected DTO response when service is ready."
+    assert response.status == "ok", "Readiness status should stay ok."
+    assert response.checks == [], "Checks list should be removed when include_checks is false."
