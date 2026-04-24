@@ -242,16 +242,14 @@ class BotSettings(BaseSettings):
             return False
 
         raise ValueError("DEBUG must be a boolean-like value (e.g. true/false/debug/release)")
-    
+
     @field_validator("taskiq_workers")
     @classmethod
     def validate_taskiq_workers(cls, value: int) -> int:
         if value != 1:
-            raise ValueError(
-                "TASKIQ_WORKERS=1 is required until multi-instance runtime is supported"
-            )
+            raise ValueError("TASKIQ_WORKERS=1 is required until multi-instance runtime is supported")
         return value
-    
+
     @field_validator("telegram_proxy_url", mode="before")
     @classmethod
     def parse_telegram_proxy_url(cls, value: str | None) -> str | None:
