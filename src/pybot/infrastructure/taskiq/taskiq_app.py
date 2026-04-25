@@ -67,7 +67,19 @@ async def _on_worker_shutdown(_state: TaskiqState) -> None:
 
 
 def get_taskiq_task_registry(settings: BotSettings | None = None) -> TaskRegistry:
-    """Return registered TaskIQ tasks registry, initializing broker if needed."""
+    """Возвращает реестр зарегистрированных задач TaskIQ.
+
+    Если брокер еще не инициализирован, выполняет его инициализацию.
+
+    Args:
+        settings: Настройки бота. Если не указаны, используются настройки по умолчанию.
+
+    Returns:
+        TaskRegistry: Реестр задач.
+
+    Raises:
+        RuntimeError: Если задачи не были зарегистрированы.
+    """
     get_taskiq_broker(settings)
     if _runtime_state.task_registry is None:
         raise RuntimeError("TaskIQ tasks are not registered.")
@@ -77,14 +89,28 @@ def get_taskiq_task_registry(settings: BotSettings | None = None) -> TaskRegistr
 def get_taskiq_notification_task(
     settings: BotSettings | None = None,
 ) -> AsyncTaskiqDecoratedTask[..., NotificationTaskPayload]:
-    """Return decorated notification task object."""
+    """Возвращает декорированный объект задачи для отправки уведомлений.
+
+    Args:
+        settings: Настройки бота.
+
+    Returns:
+        AsyncTaskiqDecoratedTask: Объект задачи TaskIQ.
+    """
     return get_taskiq_task_registry(settings).notification_task
 
 
 def get_taskiq_weekly_leaderboard_task(
     settings: BotSettings | None = None,
 ) -> AsyncTaskiqDecoratedTask[..., dict[str, int]]:
-    """Return decorated weekly leaderboard task object."""
+    """Возвращает декорированный объект задачи для публикации еженедельного лидерборда.
+
+    Args:
+        settings: Настройки бота.
+
+    Returns:
+        AsyncTaskiqDecoratedTask: Объект задачи TaskIQ.
+    """
     return get_taskiq_task_registry(settings).weekly_leaderboard_task
 
 
@@ -98,7 +124,18 @@ async def ensure_weekly_leaderboard_schedule(
     schedule_source: ListRedisScheduleSource | None = None,
     settings: BotSettings | None = None,
 ) -> None:
-    """Idempotently ensure one weekly leaderboard cron schedule in Redis source."""
+    """Идемпотентно гарантирует наличие расписания еженедельного лидерборда.
+
+    Проверяет, является ли текущий процесс планировщиком и включена ли функция в настройках.
+
+    Args:
+        broker: Брокер TaskIQ.
+        schedule_source: Источник расписаний Redis.
+        settings: Настройки бота.
+
+    Raises:
+        RuntimeError: Если не установлен ID получателя при включенном расписании.
+    """
     runtime_settings = settings or get_settings()
     runtime_broker = broker or get_taskiq_broker(runtime_settings)
     if not runtime_broker.is_scheduler_process:
@@ -129,7 +166,14 @@ async def ensure_weekly_leaderboard_schedule(
 
 
 def get_taskiq_broker(settings: BotSettings | None = None) -> AsyncBroker:
-    """Return singleton TaskIQ broker for worker and scheduler runtimes."""
+    """Возвращает синглтон брокера TaskIQ.
+
+    Args:
+        settings: Настройки бота.
+
+    Returns:
+        AsyncBroker: Объект брокера TaskIQ.
+    """
     if _runtime_state.broker is not None:
         return _runtime_state.broker
 
@@ -163,7 +207,14 @@ def get_taskiq_broker(settings: BotSettings | None = None) -> AsyncBroker:
 
 
 def get_taskiq_schedule_source(settings: BotSettings | None = None) -> ListRedisScheduleSource:
-    """Return singleton schedule source for scheduler process."""
+    """Возвращает синглтон источника расписаний для планировщика.
+
+    Args:
+        settings: Настройки бота.
+
+    Returns:
+        ListRedisScheduleSource: Объект источника расписаний.
+    """
     if _runtime_state.schedule_source is not None:
         return _runtime_state.schedule_source
 
@@ -173,7 +224,14 @@ def get_taskiq_schedule_source(settings: BotSettings | None = None) -> ListRedis
 
 
 def get_taskiq_scheduler(settings: BotSettings | None = None) -> TaskiqScheduler:
-    """Return singleton scheduler for delayed and periodic tasks."""
+    """Возвращает синглтон планировщика TaskIQ.
+
+    Args:
+        settings: Настройки бота.
+
+    Returns:
+        TaskiqScheduler: Объект планировщика.
+    """
     if _runtime_state.scheduler is not None:
         return _runtime_state.scheduler
 

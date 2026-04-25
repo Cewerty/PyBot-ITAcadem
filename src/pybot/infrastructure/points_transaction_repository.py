@@ -10,7 +10,15 @@ from ..dto import WeeklyLeaderboardRowDTO
 
 
 class PointsTransactionRepository:
+    """Репозиторий для управления транзакциями баллов (PointsTransaction)."""
+
     async def add(self, db: AsyncSession, transaction: PointsTransaction) -> None:
+        """Добавляет новую транзакцию в базу данных.
+
+        Args:
+            db: Асинхронная сессия базы данных.
+            transaction: Обьект транзакции для добавления.
+        """
         db.add(transaction)
 
     async def find_top_recipients_for_period(
@@ -22,12 +30,17 @@ class PointsTransactionRepository:
         period_end: datetime,
         limit: int = 10,
     ) -> Sequence[WeeklyLeaderboardRowDTO]:
-        """Вернуть топ получателей с положительным чистым приростом баллов за период.
+        """Возвращает топ получателей с положительным чистым приростом баллов за период.
 
-        ``period_start`` / ``period_end`` - timezone-aware local period boundaries.
-        They are converted to UTC-naive bounds for SQL WHERE filtering.
-        DTO rows keep the original local period for user-facing rendering.
-        Пользователи с нулевым или отрицательным чистым приростом в результат не попадают.
+        Args:
+            db: Асинхронная сессия базы данных.
+            points_type: Тип баллов.
+            period_start: Начало периода (timezone-aware).
+            period_end: Конец периода (timezone-aware).
+            limit: Максимальное количество строк в результате.
+
+        Returns:
+            Sequence[WeeklyLeaderboardRowDTO]: Список строк лидерборда.
         """
         start_at = period_start.astimezone(UTC).replace(tzinfo=None)
         end_at = period_end.astimezone(UTC).replace(tzinfo=None)

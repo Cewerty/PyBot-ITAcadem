@@ -7,9 +7,17 @@ from ...services.ports.health_probe import SupportsExecute
 
 
 class SessionExecutor(SupportsExecute):
-    """Thin adapter that exposes AsyncSession.execute for health checks."""
+    """Адаптер для асинхронной сессии SQLAlchemy, реализующий интерфейс SupportsExecute.
+
+    Позволяет выполнять SQL-запросы в рамках проверок работоспособности базы данных.
+    """
 
     def __init__(self, session: AsyncSession) -> None:
+        """Инициализирует адаптер сессии.
+
+        Args:
+            session: Асинхронная сессия SQLAlchemy.
+        """
         self._session = session
 
     async def execute(
@@ -21,5 +29,17 @@ class SessionExecutor(SupportsExecute):
         bind_arguments: Mapping[str, object] | None = None,
         **kwargs: object,
     ) -> object:
+        """Выполняет SQL-запрос.
+
+        Args:
+            statement: Объект запроса SQLAlchemy.
+            params: Параметры запроса.
+            execution_options: Опции выполнения.
+            bind_arguments: Аргументы связывания.
+            **kwargs: Дополнительные аргументы.
+
+        Returns:
+            object: Результат выполнения запроса.
+        """
         _ = execution_options, bind_arguments, kwargs
         return await self._session.execute(statement, params=params)

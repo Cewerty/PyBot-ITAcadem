@@ -17,11 +17,23 @@ if TYPE_CHECKING:
 
 
 class TaskIQNotificationDispatcher(NotificationDispatchPort):
+    """Диспетчер уведомлений через TaskIQ.
+
+    Обеспечивает постановку задач на отправку уведомлений в очередь TaskIQ с поддержкой различных типов расписаний.
+    """
+
     def __init__(
         self,
         schedule_source: ListRedisScheduleSource | None = None,
         notification_task_resolver: Callable[[], AsyncTaskiqDecoratedTask[..., NotificationTaskPayload]] | None = None,
     ) -> None:
+        """Инициализирует диспетчер TaskIQ.
+
+        Args:
+            schedule_source: Источник расписаний Redis. Если не указан, разрешается автоматически.
+            notification_task_resolver: Функция для получения задачи уведомления.
+                Если не указана, разрешается автоматически.
+        """
         self._schedule_source = schedule_source or self._resolve_schedule_source()
         self._notification_task_resolver = notification_task_resolver or self._resolve_notification_task
 
@@ -47,6 +59,20 @@ class TaskIQNotificationDispatcher(NotificationDispatchPort):
         schedule: TaskSchedule,
         parse_mode: str | None = None,
     ) -> str:
+        """Отправляет сообщение пользователю согласно расписанию.
+
+        Args:
+            recipient_id: Telegram ID получателя.
+            message_text: Текст сообщения.
+            schedule: Расписание отправки (немедленно, в указанное время, интервал или крон).
+            parse_mode: Режим парсинга текста (HTML/Markdown).
+
+        Returns:
+            str: ID созданной задачи или расписания.
+
+        Raises:
+            TaskScheduleUnknownKindError: Если передан неизвестный тип расписания.
+        """
         notification_task = self._task()
 
         match schedule.kind:

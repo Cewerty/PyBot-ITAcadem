@@ -19,7 +19,14 @@ _wiring_state = _WeeklyLeaderboardWiringState()
 
 
 async def _on_client_startup_weekly(_state: TaskiqState) -> None:
-    """Scheduler startup hook for weekly leaderboard periodic schedule ensure."""
+    """Обработчик события запуска клиента TaskIQ для настройки еженедельного лидерборда.
+
+    Args:
+        _state: Состояние TaskIQ.
+
+    Raises:
+        RuntimeError: Если коллбэк для настройки расписания не сконфигурирован.
+    """
     if _wiring_state.ensure_weekly_leaderboard_schedule is None:
         raise RuntimeError("Weekly leaderboard wiring callback is not configured.")
 
@@ -31,6 +38,11 @@ def register_weekly_leaderboard_wiring(
     *,
     ensure_weekly_leaderboard_schedule: Callable[[], Awaitable[None]],
 ) -> None:
-    """Attach weekly leaderboard lifecycle hooks to TaskIQ broker."""
+    """Регистрирует хуки жизненного цикла для еженедельного лидерборда в брокере TaskIQ.
+
+    Args:
+        broker: Асинхронный брокер TaskIQ.
+        ensure_weekly_leaderboard_schedule: Асинхронная функция для гарантирования наличия расписания.
+    """
     _wiring_state.ensure_weekly_leaderboard_schedule = ensure_weekly_leaderboard_schedule
     broker.add_event_handler(TaskiqEvents.CLIENT_STARTUP, _on_client_startup_weekly)

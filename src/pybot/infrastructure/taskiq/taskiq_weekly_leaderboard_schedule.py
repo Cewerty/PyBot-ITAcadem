@@ -17,6 +17,11 @@ LEADERBOARD_WEEKLY_TASK_NAME = "leaderboard.publish_weekly"
 
 @dataclass(slots=True)
 class WeeklyLeaderboardScheduleSpec:
+    """Спецификация для еженедельной публикации лидерборда.
+
+    Определяет параметры расписания и получателя для задачи публикации.
+    """
+
     recipient_id: int
     cron_expression: str
     timezone_name: str
@@ -30,6 +35,15 @@ def is_expected_weekly_schedule(
     *,
     spec: WeeklyLeaderboardScheduleSpec,
 ) -> bool:
+    """Проверяет, соответствует ли существующее расписание TaskIQ заданной спецификации.
+
+    Args:
+        schedule: Проверяемое расписание из TaskIQ.
+        spec: Спецификация, которой должно соответствовать расписание.
+
+    Returns:
+        bool: True, если расписание соответствует спецификации, иначе False.
+    """
     if schedule.task_name != spec.task_name:
         return False
     if schedule.cron != spec.cron_expression:
@@ -46,7 +60,18 @@ async def ensure_weekly_leaderboard_schedule(
     spec: WeeklyLeaderboardScheduleSpec,
     resolve_kicker: Callable[[], AsyncKicker[Any, Any]] | None = None,
 ) -> None:
-    """Idempotently ensure one weekly leaderboard cron schedule in Redis source."""
+    """Идемпотентно гарантирует наличие расписания еженедельного лидерборда в Redis.
+
+    Если расписание отсутствует или не соответствует спецификации, оно будет создано или перезаписано.
+
+    Args:
+        source: Источник расписаний Redis.
+        spec: Спецификация расписания.
+        resolve_kicker: Функция для получения объекта Kicker для постановки задачи.
+
+    Raises:
+        RuntimeError: Если kicker не сконфигурирован.
+    """
     if resolve_kicker is None:
         raise RuntimeError("Weekly leaderboard kicker resolver is not configured.")
 
