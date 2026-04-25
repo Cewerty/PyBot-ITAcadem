@@ -1,20 +1,26 @@
 from __future__ import annotations
 
-from ..bot.texts import render_leaderboard_message
 from ..core.constants import PointsTypeEnum
 from ..dto import NotifyDTO
+from ..presentation.texts import render_leaderboard_message
 from .leaderboard import LeaderboardService
 from .ports import NotificationPort
 
 
 class WeeklyLeaderboardPublisherService:
-    """Orchestrate weekly leaderboard publication to one transport recipient."""
+    """Оркестратор публикации еженедельной таблицы лидеров одному получателю."""
 
     def __init__(
         self,
         leaderboard_service: LeaderboardService,
         notification_port: NotificationPort,
     ) -> None:
+        """Инициализирует сервис публикации таблицы лидеров.
+
+        Args:
+            leaderboard_service: Сервис для получения данных таблицы лидеров.
+            notification_port: Порт для отправки уведомлений.
+        """
         self._leaderboard_service = leaderboard_service
         self._notification_port = notification_port
 
@@ -25,7 +31,13 @@ class WeeklyLeaderboardPublisherService:
         limit: int,
         business_tz: str,
     ) -> None:
-        """Build and send weekly leaderboard message in HTML mode."""
+        """Формирует и отправляет сообщение с еженедельной таблицей лидеров в формате HTML.
+
+        Args:
+            recipient_id: Идентификатор получателя (Telegram chat ID).
+            limit: Количество позиций в каждой из таблиц (топ-N).
+            business_tz: Временная зона (timezone) для расчета календарной недели.
+        """
         period = self._leaderboard_service.get_previous_calendar_week_period(
             business_tz=business_tz,
         )

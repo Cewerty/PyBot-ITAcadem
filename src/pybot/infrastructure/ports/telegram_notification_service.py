@@ -12,28 +12,44 @@ from aiogram.exceptions import (
     TelegramUnauthorizedError,
 )
 
-from ...bot.keyboards.role_request_keyboard import get_admin_decision_kb
-from ...bot.texts import role_request_admin_notification
 from ...core import logger
 from ...core.config import BotSettings
 from ...dto import NotifyDTO
+from ...presentation.bot import get_admin_decision_kb
+from ...presentation.texts import role_request_admin_notification
 from ...services.ports import NotificationPermanentError, NotificationPort, NotificationTemporaryError
 from ...utils import telegram_user_link
 
 
 class TelegramNotificationService(NotificationPort):
-    """Telegram implementation of :class:`NotificationPort`.
+    """Реализация NotificationPort для отправки уведомлений через Telegram Bot API.
 
-    Notes:
-        ``recipient_id`` in direct notifications is interpreted as Telegram
-        ``telegram_id``/``chat_id``.
+    Обеспечивает доставку уведомлений о заявках на роли администраторам и прямых сообщений пользователям.
+    Обрабатывает типичные ошибки Telegram API (Rate Limits, Forbidden, и т.д.), транслируя их в доменные исключения.
     """
 
     def __init__(self, bot: Bot, settings: BotSettings) -> None:
+        """Инициализирует сервис уведомлений Telegram.
+
+        Args:
+            bot: Экземпляр бота aiogram.
+            settings: Настройки приложения.
+        """
         self.bot = bot
         self._settings = settings
 
     async def send_role_request_to_admin(self, request_id: int, requester_user_id: int, role_name: str) -> None:
+        """Отправляет уведомление о новой заявке на роль администратору.
+
+        Args:
+            request_id: ID заявки.
+            requester_user_id: ID пользователя, подавшего заявку.
+            role_name: Название запрашиваемой роли.
+
+        Raises:
+            NotificationTemporaryError: При временных сбоях (Rate limit, сетевые ошибки).
+            NotificationPermanentError: При критических ошибках API или неожиданных сбоях.
+        """
         admin_tg_id = self._settings.role_request_admin_tg_id
         mention = telegram_user_link(requester_user_id)
         text = role_request_admin_notification(request_id=request_id, role_name=role_name, mention=mention)
@@ -95,6 +111,15 @@ class TelegramNotificationService(NotificationPort):
             raise NotificationPermanentError(message="Unexpected notification delivery failure") from exc
 
     async def send_message(self, message_data: NotifyDTO) -> None:
+        """Отправляет прямое сообщение пользователю.
+
+        Args:
+            message_data: DTO с данными сообщения (текст, получатель, parse_mode).
+
+        Raises:
+            NotificationTemporaryError: При временных сбоях.
+            NotificationPermanentError: При критических ошибках API.
+        """
         cleaned_text = message_data.message
         recipient_id = message_data.recipient_id
         parse_mode = message_data.parse_mode

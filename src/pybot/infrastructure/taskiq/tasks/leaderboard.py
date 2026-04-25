@@ -17,7 +17,17 @@ async def publish_weekly_leaderboard_task(
     service: FromDishka[WeeklyLeaderboardPublisherService],
     settings: FromDishka[BotSettings],
 ) -> dict[str, int]:
-    """Publish previous-week leaderboard to configured recipient."""
+    """Публикует еженедельный лидерборд указанному получателю.
+
+    Args:
+        recipient_id: Telegram ID получателя.
+        limit: Количество строк в лидерборде.
+        service: Сервис публикации лидерборда (инжектируется из Dishka).
+        settings: Настройки бота (инжектируются из Dishka).
+
+    Returns:
+        dict[str, int]: Данные о выполнении задачи (ID получателя и лимит).
+    """
     await service.publish_weekly(
         recipient_id=recipient_id,
         limit=limit,
@@ -36,6 +46,15 @@ def register_tasks(
     broker: AsyncBroker,
     settings: BotSettings,
 ) -> AsyncTaskiqDecoratedTask[..., Any]:
+    """Регистрирует задачу публикации лидерборда в брокере.
+
+    Args:
+        broker: Брокер TaskIQ.
+        settings: Настройки бота для конфигурации повторов.
+
+    Returns:
+        AsyncTaskiqDecoratedTask: Декорированная задача.
+    """
     return broker.task(
         task_name="leaderboard.publish_weekly",
         retry_on_error=settings.leaderboard_weekly_retry_enabled,

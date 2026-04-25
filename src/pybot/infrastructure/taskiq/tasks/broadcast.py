@@ -18,6 +18,13 @@ async def broadcast_for_all_task(
 
     Задача выполняется в worker-процессе и использует тот же сервисный слой,
     что и aiogram-хендлеры, но через отдельный request-scope DI-контейнера.
+
+    Args:
+        message: Текст сообщения для рассылки.
+        service: Сервис рассылки (инжектируется из Dishka).
+
+    Returns:
+        dict[str, int]: Результаты рассылки (кол-во попыток, отправленных, ошибок).
     """
     result = await service.broadcast_for_all(BroadcastDTO(broadcast_message=message))
 
@@ -33,4 +40,12 @@ async def broadcast_for_all_task(
 
 
 def register_tasks(*, broker: AsyncBroker) -> AsyncTaskiqDecoratedTask[..., Any]:
+    """Регистрирует задачу рассылки в брокере.
+
+    Args:
+        broker: Брокер TaskIQ.
+
+    Returns:
+        AsyncTaskiqDecoratedTask: Декорированная задача.
+    """
     return broker.task(task_name="broadcast.send_for_all")(inject(patch_module=True)(broadcast_for_all_task))

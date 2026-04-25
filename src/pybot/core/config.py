@@ -55,6 +55,8 @@ class BotSettings(BaseSettings):
         alias="REDIS_URL",
         description="Redis URL used for FSM storage when FSM_STORAGE_BACKEND=redis",
     )
+    # TODO костыль до поддержки multi-instance
+    taskiq_workers: int = Field(1, alias="TASKIQ_WORKERS", description="Taskiq worker concurrency")
     role_request_admin_tg_id: int = Field(
         ...,
         alias="ROLE_REQUEST_ADMIN_TG_ID",
@@ -83,9 +85,10 @@ class BotSettings(BaseSettings):
         "text",
         alias="LOG_FORMAT",
         description=(
-            "Log output format. Use 'text' for human-readable coloured output (default, dev/local), "
-            "'json' for structured machine-readable output (recommended for production log collectors "
-            "such as Loki, CloudWatch, or ELK)."
+            "Log output format. If LOG_FORMAT is not set explicitly, runtime defaults are applied: "
+            "'text' for local/dev (`BOT_MODE=test`) and 'json' for production (`BOT_MODE=prod`). "
+            "Use 'json' for structured machine-readable output with log collectors such as Loki, "
+            "CloudWatch, or ELK."
         ),
     )
     debug: bool = Field(False, alias="DEBUG", description="Debug mode")
@@ -240,6 +243,13 @@ class BotSettings(BaseSettings):
 
         raise ValueError("DEBUG must be a boolean-like value (e.g. true/false/debug/release)")
 
+    @field_validator("taskiq_workers")
+    @classmethod
+    def validate_taskiq_workers(cls, value: int) -> int:
+        if value != 1:
+            raise ValueError("TASKIQ_WORKERS=1 is required until multi-instance runtime is supported")
+        return value
+
     @field_validator("telegram_proxy_url", mode="before")
     @classmethod
     def parse_telegram_proxy_url(cls, value: str | None) -> str | None:
@@ -302,6 +312,14 @@ class BotSettings(BaseSettings):
             sorted_roles = ", ".join(sorted(unknown_roles))
             raise ValueError(f"Unknown role(s) in BROADCAST_ALLOWED_ROLES: {sorted_roles}")
         return roles
+
+    @model_validator(mode="after")
+    def apply_runtime_log_format_default(self: Self) -> Self:
+        if "log_format" in self.model_fields_set:
+            return self
+
+        self.log_format = "json" if self.bot_mode == "prod" else "text"
+        return self
 
     @model_validator(mode="after")
     def validate_broadcast_jitter_range(self: Self) -> Self:

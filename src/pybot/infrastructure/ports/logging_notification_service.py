@@ -8,9 +8,22 @@ from ...utils import telegram_user_link
 
 
 class LoggingNotificationService(NotificationPort):
-    """Notification adapter that writes outbound events to loguru logger."""
+    """Адаптер уведомлений, который записывает исходящие события в логгер loguru.
+
+    Используется в основном для отладки или в средах, где отправка реальных сообщений невозможна/нежелательна.
+    Хранит ограниченную историю событий в кольцевом буфере.
+    """
 
     def __init__(self, settings: BotSettings, buffer_size: int = 1000) -> None:
+        """Инициализирует сервис логирования уведомлений.
+
+        Args:
+            settings: Настройки бота.
+            buffer_size: Размер кольцевого буфера для хранения истории событий.
+
+        Raises:
+            ValueError: Если buffer_size <= 0.
+        """
         if buffer_size <= 0:
             raise ValueError("buffer_size must be greater than 0")
         self._settings = settings
@@ -18,11 +31,24 @@ class LoggingNotificationService(NotificationPort):
 
     @property
     def events(self) -> tuple[NotificationLogEvent, ...]:
-        """Expose immutable snapshot of buffered notification events."""
+        """Возвращает неизменяемый снимок буферизованных событий уведомлений.
+
+        Returns:
+            tuple[NotificationLogEvent, ...]: Кортеж событий.
+        """
         return tuple(self._events)
 
     async def send_role_request_to_admin(self, request_id: int, requester_user_id: int, role_name: str) -> None:
-        """Log role request notification with payload and store event in ring buffer."""
+        """Логирует уведомление о новой заявке на роль для администратора.
+
+        Args:
+            request_id: ID заявки.
+            requester_user_id: ID пользователя, подавшего заявку.
+            role_name: Название запрашиваемой роли.
+
+        Raises:
+            NotificationPermanentError: При критической ошибке логирования.
+        """
         admin_tg_id = self._settings.role_request_admin_tg_id
 
         mention = telegram_user_link(requester_user_id)
@@ -56,7 +82,14 @@ class LoggingNotificationService(NotificationPort):
             raise NotificationPermanentError(message="Failed to log role request notification") from exc
 
     async def send_message(self, message_data: NotifyDTO) -> None:
-        """Log direct message notification and store event in ring buffer."""
+        """Логирует прямое сообщение пользователю.
+
+        Args:
+            message_data: DTO с данными сообщения.
+
+        Raises:
+            NotificationPermanentError: При критической ошибке логирования.
+        """
         recipient_id, cleaned_text = message_data.recipient_id, message_data.message
 
         event = NotificationLogEvent(

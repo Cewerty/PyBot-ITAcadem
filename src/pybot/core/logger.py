@@ -26,8 +26,11 @@ def setup_logger(settings: BotSettings | None = None) -> Logger:
     newline-delimited JSON to stdout — suitable for log collectors such as
     Loki, CloudWatch, or ELK.
 
-    When LOG_FORMAT=text (default, recommended for local development), emits
-    coloured human-readable output to stdout.
+    When LOG_FORMAT=text (default for local development), emits coloured
+    human-readable output to stdout.
+
+    If LOG_FORMAT is not set explicitly, BotSettings derives the default from
+    BOT_MODE: text for test/dev and json for prod.
     """
     runtime_settings = settings or get_settings()
     loguru_logger.remove()
