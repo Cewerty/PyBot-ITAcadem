@@ -52,7 +52,7 @@ Read only the ADRs relevant to the task, but do not ignore them when the task to
 - Put pure domain exceptions and domain-specific rules that do not belong to transport or infrastructure in `src/pybot/domain/`.
 - Put mapping helpers between transport-layer data and DTOs in `src/pybot/mappers/`.
 - Put dependency wiring and provider registration in `src/pybot/di/`.
-- Put health-check API wiring in `src/pybot/health/`.
+- Put health-check API wiring in `src/pybot/presentation/web/health/`.
 - Put shared cross-cutting utilities in `src/pybot/utils/`, and keep bot-specific helpers in `src/pybot/presentation/bot/utils/`.
 
 ## Naming Conventions

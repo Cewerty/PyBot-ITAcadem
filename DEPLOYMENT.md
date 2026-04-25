@@ -140,7 +140,7 @@ The `health` process type is profile-gated in both Compose files.
 - local/manual Compose can enable it with `COMPOSE_PROFILES=health` or `docker compose --profile health ...`
 - production deploy enables `--profile health` only when `HEALTH_API_ENABLED=true` is present in the deployed `.env`
 - when the profile is disabled, plain `docker compose up -d` does not start `pybot-health`
-- when the profile is enabled, the process entrypoint is `uvicorn src.pybot.health.main:app`
+- when the profile is enabled, the process entrypoint is `uvicorn src.pybot.presentation.web:app`
 
 ## Migrations
 
@@ -187,7 +187,7 @@ Important:
 
 - if you use SQLite in production, keep `DATABASE_URL` under `./data/...`
 - paths like `sqlite+aiosqlite:///./pybot_itacadem.db` will place the database outside the mounted volume and break one-shot migration/seed containers
-- when `HEALTH_API_ENABLED=true`, deploy orchestration enables the `health` Compose profile and starts a dedicated `pybot-health` service (`uvicorn src.pybot.health.main:app`)
+- when `HEALTH_API_ENABLED=true`, deploy orchestration enables the `health` Compose profile and starts a dedicated `pybot-health` service (`uvicorn src.pybot.presentation.web:app`)
 - production uses the same concurrency knob as local Compose: `TASKIQ_WORKERS=1 docker compose up -d`
 - syntax for future worker scaling is already reserved via `TASKIQ_WORKERS`, but values greater than `1` are intentionally rejected for now
 - weekly leaderboard retries are applied only for temporary delivery failures (`NotificationTemporaryError`)

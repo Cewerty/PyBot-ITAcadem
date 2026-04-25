@@ -81,7 +81,7 @@
 - `src/pybot/dto/` - DTO и value objects.
 - `src/pybot/domain/` - domain exceptions и domain services.
 - `src/pybot/di/` - Dishka composition root.
-- `src/pybot/health/` - FastAPI health server.
+- `src/pybot/presentation/web/` - web presentation API and health server.
 
 Ключевые архитектурные решения зафиксированы в ADR:
 

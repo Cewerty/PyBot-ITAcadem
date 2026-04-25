@@ -17,14 +17,14 @@
 
 ## Решение
 
-Принято решение запускать **Health API как отдельный process type `health` в Docker Compose**, используя `uvicorn src.pybot.health.main:app`.
+Принято решение запускать **Health API как отдельный process type `health` в Docker Compose**, используя `uvicorn src.pybot.presentation.web:app`.
 
 ### Детали реализации
 
 1. `run.py` запускает только bot runtime (`tg_bot_main`) и не управляет lifecycle health API.
-2. Health API имеет отдельный composition root в `src.pybot.health.main:app`.
+2. Health API имеет отдельный composition root в `src.pybot.presentation.web:app`.
 3. В `docker-compose.yml` и `docker-compose.prod.yml` добавлен сервис `health`:
-   - команда запуска: `uvicorn src.pybot.health.main:app`;
+   - команда запуска: `uvicorn src.pybot.presentation.web:app`;
    - host/port задаются через `HEALTH_API_HOST` и `HEALTH_API_PORT`;
    - запуск контролируется через профиль `health`.
 4. Переменная `HEALTH_API_ENABLED` используется как orchestration-флаг:
@@ -37,7 +37,7 @@ Process types:
 - bot -> python run.py
 - taskiq-worker -> taskiq worker ...
 - taskiq-scheduler -> taskiq scheduler ...
-- health -> uvicorn src.pybot.health.main:app
+- health -> uvicorn src.pybot.presentation.web:app
 ```
 
 ## Альтернативы
@@ -77,4 +77,4 @@ Process types:
 * [docker-compose.yml](../../../../docker-compose.yml)
 * [docker-compose.prod.yml](../../../../docker-compose.prod.yml)
 * [run.py](../../../../run.py)
-* [src/pybot/health/main.py](../../health/main.py)
+* [src/pybot/presentation/web/health/main.py](../../presentation/web/health/main.py)
