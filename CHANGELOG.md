@@ -2,6 +2,117 @@
 
 <!-- version list -->
 
+## v0.29.0 (2026-04-25)
+
+### Bug Fixes
+
+- Исправил остаточные импорты объекта конфигурации settings вне src
+  ([`0ec6cb5`](https://github.com/Cewerty/PyBot-ITAcadem/commit/0ec6cb55df029eac382cfee50048fa4d70a6dae9))
+
+- **bot**: Уточняет запуск polling и уведомление о старте
+  ([`71a2581`](https://github.com/Cewerty/PyBot-ITAcadem/commit/71a2581fe0eab2331b553d9a6cac2d770c1ad86e))
+
+- **db**: Откладывает чтение настроек базы данных до запуска
+  ([`9797f5a`](https://github.com/Cewerty/PyBot-ITAcadem/commit/9797f5a75bf2bc7362071656a220f9eb9a8ff0d1))
+
+- **deploy**: Обновляет entrypoint Health API в Compose
+  ([`f592f9d`](https://github.com/Cewerty/PyBot-ITAcadem/commit/f592f9ddc52615ae03997c05a0f19d21b376d70a))
+
+### Build System
+
+- **deps**: Добавляет asyncpg для работы с PostgreSQL
+  ([`b84516a`](https://github.com/Cewerty/PyBot-ITAcadem/commit/b84516a19f2f78aea2331ce03896b95cd10e76a0))
+
+### Chores
+
+- **deps**: Добавил httpx для fastapi идиоматичного тестирования
+  ([`77926c7`](https://github.com/Cewerty/PyBot-ITAcadem/commit/77926c79c0032eef80af2fd92afbd63602b521db))
+
+- **deps**: Изменения в зависимостях
+  ([`1299158`](https://github.com/Cewerty/PyBot-ITAcadem/commit/12991584cfdbecc874ea3820089d07fd3dd4add4))
+
+- **docs**: Добавил docstrings в utils для автогенерируемой документации
+  ([`8768c3f`](https://github.com/Cewerty/PyBot-ITAcadem/commit/8768c3f3881bb1ef6d4bdff8538fa7f777330391))
+
+- **docs**: Добавил docstrings в формате google style guide для элементов health api
+  ([`c92e13c`](https://github.com/Cewerty/PyBot-ITAcadem/commit/c92e13c4781f4e80d2e332e1adc58ad46ecbb493))
+
+- **docs**: Добавил docstrings для application services
+  ([`2a7de40`](https://github.com/Cewerty/PyBot-ITAcadem/commit/2a7de40f31c6ec72a58178acf573c364f16f3799))
+
+- **docs**: Добавил docstrings для DB элементов
+  ([`c8653f3`](https://github.com/Cewerty/PyBot-ITAcadem/commit/c8653f384e1c71b6a161e4c2a890e56b20d76395))
+
+- **docs**: Добавил docstrings для константовых ENUMS
+  ([`2418d53`](https://github.com/Cewerty/PyBot-ITAcadem/commit/2418d5394544db04ad4d0d07656f270fe800a3d0))
+
+- **docs**: Добавил docstrings для публичных элементов системы
+  ([`e44bddf`](https://github.com/Cewerty/PyBot-ITAcadem/commit/e44bddf5a759d3f0f8573dfbd1f61a9ff7db494a))
+
+- **docs**: Добавил docstrings для Репозиториев
+  ([`e09a823`](https://github.com/Cewerty/PyBot-ITAcadem/commit/e09a8237cbf5748bc29c8cac4e06e81cfc8af7f0))
+
+- **docs**: Зафиксировал изменения по переходу к process type от spawn
+  ([`f5a9fb2`](https://github.com/Cewerty/PyBot-ITAcadem/commit/f5a9fb261819a335ecfae8c781c44c44e0ee28e9))
+
+- **lock**: Синхронизирует формат lock-файла
+  ([`aa3f3e7`](https://github.com/Cewerty/PyBot-ITAcadem/commit/aa3f3e771fa4f9eff381199596b6196096bc27d9))
+
+- **test**: Добавил новые тесты под важные use case в health api
+  ([`bc80c5d`](https://github.com/Cewerty/PyBot-ITAcadem/commit/bc80c5d71ac37cd333b5bc6cfa7c6ed9bc9da725))
+
+- **test**: Добавил тестов для важных admin-flow и подкорректировал общую конфигурацию для тестов
+  ([`ed33c90`](https://github.com/Cewerty/PyBot-ITAcadem/commit/ed33c90cf5e21ab16a90fb73c87a6fbabc016601))
+
+### Code Style
+
+- **config**: Форматирует валидатор числа TaskIQ-воркеров
+  ([`891bdcf`](https://github.com/Cewerty/PyBot-ITAcadem/commit/891bdcf70ca063de6858478741a47749741a2d0c))
+
+### Documentation
+
+- **bot**: Обновляет правила размещения Telegram-слоя
+  ([`ec0a964`](https://github.com/Cewerty/PyBot-ITAcadem/commit/ec0a9647965ef7d2ab7127538dd13ef385dbed0c))
+
+- **health**: Обновляет путь Health API в документации
+  ([`1e6f247`](https://github.com/Cewerty/PyBot-ITAcadem/commit/1e6f2477d8954d3aae54c5e14a3c8af1c415bc08))
+
+### Features
+
+- Add runtime logging and taskiq config guards
+  ([`9b361a8`](https://github.com/Cewerty/PyBot-ITAcadem/commit/9b361a8e6d1839e8a156d9296935a2a6053a2945))
+
+- Implement health probe infrastructure and service updates
+  ([`6535f2e`](https://github.com/Cewerty/PyBot-ITAcadem/commit/6535f2e82a7679912eb34ac2b5cb6cd1130f4599))
+
+- Ввёл базис для process type разделения в проекте
+  ([`d0ed430`](https://github.com/Cewerty/PyBot-ITAcadem/commit/d0ed430259df22853b4829a17eba87d2a7e6e078))
+
+- **deploy**: Полноценно разделил process для запуска бота и для запуска health api, также изменил
+  под это docker
+  ([`bdd3be9`](https://github.com/Cewerty/PyBot-ITAcadem/commit/bdd3be9bf1f1dff5cb52231293b3a3e96c34f8d0))
+
+### Refactoring
+
+- Move bot texts into presentation layer
+  ([`ae2f1b6`](https://github.com/Cewerty/PyBot-ITAcadem/commit/ae2f1b6d31938740831f1dbcfe632a035b56b427))
+
+- Обновил тест под process type формат run.py
+  ([`80235ab`](https://github.com/Cewerty/PyBot-ITAcadem/commit/80235ab028523f62b82e2b560d1f99638c21bccd))
+
+- Убрал deprecated метод и файл с ним, который нужен был для старого run.py
+  ([`d0db185`](https://github.com/Cewerty/PyBot-ITAcadem/commit/d0db185c6fc9986974c5c461b34f20a8c1353862))
+
+- Удалил старый shim для health api
+  ([`5704fcc`](https://github.com/Cewerty/PyBot-ITAcadem/commit/5704fcc12ddfadb6fb2641bfb7e72305f7f0f6f2))
+
+- **bot**: Переносит Telegram-слой в presentation
+  ([`f85a386`](https://github.com/Cewerty/PyBot-ITAcadem/commit/f85a3861121e40134be2e2b26a5f9b68ec19e66d))
+
+- **health**: Переносит Health API в web presentation
+  ([`4568904`](https://github.com/Cewerty/PyBot-ITAcadem/commit/4568904de97f765df5a9c0c68c420a2e757a6b51))
+
+
 ## v0.28.0 (2026-04-22)
 
 ### Bug Fixes
