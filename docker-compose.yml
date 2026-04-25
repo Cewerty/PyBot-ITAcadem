@@ -37,7 +37,7 @@ services:
     command:
       [
         "uvicorn",
-        "src.pybot.health.main:app",
+        "src.pybot.presentation.web:app",
         "--host",
         "${HEALTH_API_HOST:-0.0.0.0}",
         "--port",
