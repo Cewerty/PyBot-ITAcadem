@@ -10,7 +10,7 @@ from aiogram.exceptions import TelegramAPIError, TelegramBadRequest, TelegramNet
 from aiogram.methods import SendMessage
 from pytest_mock import MockerFixture
 
-from pybot.bot.keyboards.role_request_keyboard import get_admin_decision_kb
+from pybot.presentation.bot import get_admin_decision_kb
 from pybot.core.config import BotSettings
 from pybot.dto import NotifyDTO
 from pybot.infrastructure.ports.telegram_notification_service import TelegramNotificationService

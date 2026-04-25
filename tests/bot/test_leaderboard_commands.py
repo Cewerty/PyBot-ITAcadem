@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock
 import pytest
 from aiogram.types import Chat, Message, User
 
-from pybot.bot.handlers.points.leaderboard import handle_leaderboard
+from pybot.presentation.bot import handle_leaderboard
 from pybot.presentation.texts import LEADERBOARD_UNEXPECTED_ERROR
 from pybot.core.constants import PointsTypeEnum
 from pybot.dto import WeeklyLeaderboardRowDTO

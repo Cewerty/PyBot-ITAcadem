@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock
 import pytest
 from aiogram.types import Chat, Message, MessageEntity, User
 
-from pybot.bot.handlers.roles import change_competences
+from pybot.presentation.bot import change_competences_handlers as change_competences
 from pybot.presentation.texts import (
     COMPETENCE_UNEXPECTED_ERROR,
     TARGET_NOT_FOUND,

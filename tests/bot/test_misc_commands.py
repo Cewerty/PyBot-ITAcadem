@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 import pytest
 from aiogram.types import Chat, Message, User
 
-from pybot.bot.handlers.common.misc import cmd_chat_id
+from pybot.presentation.bot import cmd_chat_id
 
 
 def _build_message(*, chat_id: int, text: str = "/chat_id", from_user_id: int = 740_001) -> Message:

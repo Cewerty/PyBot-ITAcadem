@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from aiogram.types import Chat, Message, MessageEntity, User
 
-from pybot.bot.handlers.roles import change_roles
+from pybot.presentation.bot import change_roles_handlers as change_roles
 from pybot.presentation.texts import (
     ROLE_COMMAND_INVALID_FORMAT,
     ROLE_REASON_QUOTES_REQUIRED,

@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from aiogram.types import Chat, Message, User
 
-from pybot.bot.handlers.points import grand_points
+from pybot.presentation.bot import grand_points_handlers as grand_points
 from pybot.presentation.texts import (
     POINTS_AMOUNT_REQUIRED,
     POINTS_COMMAND_INVALID_FORMAT,
