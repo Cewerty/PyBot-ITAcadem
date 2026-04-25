@@ -73,7 +73,8 @@
 
 Проект следует `Layered Architecture` с элементами pragmatic DDD.
 
-- `src/pybot/bot/` - presentation layer: handlers, dialogs, filters, middlewares, keyboards, тексты.
+- `src/pybot/presentation/bot/` - canonical presentation layer for Telegram handlers, dialogs, filters, middlewares, keyboards and runtime wiring.
+- `src/pybot/presentation/texts/` - shared user-facing texts and message renderers.
 - `src/pybot/services/` - application services и orchestration.
 - `src/pybot/infrastructure/` - repositories, adapters, TaskIQ integration, внешние порты.
 - `src/pybot/db/` - SQLAlchemy models и database setup.
