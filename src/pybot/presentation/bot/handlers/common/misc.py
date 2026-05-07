@@ -37,7 +37,6 @@ async def cmd_ping(
 @misc_global_router.message(Command("chat_id"), flags={"rate_limit": "cheap", "role": {"Admin"}})
 async def cmd_chat_id(message: Message) -> None:
     """Возвращает идентификатор текущего чата для отладки и настройки."""
-
     text = f"chat.id: {message.chat.id}"
     if message.message_thread_id:
         text += f"\ntopic.id: {message.message_thread_id}"

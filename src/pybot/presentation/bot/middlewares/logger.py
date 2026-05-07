@@ -12,9 +12,7 @@ from aiogram.types import CallbackQuery, ChatMemberUpdated, InlineQuery, Message
 
 from ....core import logger
 from ....core.config import BotSettings
-
 from ....core.constants import LogPolicyKey
-
 
 MAX_LOGGED_CONTENT_LENGTH = 80
 
