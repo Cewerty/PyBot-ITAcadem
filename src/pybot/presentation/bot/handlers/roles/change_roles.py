@@ -44,12 +44,7 @@ async def _get_target_user_id_from_mention(message: Message, user_service: UserS
     for entity in message.entities:
         if entity.type == "text_mention" and entity.user is not None:
             mentioned_id = entity.user.id
-            try:
-                mentioned_user = await user_service.find_user_by_telegram_id(mentioned_id)
-            except UserNotFoundError:
-                await message.reply(TARGET_NOT_FOUND)
-                return None
-
+            mentioned_user = await user_service.find_user_by_telegram_id(mentioned_id)
             if mentioned_user is None:
                 await message.reply(TARGET_NOT_FOUND)
                 return None
