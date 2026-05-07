@@ -134,6 +134,5 @@ class UserRolesService:
             raise RoleNotFoundError(new_role.value)
 
         user.add_role(role)
-        self.db.add(user)
         await self.db.commit()
         return await map_orm_user_to_user_read_dto(user)

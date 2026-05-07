@@ -26,6 +26,7 @@ class WeeklyLeaderboardScheduleSpec:
     cron_expression: str
     timezone_name: str
     limit: int
+    message_thread_id: int | None = None
     schedule_id: str = LEADERBOARD_WEEKLY_SCHEDULE_ID
     task_name: str = LEADERBOARD_WEEKLY_TASK_NAME
 
@@ -51,7 +52,11 @@ def is_expected_weekly_schedule(
     if str(schedule.cron_offset) != spec.timezone_name:
         return False
 
-    return schedule.kwargs.get("recipient_id") == spec.recipient_id and schedule.kwargs.get("limit") == spec.limit
+    return (
+        schedule.kwargs.get("recipient_id") == spec.recipient_id
+        and schedule.kwargs.get("limit") == spec.limit
+        and schedule.kwargs.get("message_thread_id") == spec.message_thread_id
+    )
 
 
 async def ensure_weekly_leaderboard_schedule(
@@ -105,6 +110,7 @@ async def ensure_weekly_leaderboard_schedule(
             spec.cron_expression,
             recipient_id=spec.recipient_id,
             limit=spec.limit,
+            message_thread_id=spec.message_thread_id,
         )
     )
     logger.info(

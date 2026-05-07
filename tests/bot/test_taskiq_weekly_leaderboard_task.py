@@ -13,10 +13,17 @@ from pybot.services.weekly_leaderboard_publisher import WeeklyLeaderboardPublish
 
 class WeeklyPublisherServiceSpy(WeeklyLeaderboardPublisherService):
     def __init__(self) -> None:
-        self.calls: list[tuple[int, int, str]] = []
+        self.calls: list[tuple[int, int, str, int | None]] = []
 
-    async def publish_weekly(self, *, recipient_id: int, limit: int, business_tz: str) -> None:
-        self.calls.append((recipient_id, limit, business_tz))
+    async def publish_weekly(
+        self,
+        *,
+        recipient_id: int,
+        limit: int,
+        business_tz: str,
+        message_thread_id: int | None = None,
+    ) -> None:
+        self.calls.append((recipient_id, limit, business_tz, message_thread_id))
 
 
 class DishkaContainer(Protocol):
@@ -36,7 +43,8 @@ class TaskCallable(Protocol):
         recipient_id: int,
         limit: int,
         dishka_container: DishkaContainer,
-    ) -> Awaitable[dict[str, int]]: ...
+        message_thread_id: int | None = None,
+    ) -> Awaitable[dict[str, int | None]]: ...
 
 
 class DishkaContainerStub:
@@ -86,8 +94,9 @@ async def test_publish_weekly_leaderboard_task_uses_service_and_returns_payload(
     assert payload == {
         "recipient_id": -100_200_300,
         "limit": 12,
+        "message_thread_id": None,
     }
-    assert service.calls == [(-100_200_300, 12, str(settings_obj.leaderboard_weekly_timezone))]
+    assert service.calls == [(-100_200_300, 12, str(settings_obj.leaderboard_weekly_timezone), None)]
 
 
 def test_publish_weekly_leaderboard_task_has_retry_labels(settings_obj: BotSettings) -> None:

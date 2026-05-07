@@ -57,6 +57,7 @@ class TaskIQNotificationDispatcher(NotificationDispatchPort):
         recipient_id: int,
         message_text: str,
         schedule: TaskSchedule,
+        message_thread_id: int | None = None,
         parse_mode: str | None = None,
     ) -> str:
         """Отправляет сообщение пользователю согласно расписанию.
@@ -65,6 +66,7 @@ class TaskIQNotificationDispatcher(NotificationDispatchPort):
             recipient_id: Telegram ID получателя.
             message_text: Текст сообщения.
             schedule: Расписание отправки (немедленно, в указанное время, интервал или крон).
+            message_thread_id: ID темы (топика) для супергрупп.
             parse_mode: Режим парсинга текста (HTML/Markdown).
 
         Returns:
@@ -78,7 +80,12 @@ class TaskIQNotificationDispatcher(NotificationDispatchPort):
         match schedule.kind:
             case TaskScheduleKind.IMMEDIATE:
                 result = await notification_task.kiq(
-                    NotifyDTO(recipient_id=recipient_id, message=message_text, parse_mode=parse_mode)
+                    NotifyDTO(
+                        recipient_id=recipient_id,
+                        message=message_text,
+                        message_thread_id=message_thread_id,
+                        parse_mode=parse_mode,
+                    )
                 )
                 return result.task_id
             case TaskScheduleKind.AT:
@@ -88,6 +95,7 @@ class TaskIQNotificationDispatcher(NotificationDispatchPort):
                     notification_data=NotifyDTO(
                         recipient_id=recipient_id,
                         message=message_text,
+                        message_thread_id=message_thread_id,
                         parse_mode=parse_mode,
                     ),
                 )
@@ -99,6 +107,7 @@ class TaskIQNotificationDispatcher(NotificationDispatchPort):
                     notification_data=NotifyDTO(
                         recipient_id=recipient_id,
                         message=message_text,
+                        message_thread_id=message_thread_id,
                         parse_mode=parse_mode,
                     ),
                 )
@@ -113,6 +122,7 @@ class TaskIQNotificationDispatcher(NotificationDispatchPort):
                         notification_data=NotifyDTO(
                             recipient_id=recipient_id,
                             message=message_text,
+                            message_thread_id=message_thread_id,
                             parse_mode=parse_mode,
                         ),
                     )

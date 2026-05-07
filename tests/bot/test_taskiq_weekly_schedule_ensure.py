@@ -47,6 +47,7 @@ def _weekly_settings() -> SimpleNamespace:
     return SimpleNamespace(
         leaderboard_weekly_enabled=True,
         leaderboard_weekly_recipient_id=-100_500_700,
+        leaderboard_weekly_thread_id=None,
         leaderboard_weekly_cron="0 9 * * 1",
         leaderboard_weekly_timezone="Asia/Yekaterinburg",
         leaderboard_weekly_limit=10,
@@ -81,7 +82,7 @@ async def test_ensure_weekly_leaderboard_schedule_noops_when_existing_schedule_m
         task_name=taskiq_app.LEADERBOARD_WEEKLY_TASK_NAME,
         cron="0 9 * * 1",
         cron_offset="Asia/Yekaterinburg",
-        kwargs={"recipient_id": -100_500_700, "limit": 10},
+        kwargs={"recipient_id": -100_500_700, "limit": 10, "message_thread_id": None},
     )
     source = FakeScheduleSource([existing])
     monkeypatch.setattr(taskiq_app, "_resolve_publish_weekly_leaderboard_kicker", lambda: kicker)
@@ -130,4 +131,5 @@ async def test_ensure_weekly_leaderboard_schedule_replaces_stale_schedule(
     assert kwargs_arg == {
         "recipient_id": -100_500_700,
         "limit": 10,
+        "message_thread_id": None,
     }

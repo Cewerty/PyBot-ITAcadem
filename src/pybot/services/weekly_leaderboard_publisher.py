@@ -30,6 +30,7 @@ class WeeklyLeaderboardPublisherService:
         recipient_id: int,
         limit: int,
         business_tz: str,
+        message_thread_id: int | None = None,
     ) -> None:
         """Формирует и отправляет сообщение с еженедельной таблицей лидеров в формате HTML.
 
@@ -37,6 +38,7 @@ class WeeklyLeaderboardPublisherService:
             recipient_id: Идентификатор получателя (Telegram chat ID).
             limit: Количество позиций в каждой из таблиц (топ-N).
             business_tz: Временная зона (timezone) для расчета календарной недели.
+            message_thread_id: ID темы (топика) для супергрупп.
         """
         period = self._leaderboard_service.get_previous_calendar_week_period(
             business_tz=business_tz,
@@ -61,6 +63,7 @@ class WeeklyLeaderboardPublisherService:
             NotifyDTO(
                 recipient_id=recipient_id,
                 message=message,
+                message_thread_id=message_thread_id,
                 parse_mode="HTML",
             )
         )

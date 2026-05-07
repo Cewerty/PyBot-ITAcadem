@@ -101,8 +101,9 @@ class LoggingNotificationService(NotificationPort):
         try:
             logger.info(
                 "Direct notification (logging backend) | recipient_id={recipient_id} "
-                "message_preview={message_preview} parse_mode={parse_mode}",
+                "thread_id={thread_id} message_preview={message_preview} parse_mode={parse_mode}",
                 recipient_id=recipient_id,
+                thread_id=message_data.message_thread_id,
                 message_preview=cleaned_text[:120],
                 parse_mode=message_data.parse_mode,
             )

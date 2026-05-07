@@ -47,5 +47,6 @@ class NotificationFacade:
             recipient_id=data.recipient_id,
             message_text=data.message,
             schedule=schedule,
+            message_thread_id=data.message_thread_id,
             parse_mode=data.parse_mode,
         )
