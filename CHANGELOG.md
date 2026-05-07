@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.30.0 (2026-05-07)
+
+### Features
+
+- **logging**: Add LogPolicyKey constant for sensitive data protection
+  ([`b9c2e6a`](https://github.com/Cewerty/PyBot-ITAcadem/commit/b9c2e6a7ea87acc6605ae93cd0233f6234bfb8cf))
+
+- **logging**: Implement strict logging policy and refactor roles for ADR 008
+  ([`4d8067b`](https://github.com/Cewerty/PyBot-ITAcadem/commit/4d8067bad710c61fd03f751cfb48025961d8a0cb))
+
+- **observability**: Implement notification topics support and infra updates
+  ([`8b60563`](https://github.com/Cewerty/PyBot-ITAcadem/commit/8b605638ba030588dc1f7e2522faff4fd2eeea17))
+
 
 ## v0.29.0 (2026-04-25)
 
