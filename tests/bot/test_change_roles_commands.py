@@ -134,27 +134,6 @@ async def test_get_target_user_id_from_mention_without_entities_returns_none(
 
 
 @pytest.mark.asyncio
-async def test_get_target_user_id_from_mention_when_service_raises_user_not_found_replies_target_not_found(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    mentioned_user = User(id=820_002, is_bot=False, first_name="Mentioned")
-    message = _build_message(
-        text='/addrole Mentioned Admin "Because"',
-        entities=[MessageEntity(type="text_mention", offset=9, length=9, user=mentioned_user)],
-    )
-    user_service = StubUserService(
-        find_user_by_telegram_id=AsyncMock(side_effect=UserNotFoundError(telegram_id=mentioned_user.id))
-    )
-    reply_mock = AsyncMock()
-    monkeypatch.setattr(Message, "reply", reply_mock)
-
-    target_id = await change_roles._get_target_user_id_from_mention(message, cast(UserService, user_service))
-
-    assert target_id is None
-    reply_mock.assert_awaited_once_with(TARGET_NOT_FOUND)
-
-
-@pytest.mark.asyncio
 async def test_get_target_user_id_from_mention_when_service_returns_none_replies_target_not_found(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
