@@ -124,18 +124,16 @@ class TelegramNotificationService(NotificationPort):
         recipient_id = message_data.recipient_id
         parse_mode = message_data.parse_mode
 
+        message_thread_id = message_data.message_thread_id
+
         try:
-            if parse_mode is not None:
-                await self.bot.send_message(
-                    chat_id=recipient_id,
-                    text=cleaned_text,
-                    parse_mode=parse_mode,
-                )
-            else:
-                await self.bot.send_message(
-                    chat_id=recipient_id,
-                    text=cleaned_text,
-                )
+            await self.bot.send_message(
+                chat_id=recipient_id,
+                message_thread_id=message_thread_id,
+                text=cleaned_text,
+                parse_mode=parse_mode,
+            )
+
         except TelegramRetryAfter as exc:
             logger.warning(
                 "Telegram retry-after while sending message | recipient_id={recipient_id} retry_after={retry_after}",

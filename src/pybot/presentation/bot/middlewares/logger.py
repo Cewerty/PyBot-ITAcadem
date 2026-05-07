@@ -7,10 +7,14 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from aiogram import BaseMiddleware
+from aiogram.dispatcher.flags import get_flag
 from aiogram.types import CallbackQuery, ChatMemberUpdated, InlineQuery, Message, TelegramObject
 
 from ....core import logger
 from ....core.config import BotSettings
+
+from ....core.constants import LogPolicyKey
+
 
 MAX_LOGGED_CONTENT_LENGTH = 80
 
@@ -50,7 +54,13 @@ class LoggerMiddleware(BaseMiddleware):
             case _:
                 return f"unknown:{id(telegram_obj)}"
 
-    def _extract_minimal_info(self, telegram_obj: TelegramObject, data: dict[str, Any]) -> dict[str, Any]:
+    def _extract_minimal_info(
+        self,
+        telegram_obj: TelegramObject,
+        data: dict[str, Any],
+        *,
+        redact: bool = False,
+    ) -> dict[str, Any]:
         """Извлечь минимальную информацию из Telegram update."""
         info = {
             "event_type": "UNKNOWN",
@@ -71,15 +81,18 @@ class LoggerMiddleware(BaseMiddleware):
             )
             return info
 
-        match telegram_obj:
-            case Message():
-                self._extract_message_info(telegram_obj, info)
-            case CallbackQuery():
-                self._extract_callback_info(telegram_obj, info)
-            case InlineQuery():
-                self._extract_inline_info(telegram_obj, info)
-            case ChatMemberUpdated():
-                self._extract_member_updated_info(telegram_obj, info)
+        if redact:
+            info["content"] = "[REDACTED BY POLICY]"
+        else:
+            match telegram_obj:
+                case Message():
+                    self._extract_message_info(telegram_obj, info)
+                case CallbackQuery():
+                    self._extract_callback_info(telegram_obj, info)
+                case InlineQuery():
+                    self._extract_inline_info(telegram_obj, info)
+                case ChatMemberUpdated():
+                    self._extract_member_updated_info(telegram_obj, info)
 
         return info
 
@@ -192,7 +205,12 @@ class LoggerMiddleware(BaseMiddleware):
         if not self.enabled:
             return await handler(event, data)
 
-        event_info = self._extract_minimal_info(event, data)
+        log_policy = get_flag(data, "log_policy")
+        redact = False
+        if log_policy == LogPolicyKey.STRICT and self.settings.log_policy_strict:
+            redact = True
+
+        event_info = self._extract_minimal_info(event, data, redact=redact)
         handler_name = self._get_handler_name(data)
 
         with logger.contextualize(update_id=event_info["event_id"], request_id=event_info["event_id"]):

@@ -14,16 +14,19 @@ from pybot.services.ports import NotificationDispatchPort, NotificationTemporary
 
 class NotificationDispatchPortSpy(NotificationDispatchPort):
     def __init__(self) -> None:
-        self.calls: list[tuple[int, str, TaskSchedule, str | None]] = []
+
+        self.calls: list[tuple[int, str, TaskSchedule, int | None, str | None]] = []
 
     async def dispatch_message(
         self,
         recipient_id: int,
         message_text: str,
         schedule: TaskSchedule,
+        message_thread_id: int | None = None,
         parse_mode: str | None = None,
     ) -> str:
-        self.calls.append((recipient_id, message_text, schedule, parse_mode))
+        self.calls.append((recipient_id, message_text, schedule, message_thread_id, parse_mode))
+
         return "job-123"
 
 
@@ -33,6 +36,7 @@ class FailingNotificationDispatchPort(NotificationDispatchPort):
         recipient_id: int,
         message_text: str,
         schedule: TaskSchedule,
+        message_thread_id: int | None = None,
         parse_mode: str | None = None,
     ) -> str:
         raise NotificationTemporaryError("temporary failure", retry_after_seconds=7.0)
@@ -53,9 +57,12 @@ async def test_notification_facade_dispatches_prepared_schedule_to_port() -> Non
     await facade.notify_user(dto)
 
     assert len(dispatch_port.calls) == 1
-    recipient_id, message_text, schedule, parse_mode = dispatch_port.calls[0]
+
+    recipient_id, message_text, schedule, thread_id, parse_mode = dispatch_port.calls[0]
     assert recipient_id == 55
     assert message_text == "hello there"
+    assert thread_id is None
+
     assert parse_mode == "HTML"
     assert schedule.kind is TaskScheduleKind.AT
     assert schedule.run_at is not None

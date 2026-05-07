@@ -158,6 +158,7 @@ async def ensure_weekly_leaderboard_schedule(
             cron_expression=str(runtime_settings.leaderboard_weekly_cron),
             timezone_name=str(runtime_settings.leaderboard_weekly_timezone),
             limit=runtime_settings.leaderboard_weekly_limit,
+            message_thread_id=runtime_settings.leaderboard_weekly_thread_id,
             schedule_id=LEADERBOARD_WEEKLY_SCHEDULE_ID,
             task_name=LEADERBOARD_WEEKLY_TASK_NAME,
         ),

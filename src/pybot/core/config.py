@@ -121,6 +121,13 @@ class BotSettings(BaseSettings):
         alias="LEADERBOARD_WEEKLY_RECIPIENT_ID",
         description="Transport recipient id for weekly leaderboard publication",
     )
+
+    leaderboard_weekly_thread_id: int | None = Field(
+        None,
+        alias="LEADERBOARD_WEEKLY_THREAD_ID",
+        description="Transport message thread id for weekly leaderboard publication",
+    )
+
     leaderboard_weekly_cron: CronStr = Field(
         default_factory=lambda: CronStr("0 9 * * 1"),
         alias="LEADERBOARD_WEEKLY_CRON",
@@ -211,6 +218,12 @@ class BotSettings(BaseSettings):
         description="Broadcast allowed roles",
     )
 
+    log_policy_strict: bool = Field(
+        True,
+        alias="LOG_POLICY_STRICT",
+        description="Global toggle for strict logging policy (suppress content logging when requested by handler flag)",
+    )
+
     broadcast_max_text_length: int = Field(
         4093,
         alias="BROADCAST_MAX_TEXT_LENGTH",
@@ -273,11 +286,12 @@ class BotSettings(BaseSettings):
             return int(normalized)
         return value
 
-    @field_validator("leaderboard_weekly_recipient_id")
+    @field_validator("leaderboard_weekly_recipient_id", "leaderboard_weekly_thread_id")
     @classmethod
-    def validate_weekly_recipient_id(cls, value: int | None) -> int | None:
+    def validate_weekly_ids(cls, value: int | None) -> int | None:
         if value == 0:
-            raise ValueError("LEADERBOARD_WEEKLY_RECIPIENT_ID must not be equal to 0")
+            raise ValueError("Weekly IDs must not be equal to 0")
+
         return value
 
     @field_validator("broadcast_allowed_roles", mode="before")

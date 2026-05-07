@@ -30,6 +30,9 @@ class NotifyDTO(BaseDTO):
 
     message: str
     recipient_id: int = Field(..., alias="recipient_id")
+
+    message_thread_id: int | None = Field(None, alias="message_thread_id")
+
     parse_mode: str | None = None
 
     @field_validator("message")
@@ -75,6 +78,9 @@ class NotifyUserDTO(BaseDTO):
 
     recipient_id: int = Field(..., alias="recipient_id")
     message: str
+
+    message_thread_id: int | None = None
+
     parse_mode: str | None = None
     kind: TaskScheduleKind
     run_at: pendulum.DateTime | None = None

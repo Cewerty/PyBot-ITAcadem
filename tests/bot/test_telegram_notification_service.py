@@ -175,7 +175,26 @@ async def test_send_message_sends_trimmed_text(fake_bot: BotFixture, settings_ob
 
     await service.send_message(NotifyDTO(recipient_id=RECIPIENT_USER_ID, message="  hello  "))
 
-    fake_bot.send_message.assert_awaited_once_with(chat_id=RECIPIENT_USER_ID, text="hello")
+    fake_bot.send_message.assert_awaited_once_with(
+        chat_id=RECIPIENT_USER_ID, message_thread_id=None, text="hello", parse_mode=None
+    )
+
+
+@pytest.mark.asyncio
+async def test_send_message_passes_parse_mode_only_when_set(
+    fake_bot: BotFixture,
+    settings_obj: BotSettings,
+) -> None:
+    service = TelegramNotificationService(fake_bot.bot, settings_obj)
+
+    await service.send_message(NotifyDTO(recipient_id=RECIPIENT_USER_ID, message="hello", parse_mode="HTML"))
+
+    fake_bot.send_message.assert_awaited_once_with(
+        chat_id=RECIPIENT_USER_ID,
+        message_thread_id=None,
+        text="hello",
+        parse_mode="HTML",
+    )
 
 
 @pytest.mark.asyncio
