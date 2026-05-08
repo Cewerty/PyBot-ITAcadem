@@ -178,6 +178,28 @@ class BotSettings(BaseSettings):
         ge=1,
     )
 
+    # AI settings
+    ai_provider: Literal["ollama", "gemini", "openai", "groq"] = Field(
+        "gemini",
+        alias="AI_PROVIDER",
+        description="AI Provider to use",
+    )
+    ai_model_name: str = Field(
+        "gemini-1.5-flash",
+        alias="AI_MODEL_NAME",
+        description="Name of the AI model to use",
+    )
+    ai_api_key: str | None = Field(
+        None,
+        alias="AI_API_KEY",
+        description="API key for the AI provider (if required)",
+    )
+    ai_base_url: str | None = Field(
+        None,
+        alias="AI_BASE_URL",
+        description="Optional base URL for the AI provider API",
+    )
+
     # Middleware toggles
     enable_logging_middleware: bool = Field(
         True,
