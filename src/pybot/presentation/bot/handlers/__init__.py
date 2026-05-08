@@ -2,6 +2,7 @@ from aiogram import Router, F
 
 from .common import common_router as common_router
 from .points import points_router as points_router
-from .profile import profile_router as profile_router  #!!! Костыль вывода профиля (Нужно перепроверить и улучшить)
+from .profile import profile_router as profile_router
 from .roles import roles_router as roles_router
 from .broadcast import broadcast_router as broadcast_router
+from .agent import ai_router as ai_router
