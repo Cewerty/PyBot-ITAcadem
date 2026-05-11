@@ -57,12 +57,4 @@ Run migration command with argument:
 - `clean` - Remove local caches and virtualenv
 - `pre-commit` - Install and run pre-commit hooks
 
-## `just` vs `make`
-
-- `just` is a command runner first; `make` is a build tool first.
-- `just` syntax is simpler for developer tasks.
-- `just` usually gives better DX for local command execution.
-- `make` is commonly preinstalled on Linux/macOS, but often inconvenient on Windows.
-- `just` does not rely on file timestamp build semantics; recipes run only when explicitly called.
-
-For this project, `just` is used as a cleaner local task runner replacement for `make` workflows.
+For this project, `just` is used as the local task runner.

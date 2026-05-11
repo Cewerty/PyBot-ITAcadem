@@ -237,7 +237,7 @@ points.value = 200  # ← Вызовет ошибку! Используем poin
 * **База данных:** SQLite (Dev/Prod MVP).
 * **ORM:** SQLAlchemy 2.0 (Async).
 * **Линтер/Форматер:** `ruff` (конфигурация в `pyproject.toml`).
-* **Инфраструктура:** Docker & Docker Compose, Github Action, Makefile, pre-commit.
+* **Инфраструктура:** Docker & Docker Compose, Github Action, just, pre-commit.
 * **DI-контейнер:** Dishka.
 * **Телеграм-бот:** Aiogram, Aiogram-dialog.
 * **Админ-панель:** SQLAdmin, FastAPI.
