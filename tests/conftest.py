@@ -21,6 +21,7 @@ os.environ.setdefault("BOT_TOKEN", "123456:TEST_TOKEN")
 os.environ.setdefault("BOT_TOKEN_TEST", "123456:TEST_TOKEN")
 os.environ.setdefault("ROLE_REQUEST_ADMIN_TG_ID", "999999999")
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///./tests/bootstrap.sqlite3")
+os.environ["BOT_MODE"] = "test"
 
 from pybot.core.config import BotSettings, get_settings
 from pybot.db.models import Base
