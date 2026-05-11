@@ -96,6 +96,11 @@ jobs:
       - name: Install dependencies (including dev-group)
         run: just install-dev
 
+      - name: Verify alembic migration path (upgrade to head)
+        run: |
+          export DATABASE_URL="sqlite+aiosqlite:///./migration_check.db"
+          just migrate-apply
+
       - name: Run quality-gate (format check + lint + type check + arch check + tests)
         run: just quality-gate
 
