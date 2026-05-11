@@ -8,10 +8,10 @@ from .....services import PointsService, UserProfileService, UserService
 from ...filters import create_chat_type_routers
 
 # TODO Рефакторинг: код иишки
-ai_private_router, ai_group_router, ai_global_router = create_chat_type_routers("ai")
+ai_agent_private_router, ai_agent_group_router, ai_agent_global_router = create_chat_type_routers("ai_agent")
 
 
-@ai_private_router.message(Command("ai", "ask"))
+@ai_agent_private_router.message(Command("ai", "ask"))
 async def handle_ai_command(
     message: Message,
     user_service: FromDishka[UserService],

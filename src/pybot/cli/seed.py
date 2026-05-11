@@ -24,6 +24,8 @@ from loguru import logger as loguru_logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from pybot.core.config import get_settings
+
 if TYPE_CHECKING:
     from dishka import AsyncContainer
     from faker import Faker
@@ -39,6 +41,7 @@ if TYPE_CHECKING:
 logger = loguru_logger
 
 
+# TODO добавить сюда domain errors для более корректного и понятного вывода ошибок конфигурации
 @dataclass(frozen=True, slots=True)
 class RuntimeDependencies:
     """Application runtime dependencies required only for actual seed execution."""
@@ -185,6 +188,12 @@ class FillDatabaseConfig:
             raise ValueError("point_steps must contain at least one value")
         if any(step <= 0 for step in self.point_steps):
             raise ValueError("point_steps must contain only positive values")
+
+        if self.seed_fake_users and get_settings().bot_mode == "prod":
+            raise ValueError(
+                "Seeding fake users is not allowed in production (BOT_MODE=prod). "
+                "Use --skip-fake-users to safely seed only production data."
+            )
 
 
 @dataclass(frozen=True, slots=True)
