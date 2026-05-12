@@ -1,14 +1,16 @@
+from .ai_history_port import AIHistoryPort as AIHistoryPort
 from .errors import NotificationError as NotificationError
 from .errors import NotificationPermanentError as NotificationPermanentError
 from .errors import NotificationTemporaryError as NotificationTemporaryError
 from .health_probe import SupportsExecute as SupportsExecute
 from .health_probe import SupportsPing as SupportsPing
-from .notification_port import NotificationPort
 from .notification_dispatch_port import NotificationDispatchPort
+from .notification_port import NotificationPort
 
 __all__ = [
     "NotificationPort",
     "NotificationDispatchPort",
+    "AIHistoryPort",
     "SupportsExecute",
     "SupportsPing",
     "NotificationError",

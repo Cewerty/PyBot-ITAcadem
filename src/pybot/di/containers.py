@@ -29,6 +29,7 @@ from ..infrastructure import (
 )
 from ..infrastructure.health import RedisPingProbe, SessionExecutor
 from ..infrastructure.ports import LoggingNotificationService, TelegramNotificationService
+from ..infrastructure.redis_ai_history import RedisAIHistoryAdapter
 from ..infrastructure.taskiq.taskiq_notification_dispatcher import TaskIQNotificationDispatcher
 from ..services import (
     LeaderboardService,
@@ -46,7 +47,7 @@ from ..services.health import HealthService
 from ..services.levels import LevelService
 from ..services.notification_facade import NotificationFacade
 from ..services.points import PointsService
-from ..services.ports import NotificationDispatchPort, NotificationPort
+from ..services.ports import AIHistoryPort, NotificationDispatchPort, NotificationPort
 from ..services.role_request import RoleRequestService
 
 global_engine: AsyncEngine | None = None
@@ -350,6 +351,10 @@ class AIAgentProvider(Provider):
         else:
             raise ValueError(f"Unsupported AI_PROVIDER: {settings.ai_provider}")
 
+    @provide(scope=Scope.REQUEST)
+    def ai_history_port(self, redis_client: Redis) -> AIHistoryPort:
+        return RedisAIHistoryAdapter(redis_client)
+
 
 async def setup_container() -> AsyncContainer:
     """Build the app DI container."""
@@ -364,6 +369,7 @@ async def setup_container() -> AsyncContainer:
         PortsProvider(),
         FacadeProvider(),
         ConfigProvider(),
+        RedisProvider(),
         AIAgentProvider(),
     )
 
