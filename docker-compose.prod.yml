@@ -1,5 +1,6 @@
 x-app-base: &app-base
   image: ${APP_IMAGE:?APP_IMAGE must be set for production deploys}
+  init: true
   env_file:
     - .env
   environment:
