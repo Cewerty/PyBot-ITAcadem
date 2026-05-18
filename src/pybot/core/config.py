@@ -245,6 +245,11 @@ class BotSettings(BaseSettings):
         alias="NGINX_PORT",
         description="Nginx external port (used by docker-compose, not by the bot itself)",
     )
+    public_domain: str | None = Field(
+        None,
+        alias="PUBLIC_DOMAIN",
+        description="Public domain or IP of the server (used by docker-compose, not by the bot itself)",
+    )
 
     broadcast_allowed_roles: Annotated[set[str], NoDecode] = Field(
         default_factory=lambda: {"Admin"},
