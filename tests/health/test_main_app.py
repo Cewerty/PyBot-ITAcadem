@@ -121,7 +121,7 @@ def test_create_app_health_endpoint_smoke(monkeypatch: pytest.MonkeyPatch) -> No
     app = create_test_app(monkeypatch, StubHealthService(is_ready=True))
 
     with TestClient(app) as client:
-        response = client.get("/health")
+        response = client.get("/")
 
     assert response.status_code == 200
     payload = response.json()
