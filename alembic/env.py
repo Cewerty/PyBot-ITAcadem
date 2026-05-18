@@ -31,7 +31,11 @@ target_metadata = Base.metadata
 
 def _configure_database_url() -> str:
     """Resolve DATABASE_URL from runtime settings and write it into Alembic config."""
-    database_url = get_settings().database_url
+    # Fast path: check env directly to bypass strict Pydantic validation in CI
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        database_url = get_settings().database_url
+    
     if database_url:
         config.set_main_option("sqlalchemy.url", database_url)
     return database_url
