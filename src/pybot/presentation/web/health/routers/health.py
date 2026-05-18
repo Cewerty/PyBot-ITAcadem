@@ -14,7 +14,7 @@ router = APIRouter(route_class=DishkaRoute)
 
 
 @router.get(
-    "/health",
+    "",
     response_model=HealthStatusDTO,
     response_model_exclude_none=True,
     tags=["health"],
