@@ -102,4 +102,4 @@ depends_on = []
 # pybot.cli - CLI entrypoints (seed, admin tools).
 [[modules]]
 path = "pybot.cli"
-depends_on = []
+depends_on = ["pybot.core"]

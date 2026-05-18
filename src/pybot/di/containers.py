@@ -5,6 +5,12 @@ from aiogram.client.session.aiohttp import AiohttpSession
 from dishka import AsyncContainer, Provider, Scope, make_async_container, provide
 from dishka.integrations.aiogram import AiogramProvider
 from dishka.integrations.taskiq import TaskiqProvider
+from pydantic_ai.models import Model
+from pydantic_ai.models.google import GoogleModel
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers import Provider as AIProvider
+from pydantic_ai.providers.google import GoogleProvider
+from pydantic_ai.providers.openai import OpenAIProvider
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
@@ -23,6 +29,7 @@ from ..infrastructure import (
 )
 from ..infrastructure.health import RedisPingProbe, SessionExecutor
 from ..infrastructure.ports import LoggingNotificationService, TelegramNotificationService
+from ..infrastructure.redis_ai_history import RedisAIHistoryAdapter
 from ..infrastructure.taskiq.taskiq_notification_dispatcher import TaskIQNotificationDispatcher
 from ..services import (
     LeaderboardService,
@@ -40,7 +47,7 @@ from ..services.health import HealthService
 from ..services.levels import LevelService
 from ..services.notification_facade import NotificationFacade
 from ..services.points import PointsService
-from ..services.ports import NotificationDispatchPort, NotificationPort
+from ..services.ports import AIHistoryPort, NotificationDispatchPort, NotificationPort
 from ..services.role_request import RoleRequestService
 
 global_engine: AsyncEngine | None = None
@@ -87,7 +94,7 @@ class RepositoryProvider(Provider):
         return LevelRepository()
 
     @provide(scope=Scope.APP)
-    def valuation_reposiory(self) -> ValuationRepository:
+    def valuation_repository(self) -> ValuationRepository:
         return ValuationRepository()
 
     @provide(scope=Scope.APP)
@@ -291,9 +298,10 @@ class PortsProvider(Provider):
     async def notification_port(self, settings: BotSettings, bot: Bot) -> NotificationPort:
         if settings.notification_backend == "telegram":
             return TelegramNotificationService(bot, settings)
-        if settings.notification_backend == "logging":
+        elif settings.notification_backend == "logging":
             return LoggingNotificationService(settings)
-        raise ValueError(f"Unsupported NOTIFICATION_BACKEND value: {settings.notification_backend}")
+        else:
+            raise ValueError(f"Unsupported NOTIFICATION_BACKEND value: {settings.notification_backend}")
 
     @provide(scope=Scope.APP)
     async def notification_dispatch_port(self) -> NotificationDispatchPort:
@@ -315,6 +323,39 @@ class FacadeProvider(Provider):
         return SystemRuntimeAlertsService(notification_facade, notification_service, settings)
 
 
+# TODO Рефактор
+class AIAgentProvider(Provider):
+    """Providers for AI Agent dependencies."""
+
+    @provide(scope=Scope.APP)
+    def ai_provider(self, settings: BotSettings) -> AIProvider:
+        if settings.ai_provider == "gemini":
+            return GoogleProvider(api_key=settings.ai_api_key)
+        elif settings.ai_provider in {"openai", "groq", "ollama"}:
+            return OpenAIProvider(api_key=settings.ai_api_key)
+        else:
+            raise ValueError(f"Unsupported AI provider: {settings.ai_provider}")
+
+    @provide(scope=Scope.APP)
+    def ai_model(self, settings: BotSettings, provider: AIProvider) -> Model:
+        if settings.ai_provider == "gemini":
+            return GoogleModel(
+                model_name=settings.ai_model_name,
+                provider=provider,
+            )
+        elif settings.ai_provider in {"openai", "groq", "ollama"}:
+            return OpenAIChatModel(
+                model_name=settings.ai_model_name,
+                provider=provider,
+            )
+        else:
+            raise ValueError(f"Unsupported AI_PROVIDER: {settings.ai_provider}")
+
+    @provide(scope=Scope.APP)
+    def ai_history_port(self, redis_client: Redis) -> AIHistoryPort:
+        return RedisAIHistoryAdapter(redis_client)
+
+
 async def setup_container() -> AsyncContainer:
     """Build the app DI container."""
     return make_async_container(
@@ -328,6 +369,8 @@ async def setup_container() -> AsyncContainer:
         PortsProvider(),
         FacadeProvider(),
         ConfigProvider(),
+        RedisProvider(),
+        AIAgentProvider(),
     )
 
 

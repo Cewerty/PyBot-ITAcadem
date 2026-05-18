@@ -33,7 +33,7 @@ arch-check: # Check architecture invariants with Tach
     uv run --frozen tach check
 
 test-coverage: # Run tests with coverage and show missing lines
-    uv run pytest --cov=src/pybot --cov-report=term-missing --cov-report=xml
+    uv run pytest --cov=src/pybot --cov-report=term-missing --cov-report=xml --cov-fail-under=80
 
 quality-gate: # Full code quality gate (format check + lint + type check + arch check)
     just format-check

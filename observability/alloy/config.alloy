@@ -1,0 +1,24 @@
+logging {
+  level = "info"
+  format = "logfmt"
+}
+
+// Discovery: находим все запущенные Docker контейнеры
+discovery.docker "local" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// Source: читаем логи из найденных контейнеров
+loki.source.docker "default" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.docker.local.targets
+  labels     = {"job" = "docker_containers"}
+  forward_to = [loki.write.local.receiver]
+}
+
+// Write: отправляем логи в Loki
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

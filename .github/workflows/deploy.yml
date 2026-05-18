@@ -134,6 +134,7 @@ jobs:
           payload = {
               "deploy_path": os.environ["DEPLOY_PATH"] or "${{ steps.prep.outputs.deploy_path }}",
               "deploy_compose_src": str(Path(os.environ["GITHUB_WORKSPACE"]) / "docker-compose.prod.yml"),
+              "observability_src": str(Path(os.environ["GITHUB_WORKSPACE"]) / "observability"),
               "app_env_src": str(Path(os.environ["RUNNER_TEMP"]) / "prod.env"),
               "image_repository": "${{ steps.prep.outputs.image_repo }}",
               "image_tag": "${{ steps.prep.outputs.image_tag }}",

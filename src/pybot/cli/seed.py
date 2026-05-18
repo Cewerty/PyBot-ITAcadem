@@ -24,6 +24,8 @@ from loguru import logger as loguru_logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from pybot.core.config import get_settings
+
 if TYPE_CHECKING:
     from dishka import AsyncContainer
     from faker import Faker
@@ -34,81 +36,12 @@ if TYPE_CHECKING:
     from pybot.dto import AdjustUserPointsDTO, CompetenceCreateDTO, CompetenceReadDTO, UserCreateDTO
     from pybot.dto.value_objects import Points
     from pybot.services import CompetenceService, LevelService, PointsService, UserCompetenceService, UserService
-else:
-
-    class PointsTypeEnum(enum.StrEnum):
-        ACADEMIC = "academic"
-        REPUTATION = "reputation"
-
-    class RoleEnum(enum.StrEnum):
-        STUDENT = "Student"
-        MENTOR = "Mentor"
-        ADMIN = "Admin"
-
-    class Level:
-        pass
-
-    class Role:
-        pass
-
-    class AdjustUserPointsDTO:
-        def __init__(
-            self,
-            recipient_id: int,
-            giver_id: int,
-            points: Points,
-            reason: str,
-        ) -> None:
-            del recipient_id, giver_id, points, reason
-            raise RuntimeError("seed runtime dependencies are not loaded")
-
-    class CompetenceCreateDTO:
-        def __init__(self, name: str, description: str) -> None:
-            del name, description
-            raise RuntimeError("seed runtime dependencies are not loaded")
-
-    class CompetenceReadDTO:
-        id: int
-
-    class UserCreateDTO:
-        def __init__(
-            self,
-            first_name: str,
-            last_name: str,
-            patronymic: str | None,
-            phone: str,
-            tg_id: int,
-        ) -> None:
-            del first_name, last_name, patronymic, phone, tg_id
-            raise RuntimeError("seed runtime dependencies are not loaded")
-
-    class Points:
-        value: int
-        point_type: PointsTypeEnum
-
-        def __init__(self, value: int, point_type: PointsTypeEnum) -> None:
-            del value, point_type
-            raise RuntimeError("seed runtime dependencies are not loaded")
-
-    class CompetenceService:
-        pass
-
-    class LevelService:
-        pass
-
-    class PointsService:
-        pass
-
-    class UserCompetenceService:
-        pass
-
-    class UserService:
-        pass
 
 
 logger = loguru_logger
 
 
+# TODO добавить сюда domain errors для более корректного и понятного вывода ошибок конфигурации
 @dataclass(frozen=True, slots=True)
 class RuntimeDependencies:
     """Application runtime dependencies required only for actual seed execution."""
@@ -255,6 +188,12 @@ class FillDatabaseConfig:
             raise ValueError("point_steps must contain at least one value")
         if any(step <= 0 for step in self.point_steps):
             raise ValueError("point_steps must contain only positive values")
+
+        if self.seed_fake_users and get_settings().bot_mode == "prod":
+            raise ValueError(
+                "Seeding fake users is not allowed in production (BOT_MODE=prod). "
+                "Use --skip-fake-users to safely seed only production data."
+            )
 
 
 @dataclass(frozen=True, slots=True)

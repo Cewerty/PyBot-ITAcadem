@@ -12,9 +12,11 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pybot.cli import seed as fill_point_db
-from src.pybot.core.constants import PointsTypeEnum
+from src.pybot.core.constants import PointsTypeEnum, RoleEnum
 from src.pybot.dto import AdjustUserPointsDTO, CompetenceCreateDTO, CompetenceReadDTO, UserCreateDTO, UserReadDTO
 from src.pybot.dto.value_objects import Points
+from src.pybot.db.models import Level, Role
+from src.pybot.services import CompetenceService, LevelService, PointsService, UserCompetenceService, UserService
 
 
 class FakeRequestContainer:
@@ -37,23 +39,23 @@ class FakeRequestContainer:
     async def get(
         self,
         dep_type: type[AsyncSession]
-        | type[fill_point_db.CompetenceService]
-        | type[fill_point_db.LevelService]
-        | type[fill_point_db.PointsService]
-        | type[fill_point_db.UserCompetenceService]
-        | type[fill_point_db.UserService],
+        | type[CompetenceService]
+        | type[LevelService]
+        | type[PointsService]
+        | type[UserCompetenceService]
+        | type[UserService],
     ) -> "FakeFillDatabaseSession | FakeCompetenceService | FakeLevelService | FakePointsService | FakeUserCompetenceService | FakeFillDatabaseUserService":
         if dep_type is AsyncSession:
             return self._session
-        if dep_type is fill_point_db.CompetenceService:
+        if dep_type is CompetenceService:
             return self._competence_service
-        if dep_type is fill_point_db.LevelService:
+        if dep_type is LevelService:
             return self._level_service
-        if dep_type is fill_point_db.PointsService:
+        if dep_type is PointsService:
             return self._points_service
-        if dep_type is fill_point_db.UserCompetenceService:
+        if dep_type is UserCompetenceService:
             return self._user_competence_service
-        if dep_type is fill_point_db.UserService:
+        if dep_type is UserService:
             return self._user_service
         raise AssertionError(f"Unexpected dependency request: {dep_type!r}")
 
@@ -96,27 +98,27 @@ class FakeCompetenceService:
     pass
 
 
-class FakeLevelService(fill_point_db.LevelService):
+class FakeLevelService(LevelService):
     def __init__(self) -> None:
         pass
 
 
-class FakePointsService(fill_point_db.PointsService):
+class FakePointsService(PointsService):
     def __init__(self) -> None:
         pass
 
 
-class FakeUserCompetenceService(fill_point_db.UserCompetenceService):
+class FakeUserCompetenceService(UserCompetenceService):
     def __init__(self) -> None:
         pass
 
 
-class FakeFillDatabaseUserService(fill_point_db.UserService):
+class FakeFillDatabaseUserService(UserService):
     def __init__(self) -> None:
         pass
 
 
-class FakeGenerateUsersService(fill_point_db.UserService):
+class FakeGenerateUsersService(UserService):
     def __init__(self, created_user: UserReadDTO) -> None:
         self.register_student_mock = AsyncMock(return_value=created_user)
 
@@ -124,7 +126,7 @@ class FakeGenerateUsersService(fill_point_db.UserService):
         return await self.register_student_mock(dto)
 
 
-class FakeGenerateUsersCompetenceService(fill_point_db.UserCompetenceService):
+class FakeGenerateUsersCompetenceService(UserCompetenceService):
     def __init__(self, updated_user: UserReadDTO) -> None:
         self.add_user_competencies_mock = AsyncMock(return_value=updated_user)
 
@@ -132,7 +134,7 @@ class FakeGenerateUsersCompetenceService(fill_point_db.UserCompetenceService):
         return await self.add_user_competencies_mock(user_id, competence_ids)
 
 
-class FakeGenerateUsersPointsService(fill_point_db.PointsService):
+class FakeGenerateUsersPointsService(PointsService):
     def __init__(self, updated_user: UserReadDTO) -> None:
         self.change_points_mock = AsyncMock(return_value=updated_user)
 
@@ -169,20 +171,20 @@ def build_runtime_dependencies(
 ) -> fill_point_db.RuntimeDependencies:
     return fill_point_db.RuntimeDependencies(
         points_type_enum=PointsTypeEnum,
-        role_enum=fill_point_db.RoleEnum,
-        level_model=fill_point_db.Level,
-        role_model=fill_point_db.Role,
+        role_enum=RoleEnum,
+        level_model=Level,
+        role_model=Role,
         setup_container=setup_container or AsyncMock(),
         adjust_user_points_dto_cls=AdjustUserPointsDTO,
         competence_create_dto_cls=CompetenceCreateDTO,
         competence_read_dto_cls=CompetenceReadDTO,
         user_create_dto_cls=UserCreateDTO,
         points_cls=Points,
-        competence_service_cls=fill_point_db.CompetenceService,
-        level_service_cls=fill_point_db.LevelService,
-        points_service_cls=fill_point_db.PointsService,
-        user_competence_service_cls=fill_point_db.UserCompetenceService,
-        user_service_cls=fill_point_db.UserService,
+        competence_service_cls=CompetenceService,
+        level_service_cls=LevelService,
+        points_service_cls=PointsService,
+        user_competence_service_cls=UserCompetenceService,
+        user_service_cls=UserService,
     )
 
 

@@ -1,0 +1,20 @@
+---
+- name: Validate observability variables
+  ansible.builtin.assert:
+    that:
+      - deploy_path is defined
+      - observability_src is defined
+    fail_msg: "deploy_path and observability_src are required."
+
+- name: Create observability base directory
+  ansible.builtin.file:
+    path: "{{ deploy_path }}/observability"
+    state: directory
+    mode: "0755"
+
+- name: Copy observability configuration directories
+  ansible.builtin.copy:
+    src: "{{ observability_src }}/"
+    dest: "{{ deploy_path }}/observability/"
+    mode: "0644"
+    directory_mode: "0755"

@@ -45,6 +45,8 @@ services:
         "${HEALTH_API_HOST:-0.0.0.0}",
         "--port",
         "${HEALTH_API_PORT:-8001}",
+        "--root-path",
+        "/health",
       ]
 
   taskiq-worker:
@@ -100,8 +102,80 @@ services:
       timeout: 5s
       retries: 5
 
+  loki:
+    image: grafana/loki:3.5.0
+    container_name: pybot-loki
+    restart: unless-stopped
+    volumes:
+      - loki_data:/loki
+      - ./observability/loki/local-config.yaml:/etc/loki/local-config.yaml:ro
+    command: -config.file=/etc/loki/local-config.yaml
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  alloy:
+    image: grafana/alloy:v1.6.1
+    container_name: pybot-alloy
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+    command: run --server.http.listen-addr=0.0.0.0:12345 /etc/alloy/config.alloy
+    depends_on:
+      - loki
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    container_name: pybot-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD must be set}
+      # TODO: Replace 'localhost' with the real domain name when one is configured.
+      # Currently routes Grafana sub-path correctly for IP-only access.
+      # When a domain is added, update to: http://your-domain.com/grafana/
+      - GF_SERVER_ROOT_URL=http://localhost/grafana/
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - loki
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  nginx:
+    image: nginx:alpine
+    container_name: pybot-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./observability/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - grafana
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
 volumes:
   pybot_data:
     name: pybot_data_prod
   redis_data:
     name: pybot_redis_data_prod
+  loki_data:
+    name: pybot_loki_data_prod
+  grafana_data:
+    name: pybot_grafana_data_prod
