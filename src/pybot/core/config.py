@@ -240,6 +240,11 @@ class BotSettings(BaseSettings):
         alias="GRAFANA_ADMIN_PASSWORD",
         description="Grafana admin password (used by docker-compose, not by the bot itself)",
     )
+    nginx_port: int | None = Field(
+        None,
+        alias="NGINX_PORT",
+        description="Nginx external port (used by docker-compose, not by the bot itself)",
+    )
 
     broadcast_allowed_roles: Annotated[set[str], NoDecode] = Field(
         default_factory=lambda: {"Admin"},
