@@ -4,8 +4,9 @@ from aiogram.types import Message
 from dishka.integrations.aiogram import FromDishka
 from pydantic_ai.models import Model
 
+from .....core import logger
 from .....presentation.shared.ai_agent import AgentDeps, ai_agent
-from .....services import PointsService, UserProfileService, UserService
+from .....services import UserProfileService, UserService
 from .....services.ports import AIHistoryPort
 from ...filters import create_chat_type_routers
 from ...utils.ai_streaming import stream_ai_response
@@ -20,7 +21,6 @@ async def handle_ai_command(  # noqa: PLR0913
     bot: Bot,
     user_service: FromDishka[UserService],
     user_profile_service: FromDishka[UserProfileService],
-    points_service: FromDishka[PointsService],
     history_repo: FromDishka[AIHistoryPort],
     model: FromDishka[Model],
 ) -> None:
@@ -45,7 +45,6 @@ async def handle_ai_command(  # noqa: PLR0913
     deps = AgentDeps(
         user_service=user_service,
         user_profile_service=user_profile_service,
-        points_service=points_service,
         current_telegram_id=message.from_user.id,
     )
 
@@ -77,5 +76,6 @@ async def handle_ai_command(  # noqa: PLR0913
             # Финализируем ответ обычным сообщением
             await message.answer(final_text)
 
-    except Exception as e:
-        await message.answer(f"Произошла ошибка при обращении к ИИ: {e}")
+    except Exception:
+        logger.exception("AI agent error for chat_id=%s", message.chat.id)
+        await message.answer("Произошла ошибка при обращении к ИИ. Попробуйте позже.")

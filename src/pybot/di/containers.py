@@ -94,7 +94,7 @@ class RepositoryProvider(Provider):
         return LevelRepository()
 
     @provide(scope=Scope.APP)
-    def valuation_reposiory(self) -> ValuationRepository:
+    def valuation_repository(self) -> ValuationRepository:
         return ValuationRepository()
 
     @provide(scope=Scope.APP)
@@ -351,7 +351,7 @@ class AIAgentProvider(Provider):
         else:
             raise ValueError(f"Unsupported AI_PROVIDER: {settings.ai_provider}")
 
-    @provide(scope=Scope.REQUEST)
+    @provide(scope=Scope.APP)
     def ai_history_port(self, redis_client: Redis) -> AIHistoryPort:
         return RedisAIHistoryAdapter(redis_client)
 

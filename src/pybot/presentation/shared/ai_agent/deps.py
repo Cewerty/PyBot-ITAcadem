@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 
-from pybot.services.points import PointsService
 from pybot.services.user_services import UserProfileService, UserService
 
 
@@ -11,5 +10,4 @@ class AgentDeps:
 
     user_service: UserService
     user_profile_service: UserProfileService
-    points_service: PointsService
     current_telegram_id: int
