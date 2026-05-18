@@ -171,7 +171,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "sum by (level) (count_over_time({container_name=~\"$container\"} | json | __error__=\"\" | line_format \"{{.record_level_name}}\" [$__interval]))",
+          "expr": "sum by (level) (count_over_time({container_name=~\"$container\"} | json | __error__=\"\" | label_format level=record_level_name [$__interval])",
           "legendFormat": "{{level}}",
           "refId": "A"
         }
