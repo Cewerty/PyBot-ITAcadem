@@ -1,4 +1,3 @@
----
 - name: Validate required deploy variables
   ansible.builtin.assert:
     that:
@@ -176,17 +175,21 @@
     health_profile_cli_arg: >-
       {{ '--profile health' if health_api_enabled_value.stdout | trim | lower in ['1', 'true', 'yes', 'on'] else '' }}
 
-- name: Force-remove stale health container before deploy
-  ansible.builtin.shell: |
-    set -eu
-    if docker inspect pybot-health > /dev/null 2>&1; then
-      echo "Removing stale pybot-health container"
-      docker rm -f pybot-health || true
-    fi
-  args:
-    executable: /bin/sh
-  changed_when: false
-  when: health_api_enabled_value.stdout | trim | lower in ['1', 'true', 'yes', 'on']
+- name: Stop existing production compose before redeploy
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - -f
+      - docker-compose.prod.yml
+      - down
+      - --remove-orphans
+    chdir: "{{ deploy_path }}"
+  environment:
+    APP_IMAGE: "{{ image_repository }}:{{ image_tag }}"
+  register: compose_down_result
+  failed_when: false
+  changed_when: compose_down_result.rc == 0
 
 - name: Apply production compose
   ansible.builtin.command:
@@ -210,89 +213,30 @@
     APP_IMAGE: "{{ image_repository }}:{{ image_tag }}"
   changed_when: false
 
-- name: Wait for core production containers to be running
-  ansible.builtin.shell: |
-    set -eu
-    status="$(docker inspect -f '{{ "{{.State.Status}}" }}' {{ item }})"
-    [ "$status" = "running" ]
-  args:
-    executable: /bin/sh
-  loop:
-    - pybot-bot
-    - pybot-taskiq-worker
-    - pybot-taskiq-scheduler
-    - pybot-redis
-  register: container_runtime_checks
+- name: Wait for core production services to appear in compose ps
+  ansible.builtin.command:
+    cmd: docker compose -f docker-compose.prod.yml ps
+    chdir: "{{ deploy_path }}"
+  register: compose_ps_result
   retries: 10
   delay: 3
-  until: container_runtime_checks is succeeded
+  until: >
+    compose_ps_result.rc == 0 and
+    ('bot' in compose_ps_result.stdout) and
+    ('taskiq-worker' in compose_ps_result.stdout) and
+    ('taskiq-scheduler' in compose_ps_result.stdout) and
+    ('redis' in compose_ps_result.stdout)
   changed_when: false
+  environment:
+    APP_IMAGE: "{{ image_repository }}:{{ image_tag }}"
 
-- name: Check pybot-health container was actually created
-  ansible.builtin.command: docker inspect pybot-health
-  register: health_container_inspect
-  ignore_errors: true
-  changed_when: false
-  when: health_api_enabled_value.stdout | trim | lower in ['1', 'true', 'yes', 'on']
-
-- name: Fail fast if health container was not created by compose
-  ansible.builtin.fail:
-    msg: >
-      pybot-health container does not exist after compose up.
-      Check that --profile health was passed and image pulled correctly.
-      Run 'docker compose -f docker-compose.prod.yml --profile health up health'
-      manually on the server to see the real error.
-  when:
-    - health_api_enabled_value.stdout | trim | lower in ['1', 'true', 'yes', 'on']
-    - health_container_inspect.rc != 0
-
-- name: Wait for health container to be running when enabled
+- name: Wait for Redis healthcheck to report healthy
   ansible.builtin.shell: |
     set -eu
-    status="$(docker inspect -f '{{ "{{.State.Status}}" }}' pybot-health)"
-    [ "$status" = "running" ]
-  args:
-    executable: /bin/sh
-  register: health_container_runtime_check
-  retries: 10
-  delay: 3
-  until: health_container_runtime_check is succeeded
-  changed_when: false
-  when: health_api_enabled_value.stdout | trim | lower in ['1', 'true', 'yes', 'on']
-
-- name: Wait for Redis container health status when healthcheck is configured
-  ansible.builtin.shell: |
-    set -eu
-    health="$(docker inspect -f '{{ "{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}" }}' pybot-redis)"
+    cid="$(docker compose -f docker-compose.prod.yml ps -q redis)"
+    [ -n "$cid" ]
+    health="$(docker inspect -f '{{ "{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}" }}' "$cid")"
     [ "$health" = "healthy" ] || [ "$health" = "none" ]
   args:
+    chdir: "{{ deploy_path }}"
     executable: /bin/sh
-  retries: 10
-  delay: 3
-  register: redis_health_check
-  until: redis_health_check is succeeded
-  changed_when: false
-
-- name: Wait for health readiness endpoint when health API is enabled
-  ansible.builtin.shell: |
-    set -eu
-    docker exec pybot-health python - <<'PY'
-    import json
-    import urllib.request
-
-    port = "{{ health_api_port_value.stdout | trim }}"
-    with urllib.request.urlopen(f"http://127.0.0.1:{port}/ready", timeout=5) as response:
-        if response.status != 200:
-            raise SystemExit(f"Unexpected readiness status: {response.status}")
-        payload = json.loads(response.read().decode("utf-8"))
-        if payload.get("status") not in {"ok", "healthy", "ready"}:
-            raise SystemExit(f"Unexpected readiness payload: {payload}")
-    PY
-  args:
-    executable: /bin/sh
-  register: health_api_smoke_check
-  retries: 10
-  delay: 3
-  until: health_api_smoke_check is succeeded
-  changed_when: false
-  when: health_api_enabled_value.stdout | trim | lower in ['1', 'true', 'yes', 'on']

@@ -27,69 +27,41 @@ x-app-service: &app-service
 services:
   bot:
     <<: *app-service
-    container_name: pybot-bot
-    command: ["sh", "-c", "HEALTH_API_ENABLED=false exec python run.py"]
+    command: [ "sh", "-c", "HEALTH_API_ENABLED=false exec python run.py" ]
 
   health:
     <<: *app-base
-    container_name: pybot-health
-    profiles: ["health"]
+    profiles: [ "health" ]
     restart: unless-stopped
     depends_on:
       redis:
         condition: service_healthy
-    command:
-      [
-        "uvicorn",
-        "src.pybot.presentation.web:app",
-        "--host",
-        "${HEALTH_API_HOST:-0.0.0.0}",
-        "--port",
-        "${HEALTH_API_PORT:-8001}",
-        "--root-path",
-        "/health",
-      ]
+    command: [ "uvicorn", "src.pybot.presentation.web:app", "--host", "${HEALTH_API_HOST:-0.0.0.0}", "--port", "${HEALTH_API_PORT:-8001}", "--root-path", "/health" ]
 
   taskiq-worker:
     <<: *app-service
-    container_name: pybot-taskiq-worker
-    command:
-      [
-        "sh",
-        "-c",
-        "TASKIQ_WORKERS='${TASKIQ_WORKERS:-1}'; if [ \"$TASKIQ_WORKERS\" != \"1\" ]; then echo \"TASKIQ_WORKERS=$TASKIQ_WORKERS is not supported yet; only TASKIQ_WORKERS=1 is allowed until the runtime is ready for multi-instance workers.\" >&2; exit 1; fi; exec taskiq worker src.pybot.infrastructure.taskiq.entrypoint:broker --workers \"$TASKIQ_WORKERS\"",
-      ]
+    command: [ "sh", "-c", "TASKIQ_WORKERS='${TASKIQ_WORKERS:-1}'; if [ \"$TASKIQ_WORKERS\" != \"1\" ]; then echo \"TASKIQ_WORKERS=$TASKIQ_WORKERS is not supported yet; only TASKIQ_WORKERS=1 is allowed until the runtime is ready for multi-instance workers.\" >&2; exit 1; fi; exec taskiq worker src.pybot.infrastructure.taskiq.entrypoint:broker --workers \"$TASKIQ_WORKERS\"" ]
 
   taskiq-scheduler:
     <<: *app-service
-    container_name: pybot-taskiq-scheduler
-    command:
-      [
-        "taskiq",
-        "scheduler",
-        "src.pybot.infrastructure.taskiq.entrypoint:scheduler",
-        "--skip-first-run",
-      ]
+    command: [ "taskiq", "scheduler", "src.pybot.infrastructure.taskiq.entrypoint:scheduler", "--skip-first-run" ]
 
   migrate:
     <<: *app-base
-    container_name: pybot-migrate
-    profiles: ["migration"]
+    profiles: [ "migration" ]
     restart: "no"
-    command: ["alembic", "upgrade", "head"]
+    command: [ "alembic", "upgrade", "head" ]
 
   seed:
     <<: *app-base
-    container_name: pybot-seed
-    profiles: ["seed"]
+    profiles: [ "seed" ]
     restart: "no"
-    command: ["pybot-seed"]
+    command: [ "pybot-seed" ]
 
   redis:
     image: redis:7-alpine
-    container_name: pybot-redis
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    command: [ "redis-server", "--appendonly", "yes" ]
     logging:
       driver: json-file
       options:
@@ -98,14 +70,13 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
 
   loki:
     image: grafana/loki:3.5.0
-    container_name: pybot-loki
     restart: unless-stopped
     volumes:
       - loki_data:/loki
@@ -119,7 +90,6 @@ services:
 
   alloy:
     image: grafana/alloy:v1.6.1
-    container_name: pybot-alloy
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -135,7 +105,6 @@ services:
 
   grafana:
     image: grafana/grafana:11.5.2
-    container_name: pybot-grafana
     restart: unless-stopped
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD must be set}
@@ -158,7 +127,6 @@ services:
 
   nginx:
     image: nginx:alpine
-    container_name: pybot-nginx
     restart: unless-stopped
     ports:
       - "${NGINX_PORT:-8080}:80"

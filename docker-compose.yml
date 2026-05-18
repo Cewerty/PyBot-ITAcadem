@@ -23,12 +23,10 @@ x-app-service: &app-service
 services:
   bot:
     <<: *app-service
-    container_name: pybot-bot
     command: ["sh", "-c", "HEALTH_API_ENABLED=false exec python run.py"]
 
   health:
     <<: *app-base
-    container_name: pybot-health
     profiles: ["health"]
     restart: unless-stopped
     depends_on:
@@ -48,7 +46,6 @@ services:
 
   taskiq-worker:
     <<: *app-service
-    container_name: pybot-taskiq-worker
     command:
       [
         "sh",
@@ -58,7 +55,6 @@ services:
 
   taskiq-scheduler:
     <<: *app-service
-    container_name: pybot-taskiq-scheduler
     command:
       [
         "taskiq",
@@ -69,21 +65,18 @@ services:
 
   migrate:
     <<: *app-base
-    container_name: pybot-migrate
     profiles: ["migration"]
     restart: "no"
     command: ["alembic", "upgrade", "head"]
 
   seed:
     <<: *app-base
-    container_name: pybot-seed
     profiles: ["seed"]
     restart: "no"
     command: ["pybot-seed"]
 
   redis:
     image: redis:7-alpine
-    container_name: pybot-redis
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
