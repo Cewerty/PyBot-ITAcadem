@@ -37,6 +37,8 @@ jobs:
           DEBUG=false
           HEALTH_API_ENABLED=false
           APP_IMAGE=ghcr.io/example/pybot:test
+          GRAFANA_ADMIN_PASSWORD=dummy
+          TASKIQ_WORKERS=1
           EOF
 
       - name: Build Docker image
