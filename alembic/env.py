@@ -35,7 +35,7 @@ def _configure_database_url() -> str:
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
         database_url = get_settings().database_url
-    
+
     if database_url:
         config.set_main_option("sqlalchemy.url", database_url)
     return database_url
