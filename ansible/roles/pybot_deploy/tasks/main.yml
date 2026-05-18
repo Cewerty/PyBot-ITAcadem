@@ -176,13 +176,29 @@
     health_profile_cli_arg: >-
       {{ '--profile health' if health_api_enabled_value.stdout | trim | lower in ['1', 'true', 'yes', 'on'] else '' }}
 
-- name: Apply production compose
+- name: Force-remove stale health container before deploy
   ansible.builtin.shell: |
     set -eu
-    docker compose -f docker-compose.prod.yml {{ health_profile_cli_arg }} up -d --remove-orphans
+    if docker inspect pybot-health > /dev/null 2>&1; then
+      echo "Removing stale pybot-health container"
+      docker rm -f pybot-health || true
+    fi
   args:
-    chdir: "{{ deploy_path }}"
     executable: /bin/sh
+  changed_when: false
+  when: health_api_enabled_value.stdout | trim | lower in ['1', 'true', 'yes', 'on']
+
+- name: Apply production compose
+  ansible.builtin.command:
+    argv: "{{ base_cmd + health_args + tail_args }}"
+    chdir: "{{ deploy_path }}"
+  vars:
+    base_cmd: ["docker", "compose", "-f", "docker-compose.prod.yml"]
+    health_args: >-
+      {{ ['--profile', 'health']
+         if health_api_enabled_value.stdout | trim | lower in ['1', 'true', 'yes', 'on']
+         else [] }}
+    tail_args: ["up", "-d", "--remove-orphans"]
   environment:
     APP_IMAGE: "{{ image_repository }}:{{ image_tag }}"
 
@@ -211,6 +227,24 @@
   delay: 3
   until: container_runtime_checks is succeeded
   changed_when: false
+
+- name: Check pybot-health container was actually created
+  ansible.builtin.command: docker inspect pybot-health
+  register: health_container_inspect
+  ignore_errors: true
+  changed_when: false
+  when: health_api_enabled_value.stdout | trim | lower in ['1', 'true', 'yes', 'on']
+
+- name: Fail fast if health container was not created by compose
+  ansible.builtin.fail:
+    msg: >
+      pybot-health container does not exist after compose up.
+      Check that --profile health was passed and image pulled correctly.
+      Run 'docker compose -f docker-compose.prod.yml --profile health up health'
+      manually on the server to see the real error.
+  when:
+    - health_api_enabled_value.stdout | trim | lower in ['1', 'true', 'yes', 'on']
+    - health_container_inspect.rc != 0
 
 - name: Wait for health container to be running when enabled
   ansible.builtin.shell: |
