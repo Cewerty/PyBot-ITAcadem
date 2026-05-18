@@ -234,6 +234,13 @@ class BotSettings(BaseSettings):
         description="Health API port",
     )
 
+    # Observability settings
+    grafana_admin_password: str | None = Field(
+        None,
+        alias="GRAFANA_ADMIN_PASSWORD",
+        description="Grafana admin password (used by docker-compose, not by the bot itself)",
+    )
+
     broadcast_allowed_roles: Annotated[set[str], NoDecode] = Field(
         default_factory=lambda: {"Admin"},
         alias="BROADCAST_ALLOWED_ROLES",
