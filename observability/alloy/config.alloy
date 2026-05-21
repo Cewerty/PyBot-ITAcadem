@@ -26,13 +26,6 @@ discovery.relabel "docker_service" {
     target_label  = "compose_project"
   }
 
-  # Docker container name -> container_name
-  rule {
-    action        = "replace"
-    source_labels = ["__meta_docker_container_name"]
-    target_label  = "container_name"
-  }
-
   # На всякий случай добавим compose-generated service name, если label выше отсутствует
   rule {
     action        = "replace"
