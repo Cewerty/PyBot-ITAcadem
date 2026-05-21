@@ -3,30 +3,26 @@ logging {
   format = "logfmt"
 }
 
-# 1) Находим все Docker-контейнеры
 discovery.docker "local" {
   host = "unix:///var/run/docker.sock"
 }
 
-# 2) Переписываем docker metadata в удобные labels
 discovery.relabel "docker_service" {
   targets = discovery.docker.local.targets
 
-  # Docker Compose service -> service
   rule {
     action        = "replace"
     source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
     target_label  = "service"
   }
 
-  # Docker Compose project -> compose_project
   rule {
     action        = "replace"
     source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
     target_label  = "compose_project"
   }
 
-  # На всякий случай добавим compose-generated service name, если label выше отсутствует
+
   rule {
     action        = "replace"
     source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
@@ -34,7 +30,6 @@ discovery.relabel "docker_service" {
   }
 }
 
-# 3) Читаем docker logs и отправляем в Loki
 loki.source.docker "default" {
   host       = "unix:///var/run/docker.sock"
   targets    = discovery.relabel.docker_service.output
@@ -44,7 +39,6 @@ loki.source.docker "default" {
   forward_to = [loki.write.local.receiver]
 }
 
-# 4) Пишем в Loki
 loki.write "local" {
   endpoint {
     url = "http://loki:3100/loki/api/v1/push"
