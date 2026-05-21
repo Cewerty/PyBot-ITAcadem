@@ -49,7 +49,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "count_over_time({job=\"docker_containers\", service=~\"$container\"}[$__range])",
+          "expr": "count_over_time({job=\"docker_containers\", service=~\"$service\"} | logfmt | [$__range])",
           "legendFormat": "",
           "refId": "A"
         }
@@ -87,7 +87,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "count_over_time({job=\"docker_containers\", service=~\"$container\"} | json | record_level_name=~\"(ERROR|CRITICAL)\" [$__range])",
+          "expr": "count_over_time({job=\"docker_containers\", service=~\"$service\"} | logfmt | record_level_name=~\"(ERROR|CRITICAL)\" [$__range])",
           "legendFormat": "",
           "refId": "A"
         }
@@ -125,7 +125,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "count_over_time({job=\"docker_containers\", service=~\"$container\"} | json | record_level_name=\"WARNING\" [$__range])",
+          "expr": "count_over_time({job=\"docker_containers\", service=~\"$service\"} | logfmt | record_level_name=\"WARNING\" [$__range])",
           "legendFormat": "",
           "refId": "A"
         }
@@ -171,7 +171,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "sum by (level) (count_over_time({job=\"docker_containers\", service=~\"$container\"} | json | __error__=\"\" | label_format level=record_level_name [$__interval]))",
+          "expr": "sum by (level) (count_over_time({job=\"docker_containers\", service=~\"$service\"} | logfmt | __error__=\"\" | label_format level=record_level_name [$__interval]))",
           "legendFormat": "{{level}}",
           "refId": "A"
         }
@@ -210,7 +210,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "sum by (service) (count_over_time({job=\"docker_containers\", service=~\"$container\"} | json | record_level_name=~\"(ERROR|CRITICAL)\" [$__interval]))",
+          "expr": "sum by (service) (count_over_time({job=\"docker_containers\", service=~\"$service\"} | logfmt | record_level_name=~\"(ERROR|CRITICAL)\" [$__interval]))",
           "legendFormat": "{{service}}",
           "refId": "A"
         }
@@ -235,7 +235,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "{job=\"docker_containers\", service=~\"$container\"} | json | record_level_name=~\"(ERROR|CRITICAL)\"",
+          "expr": "{job=\"docker_containers\", service=~\"$container\"} | logfmt | record_level_name=~\"(ERROR|CRITICAL)\"",
           "legendFormat": "",
           "refId": "A"
         }
@@ -267,7 +267,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "{job=\"docker_containers\", service=~\"$container\"}",
+          "expr": "{job=\"docker_containers\", service=~\"$service\"} | logfmt",
           "legendFormat": "",
           "refId": "A"
         }
