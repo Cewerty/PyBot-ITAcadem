@@ -34,7 +34,7 @@ loki.source.docker "default" {
   host       = "unix:///var/run/docker.sock"
   targets    = discovery.relabel.docker_service.output
   labels     = {
-    "job" = "docker_containers"
+    "job" = "docker_containers",
   }
   forward_to = [loki.write.local.receiver]
 }
