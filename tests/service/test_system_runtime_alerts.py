@@ -61,7 +61,8 @@ async def test_runtime_alerts_service_dispatches_startup_via_notification_facade
     settings_obj.runtime_alerts_enabled = True
     settings_obj.runtime_alerts_chat_id = 123456789
     settings_obj.bot_mode = "prod"
-    settings_obj.health_api_enabled = True
+    settings_obj.health_api_enabled = False
+    settings_obj.health_api_orchestration_enabled = True
 
     await service.notify_startup()
 
@@ -73,6 +74,28 @@ async def test_runtime_alerts_service_dispatches_startup_via_notification_facade
     assert "Mode: prod" in notify_dto.message
     assert "Health API: enabled" in notify_dto.message
     assert notification_port.message_calls == []
+
+
+@pytest.mark.asyncio
+async def test_runtime_alerts_service_falls_back_to_runtime_health_flag_outside_compose(
+    settings_obj: BotSettings,
+) -> None:
+    startup_facade = NotificationFacadeSpy()
+    notification_port = NotificationPortSpy()
+    service = SystemRuntimeAlertsService(startup_facade, notification_port, settings_obj)
+
+    settings_obj.runtime_alerts_enabled = True
+    settings_obj.runtime_alerts_chat_id = 123456789
+    settings_obj.bot_mode = "test"
+    settings_obj.health_api_enabled = True
+    settings_obj.health_api_orchestration_enabled = None
+
+    await service.notify_startup()
+
+    assert len(startup_facade.calls) == 1
+    notify_dto = startup_facade.calls[0]
+    assert "Mode: test" in notify_dto.message
+    assert "Health API: enabled" in notify_dto.message
 
 
 @pytest.mark.asyncio

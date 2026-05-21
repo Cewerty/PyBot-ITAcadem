@@ -5,12 +5,29 @@ is alive.
 """
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter
+from fastapi import APIRouter, Response
 
 from .....dto.health_dto import HealthStatusDTO
 from .....services.health import HealthService
 
 router = APIRouter(route_class=DishkaRoute)
+
+
+@router.head(
+    "/",
+    status_code=200,
+    tags=["health"],
+    summary="Liveness probe for HEAD monitors",
+    description="Returns an empty OK response for external monitors that use HEAD requests.",
+    responses={
+        200: {
+            "description": "Process is alive.",
+        },
+    },
+)
+async def health_head() -> Response:
+    """Return empty liveness response for HEAD-only external monitors."""
+    return Response(status_code=200)
 
 
 @router.get(

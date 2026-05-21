@@ -130,6 +130,17 @@ def test_create_app_health_endpoint_smoke(monkeypatch: pytest.MonkeyPatch) -> No
     assert "timestamp" in payload
 
 
+def test_create_app_health_head_endpoint_smoke(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Smoke-check HEAD /health for external monitors that do not send GET."""
+    app = create_test_app(monkeypatch, StubHealthService(is_ready=True))
+
+    with TestClient(app) as client:
+        response = client.head("/")
+
+    assert response.status_code == 200
+    assert response.content == b""
+
+
 @pytest.mark.parametrize(
     ("is_ready", "expected_status_code", "expected_status"),
     [

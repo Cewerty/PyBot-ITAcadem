@@ -223,6 +223,15 @@ class BotSettings(BaseSettings):
         alias="HEALTH_API_ENABLED",
         description="Enable separate FastAPI health endpoints process",
     )
+    health_api_orchestration_enabled: bool | None = Field(
+        None,
+        alias="HEALTH_API_ORCHESTRATION_ENABLED",
+        description=(
+            "Original orchestration flag for the dedicated health process. "
+            "Used by bot-side notifications when the bot runtime overrides HEALTH_API_ENABLED=false "
+            "to prevent accidental in-process startup."
+        ),
+    )
     health_api_host: str = Field(
         "localhost",
         alias="HEALTH_API_HOST",
@@ -277,6 +286,13 @@ class BotSettings(BaseSettings):
         if self.bot_mode == "prod":
             return self.bot_token
         return self.bot_token_test
+
+    @property
+    def runtime_alerts_health_api_enabled(self: Self) -> bool:
+        """Return the health-process status that should be reported in bot runtime alerts."""
+        if self.health_api_orchestration_enabled is not None:
+            return self.health_api_orchestration_enabled
+        return self.health_api_enabled
 
     @field_validator("debug", mode="before")
     @classmethod

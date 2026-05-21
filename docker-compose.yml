@@ -23,7 +23,12 @@ x-app-service: &app-service
 services:
   bot:
     <<: *app-service
-    command: ["sh", "-c", "HEALTH_API_ENABLED=false exec python run.py"]
+    command:
+      [
+        "sh",
+        "-c",
+        "HEALTH_API_ORCHESTRATION_ENABLED=${HEALTH_API_ENABLED:-false} HEALTH_API_ENABLED=false exec python run.py",
+      ]
 
   health:
     <<: *app-base

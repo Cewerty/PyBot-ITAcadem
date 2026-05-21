@@ -43,7 +43,7 @@ class SystemRuntimeAlertsService:
 
         message = runtime_startup_notification(
             bot_mode=self._settings.bot_mode,
-            health_api_enabled=self._settings.health_api_enabled,
+            health_api_enabled=self._settings.runtime_alerts_health_api_enabled,
         )
         await self._notification_facade.notify_user(
             NotifyUserDTO(
