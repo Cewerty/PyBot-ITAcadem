@@ -295,7 +295,7 @@
         "datasource": { "type": "loki", "uid": "${datasource}" },
         "definition": "label_values(service)",
         "hide": 0,
-        "includeAll": true,
+        "includeAll": false,
         "label": "Сервис",
         "multi": true,
         "name": "service",
