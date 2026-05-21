@@ -9,6 +9,7 @@ x-app-base: &app-base
     TELEGRAM_PROXY_URL: ${TELEGRAM_PROXY_URL:-}
     FSM_STORAGE_BACKEND: ${FSM_STORAGE_BACKEND:-redis}
     REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    LOG_FORMAT: json
   volumes:
     - pybot_data:/app/data
   logging:

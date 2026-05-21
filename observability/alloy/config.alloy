@@ -28,6 +28,22 @@ discovery.relabel "docker_service" {
     source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
     target_label  = "app"
   }
+
+  rule {
+    action        = "replace"
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    regex         = "bot|health|taskiq-worker|taskiq-scheduler|migrate|seed"
+    replacement   = "json"
+    target_label  = "log_format"
+  }
+
+  rule {
+    action        = "replace"
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    regex         = "redis|loki|alloy|grafana|nginx"
+    replacement   = "text"
+    target_label  = "log_format"
+  }
 }
 
 loki.source.docker "default" {
