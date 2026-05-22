@@ -109,9 +109,78 @@ That means:
 - Redis stays internal to the Docker network
 - the bot does not reserve any host port
 - the health API process itself stays internal and is exposed only through the reverse proxy when the `health` profile is enabled
-- the current production entrypoint is the `nginx` service, which publishes `${NGINX_PORT:-8080}:80`
+- the current production entrypoint is the `nginx` service, which publishes `${NGINX_PORT:-80}:80` and `443:443`
 
 Production services also use strict Docker log rotation limits to reduce disk growth on shared servers.
+
+## HTTPS Observability Endpoint
+
+Production observability is served through Nginx on:
+
+- `https://monitoring.probochka-corp.ru/grafana/`
+- `https://monitoring.probochka-corp.ru/health/`
+
+The expected DNS record is:
+
+```text
+monitoring.probochka-corp.ru A 31.163.204.186
+```
+
+The TLS certificate is managed by Certbot on the host, not by the application container. Certificate files must stay on the server under `/etc/letsencrypt` and must never be copied into the repository, logs, fixtures, or GitHub Secrets.
+
+Before deploying the TLS-enabled Nginx config for the first time, issue the initial certificate on the server while port `80` is free:
+
+```bash
+sudo certbot certonly --standalone \
+  -d monitoring.probochka-corp.ru \
+  --agree-tos \
+  -m <ops-email> \
+  --no-eff-email
+sudo mkdir -p /var/www/certbot
+```
+
+After the first deploy, switch renewal to the mounted webroot and verify renewal:
+
+```bash
+sudo certbot certonly --webroot \
+  -w /var/www/certbot \
+  -d monitoring.probochka-corp.ru \
+  --cert-name monitoring.probochka-corp.ru \
+  --force-renewal
+sudo systemctl enable --now certbot.timer
+sudo certbot renew --dry-run
+```
+
+Install a Certbot deploy hook so renewed certificates are picked up by the running Nginx container:
+
+```bash
+sudo tee /etc/letsencrypt/renewal-hooks/deploy/reload-pybot-nginx.sh >/dev/null <<'SH'
+#!/bin/sh
+set -eu
+cd /home/ilya/pybot
+docker compose -f docker-compose.prod.yml exec -T nginx nginx -s reload
+SH
+sudo chmod 0755 /etc/letsencrypt/renewal-hooks/deploy/reload-pybot-nginx.sh
+```
+
+The deployed production `.env` should include:
+
+```env
+PUBLIC_DOMAIN=monitoring.probochka-corp.ru
+NGINX_PORT=80
+HEALTH_API_ENABLED=true
+```
+
+Post-deploy smoke checks for the HTTPS entrypoint:
+
+```bash
+docker compose -f docker-compose.prod.yml exec nginx nginx -t
+curl -I http://monitoring.probochka-corp.ru/health/
+curl -I https://monitoring.probochka-corp.ru/health/
+curl -I https://monitoring.probochka-corp.ru/grafana/
+```
+
+Expected results: HTTP redirects to HTTPS, `/health/` returns `200`, Grafana returns a successful response or redirect under `/grafana/`.
 
 ## Safety for Shared Servers
 
@@ -178,8 +247,10 @@ At minimum, set:
 - `REDIS_URL=redis://redis:6379/0`
 - `AUTO_SEED_DB=false`
 - `LOG_LEVEL=INFO`
-- `HEALTH_API_ENABLED=false`
+- `HEALTH_API_ENABLED=true`
 - `TASKIQ_WORKERS=1`
+- `PUBLIC_DOMAIN=monitoring.probochka-corp.ru`
+- `NGINX_PORT=80`
 - `LEADERBOARD_WEEKLY_RETRY_ENABLED=true`
 - `LEADERBOARD_WEEKLY_RETRY_MAX_RETRIES=3`
 - `LEADERBOARD_WEEKLY_RETRY_DELAY_S=30`
