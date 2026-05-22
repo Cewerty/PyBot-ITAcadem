@@ -18,7 +18,7 @@ The CI workflow also validates the Docker build, both Compose manifests, and the
 4. GitHub Actions builds a Docker image and pushes it to GHCR.
 5. GitHub Actions runs Ansible against the target server.
 6. Ansible copies `docker-compose.prod.yml` and `.env` into the deploy user's workspace, runs the one-shot `migrate` process, optionally runs the one-shot `seed` process, and only then starts the runtime services.
-7. Ansible runs a post-deploy smoke-check: it verifies the core containers are running and, when enabled, probes the health API readiness endpoint from inside the health container.
+7. Ansible runs a lightweight post-deploy smoke-check: it verifies that the core runtime services appear in `docker compose ps` and waits for Redis health when a healthcheck is present.
 
 ## Manual redeploy
 
@@ -102,13 +102,14 @@ When SQLite is used in production, the backup step now derives the backup target
 
 ## Notes about ports
 
-`docker-compose.prod.yml` does not publish any host ports.
+`docker-compose.prod.yml` does publish host ports only for the reverse-proxy entrypoint.
 
 That means:
 
 - Redis stays internal to the Docker network
 - the bot does not reserve any host port
-- health API will also stay internal unless you explicitly add a `ports` mapping later
+- the health API process itself stays internal and is exposed only through the reverse proxy when the `health` profile is enabled
+- the current production entrypoint is the `nginx` service, which publishes `${NGINX_PORT:-8080}:80`
 
 Production services also use strict Docker log rotation limits to reduce disk growth on shared servers.
 
@@ -126,12 +127,15 @@ This separation is meant to reduce the risk of affecting unrelated projects host
 
 The deploy role performs a lightweight smoke-check after `docker compose up -d`:
 
-- verifies that `pybot-bot`, `pybot-taskiq-worker`, `pybot-taskiq-scheduler`, and `pybot-redis` are running;
-- if `HEALTH_API_ENABLED=true`, also verifies that `pybot-health` is running;
-- waits for Redis health to become `healthy` when a healthcheck exists;
-- if `HEALTH_API_ENABLED=true`, calls `GET /ready` from inside the health container.
+- verifies that the core process types (`bot`, `taskiq-worker`, `taskiq-scheduler`, `redis`) appear in `docker compose ps`;
+- waits for Redis health to become `healthy` when a healthcheck exists.
 
-This complements CI tests by validating the deployed runtime on the real server instead of rerunning the same test suite.
+At the moment, the deploy role does **not** yet:
+
+- assert that `pybot-health` is present when `HEALTH_API_ENABLED=true`;
+- call `GET /ready` from inside the health container.
+
+This still complements CI by validating the deployed runtime on the real server instead of rerunning the same test suite, but readiness probing remains a useful next hardening step.
 
 ## Health profile
 
