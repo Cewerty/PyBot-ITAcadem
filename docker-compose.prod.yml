@@ -114,11 +114,8 @@ services:
     restart: unless-stopped
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD must be set}
-      # TODO: Replace 'localhost' with the real domain name when one is configured.
-      # Currently routes Grafana sub-path correctly for IP-only access.
-      # When a domain is added, update to: http://your-domain.com/grafana/
-      - GF_SERVER_DOMAIN=${PUBLIC_DOMAIN:-localhost}
-      - GF_SERVER_ROOT_URL=http://${PUBLIC_DOMAIN:-localhost}:${NGINX_PORT:-8080}/grafana/
+      - GF_SERVER_DOMAIN=${PUBLIC_DOMAIN:-monitoring.probochka-corp.ru}
+      - GF_SERVER_ROOT_URL=https://${PUBLIC_DOMAIN:-monitoring.probochka-corp.ru}/grafana/
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
     volumes:
       - grafana_data:/var/lib/grafana
@@ -135,9 +132,12 @@ services:
     image: nginx:alpine
     restart: unless-stopped
     ports:
-      - "${NGINX_PORT:-8080}:80"
+      - "${NGINX_PORT:-80}:80"
+      - "443:443"
     volumes:
       - ./observability/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
     depends_on:
       - grafana
     logging:
