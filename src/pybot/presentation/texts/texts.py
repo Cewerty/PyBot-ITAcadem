@@ -12,6 +12,9 @@ from ...dto.leaderboard_dto import LeaderboardPeriod
 from ...dto.value_objects import Points
 from ...utils import telegram_user_link
 
+# TODO: Разбить модуль на более узкие срезы: базовые константы, тексты feature-модулей,
+# форматтеры/рендеринг и, где это действительно уместно, model-centric представления.
+# Сейчас texts.py стал монолитом и уже плохо масштабируется как единая точка для всего текстового слоя.
 REPOSITORY_URL = "https://github.com/NikkiShuRA/PyBot-ITAcadem.git"
 AVAILABLE_ROLES = ", ".join(role.value for role in RoleEnum)
 

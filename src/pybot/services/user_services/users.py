@@ -54,6 +54,8 @@ class UserService:
         Returns:
             UserReadDTO: DTO созданного пользователя.
         """
+        # TODO: Сконсолидировать общий registration flow с UserRegistrationService.register_student().
+        # Сейчас базовая логика начальных уровней, роли Student и auto-admin дублируется в двух use-case сервисах.
         initial_levels = await self.level_repository.find_initial_levels(self.db)
 
         if not initial_levels:

@@ -65,6 +65,8 @@ class UserRegistrationService:
         Returns:
             UserReadDTO: DTO зарегистрированного пользователя.
         """
+        # TODO: Выделить единый canonical registration flow вместе с UserService.register_student().
+        # Отличия по компетенциям не отменяют того, что core registration orchestration сейчас дублируется.
         initial_levels = await self.level_repository.find_initial_levels(self.db)
 
         if not initial_levels:
