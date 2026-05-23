@@ -109,13 +109,14 @@ That means:
 - Redis stays internal to the Docker network
 - the bot does not reserve any host port
 - the health API process itself stays internal and is exposed only through the reverse proxy when the `health` profile is enabled
-- the current production entrypoint is the `nginx` service, which publishes `${NGINX_PORT:-80}:80` and `443:443`
+- the current production Compose entrypoint is the `nginx` service, which binds `${NGINX_BIND_HOST:-127.0.0.1}:${NGINX_PORT:-8088}:80`
+- public `80/443` are owned by the host Nginx on the shared server
 
 Production services also use strict Docker log rotation limits to reduce disk growth on shared servers.
 
 ## HTTPS Observability Endpoint
 
-Production observability is served through Nginx on:
+Production observability is served through the shared host Nginx on:
 
 - `https://monitoring.probochka-corp.ru/grafana/`
 - `https://monitoring.probochka-corp.ru/health/`
@@ -126,61 +127,119 @@ The expected DNS record is:
 monitoring.probochka-corp.ru A 31.163.204.186
 ```
 
-The TLS certificate is managed by Certbot on the host, not by the application container. Certificate files must stay on the server under `/etc/letsencrypt` and must never be copied into the repository, logs, fixtures, or GitHub Secrets.
+The runtime path is:
 
-Before deploying the TLS-enabled Nginx config for the first time, issue the initial certificate on the server while port `80` is free:
-
-```bash
-sudo certbot certonly --standalone \
-  -d monitoring.probochka-corp.ru \
-  --agree-tos \
-  -m <ops-email> \
-  --no-eff-email
-sudo mkdir -p /var/www/certbot
+```text
+Internet -> host nginx :443 -> http://127.0.0.1:8088 -> compose nginx -> grafana/health
 ```
 
-After the first deploy, switch renewal to the mounted webroot and verify renewal:
+The TLS certificate is managed by Certbot on the host, not by the application container. Certificate files must stay on the server under `/etc/letsencrypt` and must never be copied into the repository, logs, fixtures, Docker images, or GitHub Secrets.
 
-```bash
-sudo certbot certonly --webroot \
-  -w /var/www/certbot \
-  -d monitoring.probochka-corp.ru \
-  --cert-name monitoring.probochka-corp.ru \
-  --force-renewal
-sudo systemctl enable --now certbot.timer
-sudo certbot renew --dry-run
-```
-
-Install a Certbot deploy hook so renewed certificates are picked up by the running Nginx container:
-
-```bash
-sudo tee /etc/letsencrypt/renewal-hooks/deploy/reload-pybot-nginx.sh >/dev/null <<'SH'
-#!/bin/sh
-set -eu
-cd /home/ilya/pybot
-docker compose -f docker-compose.prod.yml exec -T nginx nginx -s reload
-SH
-sudo chmod 0755 /etc/letsencrypt/renewal-hooks/deploy/reload-pybot-nginx.sh
-```
+The Compose Nginx is an internal HTTP upstream. It must not publish public `80/443` on a shared host.
 
 The deployed production `.env` should include:
 
 ```env
 PUBLIC_DOMAIN=monitoring.probochka-corp.ru
-NGINX_PORT=80
+NGINX_BIND_HOST=127.0.0.1
+NGINX_PORT=8088
 HEALTH_API_ENABLED=true
 ```
 
-Post-deploy smoke checks for the HTTPS entrypoint:
+Create the Certbot webroot on the server:
 
 ```bash
+sudo mkdir -p /var/www/certbot
+```
+
+Install the host Nginx site for `monitoring.probochka-corp.ru`. If the certificate does not exist yet, enable only the `listen 80` server block first, run `sudo nginx -t`, and reload host Nginx.
+
+```nginx
+server {
+    listen 80;
+    server_name monitoring.probochka-corp.ru;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name monitoring.probochka-corp.ru;
+
+    ssl_certificate /etc/letsencrypt/live/monitoring.probochka-corp.ru/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/monitoring.probochka-corp.ru/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8088;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
+```
+
+Issue or refresh the certificate through the host Nginx webroot. Do not use `--standalone` on this shared host because host Nginx already owns port `80`.
+
+```bash
+sudo certbot certonly --webroot \
+  -w /var/www/certbot \
+  -d monitoring.probochka-corp.ru \
+  --cert-name monitoring.probochka-corp.ru
+sudo systemctl enable --now certbot.timer
+sudo certbot renew --dry-run
+```
+
+After the certificate exists, enable the `listen 443 ssl` server block, then validate and reload host Nginx:
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+Install a Certbot deploy hook so renewed certificates are picked up by host Nginx:
+
+```bash
+sudo tee /etc/letsencrypt/renewal-hooks/deploy/reload-pybot-nginx.sh >/dev/null <<'SH'
+#!/bin/sh
+set -eu
+systemctl reload nginx
+SH
+sudo chmod 0755 /etc/letsencrypt/renewal-hooks/deploy/reload-pybot-nginx.sh
+```
+
+Post-deploy smoke checks:
+
+```bash
+sudo nginx -t
+docker compose -f docker-compose.prod.yml ps
 docker compose -f docker-compose.prod.yml exec nginx nginx -t
+curl -I http://127.0.0.1:8088/health/
+curl -I http://127.0.0.1:8088/grafana/
 curl -I http://monitoring.probochka-corp.ru/health/
 curl -I https://monitoring.probochka-corp.ru/health/
 curl -I https://monitoring.probochka-corp.ru/grafana/
 ```
 
-Expected results: HTTP redirects to HTTPS, `/health/` returns `200`, Grafana returns a successful response or redirect under `/grafana/`.
+Expected results: internal `127.0.0.1:8088` health returns `200` when `HEALTH_API_ENABLED=true`, internal Grafana returns a successful response or redirect, public HTTP redirects to HTTPS, public `/health/` returns `200`, and public Grafana returns a successful response or redirect under `/grafana/`.
+
+To inspect the certificate served by host Nginx:
+
+```bash
+echo | openssl s_client \
+  -connect monitoring.probochka-corp.ru:443 \
+  -servername monitoring.probochka-corp.ru 2>/dev/null \
+  | openssl x509 -noout -subject -issuer -dates -ext subjectAltName
+```
+
+The SAN must contain `DNS:monitoring.probochka-corp.ru`.
 
 ## Safety for Shared Servers
 
@@ -250,7 +309,8 @@ At minimum, set:
 - `HEALTH_API_ENABLED=true`
 - `TASKIQ_WORKERS=1`
 - `PUBLIC_DOMAIN=monitoring.probochka-corp.ru`
-- `NGINX_PORT=80`
+- `NGINX_BIND_HOST=127.0.0.1`
+- `NGINX_PORT=8088`
 - `LEADERBOARD_WEEKLY_RETRY_ENABLED=true`
 - `LEADERBOARD_WEEKLY_RETRY_MAX_RETRIES=3`
 - `LEADERBOARD_WEEKLY_RETRY_DELAY_S=30`
