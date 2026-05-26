@@ -254,6 +254,11 @@ class BotSettings(BaseSettings):
         alias="NGINX_PORT",
         description="Nginx external port (used by docker-compose, not by the bot itself)",
     )
+    nginx_bind_host: str | None = Field(
+        None,
+        alias="NGINX_BIND_HOST",
+        description="Nginx host bind address (used by docker-compose, not by the bot itself)",
+    )
     public_domain: str | None = Field(
         None,
         alias="PUBLIC_DOMAIN",
