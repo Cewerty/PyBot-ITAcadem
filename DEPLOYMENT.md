@@ -9,6 +9,7 @@ This repository now includes a production deployment skeleton that extends the e
 - `ansible/` with a minimal bootstrap/deploy playbook and roles
 
 The CI workflow also validates the Docker build, both Compose manifests, and the `fill_point_db.py` CLI help entrypoint before code reaches production deploy.
+The deploy workflow additionally fails fast if the checked-out production artifacts (`docker-compose.prod.yml`, `observability/`), the critical deploy secrets, or the `PROD_ENV_FILE` keys required by deploy/Compose (`DATABASE_URL`, `GRAFANA_ADMIN_PASSWORD`) are missing.
 
 ## Deployment flow
 
@@ -77,6 +78,8 @@ Optional secrets:
 - `GHCR_DEPLOY_USERNAME` - username for pulling private GHCR images on the server
 - `GHCR_DEPLOY_TOKEN` - token for pulling private GHCR images on the server
 - `RUN_SEED_ON_DEPLOY` - set to `true` only for the initial deploy when you need to run `fill_point_db.py`
+
+If you use `GHCR_DEPLOY_USERNAME` or `GHCR_DEPLOY_TOKEN`, provide both together. The deploy workflow validates that pair explicitly before running Ansible.
 
 ## Expected server shape
 

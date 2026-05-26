@@ -49,7 +49,7 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.event.workflow_run.head_sha }}
 
-      - name: Validate required deploy secrets
+      - name: Validate required deploy secrets and workflow artifacts
         run: |
           set -eu
           for var in DEPLOY_HOST DEPLOY_USER DEPLOY_KNOWN_HOSTS PROD_ENV_FILE; do
@@ -62,6 +62,26 @@ jobs:
             echo "Missing required secret: DEPLOY_SSH_KEY" >&2
             exit 1
           fi
+          if [ ! -f "$GITHUB_WORKSPACE/docker-compose.prod.yml" ]; then
+            echo "Missing required workflow artifact: docker-compose.prod.yml" >&2
+            exit 1
+          fi
+          if [ ! -d "$GITHUB_WORKSPACE/observability" ]; then
+            echo "Missing required workflow artifact: observability/" >&2
+            exit 1
+          fi
+          if { [ -n "${GHCR_DEPLOY_USERNAME:-}" ] && [ -z "${GHCR_DEPLOY_TOKEN:-}" ]; } || \
+             { [ -z "${GHCR_DEPLOY_USERNAME:-}" ] && [ -n "${GHCR_DEPLOY_TOKEN:-}" ]; }; then
+            echo "GHCR_DEPLOY_USERNAME and GHCR_DEPLOY_TOKEN must be provided together." >&2
+            exit 1
+          fi
+          printf '%s\n' "$PROD_ENV_FILE" > "$RUNNER_TEMP/prod.env.validation"
+          for key in DATABASE_URL GRAFANA_ADMIN_PASSWORD; do
+            if ! grep -q "^${key}=" "$RUNNER_TEMP/prod.env.validation"; then
+              echo "PROD_ENV_FILE must contain ${key}=..." >&2
+              exit 1
+            fi
+          done
 
       - name: Prepare deployment metadata
         id: prep

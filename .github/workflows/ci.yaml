@@ -24,21 +24,8 @@ jobs:
       - name: Prepare CI .env for compose validation
         run: |
           cat > .env <<'EOF'
-          BOT_TOKEN=123456:CI_TEST_BOT_TOKEN
-          BOT_TOKEN_TEST=123456:CI_TEST_BOT_TOKEN
-          BOT_MODE=test
-          ROLE_REQUEST_ADMIN_TG_ID=1
-          AUTO_ADMIN_TELEGRAM_IDS=[1]
-          DATABASE_URL=sqlite+aiosqlite:///./data/pybot_itacadem.db
-          AUTO_SEED_DB=false
-          FSM_STORAGE_BACKEND=redis
-          REDIS_URL=redis://redis:6379/0
-          LOG_LEVEL=INFO
-          DEBUG=false
-          HEALTH_API_ENABLED=false
           APP_IMAGE=ghcr.io/example/pybot:test
           GRAFANA_ADMIN_PASSWORD=dummy
-          TASKIQ_WORKERS=1
           EOF
 
       - name: Build Docker image
