@@ -222,13 +222,14 @@ sudo nginx -t
 docker compose -f docker-compose.prod.yml ps
 docker compose -f docker-compose.prod.yml exec nginx nginx -t
 curl -I http://127.0.0.1:8088/health/
+curl -i http://127.0.0.1:8088/health/ready
 curl -I http://127.0.0.1:8088/grafana/
 curl -I http://monitoring.probochka-corp.ru/health/
 curl -I https://monitoring.probochka-corp.ru/health/
 curl -I https://monitoring.probochka-corp.ru/grafana/
 ```
 
-Expected results: internal `127.0.0.1:8088` health returns `200` when `HEALTH_API_ENABLED=true`, internal Grafana returns a successful response or redirect, public HTTP redirects to HTTPS, public `/health/` returns `200`, and public Grafana returns a successful response or redirect under `/grafana/`.
+Expected results: internal `127.0.0.1:8088` health returns `200` when `HEALTH_API_ENABLED=true`, internal `/health/ready` returns `200` once the service is ready, internal Grafana returns a successful response or redirect, public HTTP redirects to HTTPS, public `/health/` returns `200`, and public Grafana returns a successful response or redirect under `/grafana/`.
 
 To inspect the certificate served by host Nginx:
 
@@ -253,17 +254,48 @@ This separation is meant to reduce the risk of affecting unrelated projects host
 
 ## Post-Deploy Smoke Check
 
-The deploy role performs a lightweight smoke-check after `docker compose up -d`:
+The deploy role performs a lightweight smoke-check after `docker compose up -d`, grouped as a dedicated post-deploy block in the deploy role:
 
 - verifies that the core process types (`bot`, `taskiq-worker`, `taskiq-scheduler`, `redis`) appear in `docker compose ps`;
-- waits for Redis health to become `healthy` when a healthcheck exists.
+- waits for Redis health to become `healthy` when a healthcheck exists;
+- when `HEALTH_API_ENABLED=true`, asserts that the `health` service appears in `docker compose ps`;
+- when `HEALTH_API_ENABLED=true`, calls `GET http://127.0.0.1:8088/health/ready` through the production Compose Nginx path and fails the deploy unless it reaches `200`.
 
-At the moment, the deploy role does **not** yet:
+This complements CI by validating the deployed runtime on the real server instead of rerunning the same test suite, and it adds a real readiness gate for the production health profile.
 
-- assert that `pybot-health` is present when `HEALTH_API_ENABLED=true`;
-- call `GET /ready` from inside the health container.
+## Operator Release Runbook
 
-This still complements CI by validating the deployed runtime on the real server instead of rerunning the same test suite, but readiness probing remains a useful next hardening step.
+Use this short runbook after a manual deploy, failed CD run, or AI-assisted problem-solving session. Run it from the deploy path on the server:
+
+```bash
+cd /home/ilya/pybot
+docker compose -f docker-compose.prod.yml ps
+docker compose -f docker-compose.prod.yml logs --tail=80 bot taskiq-worker taskiq-scheduler health nginx grafana
+docker compose -f docker-compose.prod.yml exec nginx nginx -t
+curl -I http://127.0.0.1:8088/health/
+curl -i http://127.0.0.1:8088/health/ready
+curl -I http://127.0.0.1:8088/grafana/
+```
+
+A release is healthy when the core services are `Up`, Redis is `healthy`, `nginx -t` succeeds, `/health/` returns `200`, `/health/ready` returns `200`, and `/grafana/` returns a successful Grafana response or redirect.
+
+For the public observability endpoint, verify the host Nginx layer separately:
+
+```bash
+sudo nginx -t
+curl -Iv --connect-timeout 5 --max-time 15 --resolve monitoring.probochka-corp.ru:4443:127.0.0.1 https://monitoring.probochka-corp.ru:4443/health/
+curl -Iv --connect-timeout 5 --max-time 15 --resolve monitoring.probochka-corp.ru:4443:127.0.0.1 https://monitoring.probochka-corp.ru:4443/grafana/
+```
+
+Treat the public endpoint as healthy when the certificate is issued for `monitoring.probochka-corp.ru`, `/health/` returns `200`, and `/grafana/` returns a Grafana response or redirect. A timeout from the server to `https://monitoring.probochka-corp.ru/...` can be a hairpin routing limitation; prefer the `--resolve ...:4443:127.0.0.1` checks from the host and an external browser or monitoring check for the real public path.
+
+If a smoke-check fails, do not restart everything blindly. First identify the failing layer:
+
+- Compose service missing or restarting: inspect `docker compose -f docker-compose.prod.yml logs --tail=200 <service>` and fix that service before checking Nginx.
+- Internal `127.0.0.1:8088` health or Grafana fails: check `pybot-nginx`, `health`, and `grafana` containers and their logs.
+- Internal checks pass but public checks fail: inspect host Nginx with `sudo nginx -T`, `sudo nginx -t`, and `/var/log/nginx/error.log`.
+- Certificate warning: inspect the served certificate and confirm the SAN contains `DNS:monitoring.probochka-corp.ru`; then check browser cache only after server-side TLS is confirmed.
+- CD smoke-check fails after a new image: prefer redeploying the previous known-good image tag or rerunning the last successful workflow after the root cause is fixed.
 
 ## Health profile
 

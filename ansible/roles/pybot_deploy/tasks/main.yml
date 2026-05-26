@@ -140,7 +140,7 @@
     APP_IMAGE: "{{ image_repository }}:{{ image_tag }}"
   when: run_seed_on_deploy | default(false) | bool
 
-- name: Read health API toggle from deployed environment file
+- name: Read health API toggle for production compose profile
   ansible.builtin.shell: |
     set -eu
     value="$(grep '^HEALTH_API_ENABLED=' .env | cut -d= -f2- || true)"
@@ -154,26 +154,6 @@
     executable: /bin/sh
   register: health_api_enabled_value
   changed_when: false
-
-- name: Read health API port from deployed environment file
-  ansible.builtin.shell: |
-    set -eu
-    value="$(grep '^HEALTH_API_PORT=' .env | cut -d= -f2- || true)"
-    if [ -z "$value" ]; then
-      echo "8001"
-    else
-      printf '%s\n' "$value"
-    fi
-  args:
-    chdir: "{{ deploy_path }}"
-    executable: /bin/sh
-  register: health_api_port_value
-  changed_when: false
-
-- name: Build optional health profile CLI argument
-  ansible.builtin.set_fact:
-    health_profile_cli_arg: >-
-      {{ '--profile health' if health_api_enabled_value.stdout | trim | lower in ['1', 'true', 'yes', 'on'] else '' }}
 
 - name: Stop existing production compose before redeploy
   ansible.builtin.command:
@@ -205,38 +185,123 @@
   environment:
     APP_IMAGE: "{{ image_repository }}:{{ image_tag }}"
 
-- name: Show compose status after deploy
-  ansible.builtin.command:
-    cmd: docker compose -f docker-compose.prod.yml ps
-    chdir: "{{ deploy_path }}"
-  environment:
-    APP_IMAGE: "{{ image_repository }}:{{ image_tag }}"
-  changed_when: false
+- name: Run post-deploy smoke checks
+  block:
+    - name: Read smoke-check health API toggle from deployed environment file
+      ansible.builtin.shell: |
+        set -eu
+        value="$(grep '^HEALTH_API_ENABLED=' .env | cut -d= -f2- || true)"
+        if [ -z "$value" ]; then
+          echo "false"
+        else
+          printf '%s\n' "$value"
+        fi
+      args:
+        chdir: "{{ deploy_path }}"
+        executable: /bin/sh
+      register: health_api_enabled_value
+      changed_when: false
 
-- name: Wait for core production services to appear in compose ps
-  ansible.builtin.command:
-    cmd: docker compose -f docker-compose.prod.yml ps
-    chdir: "{{ deploy_path }}"
-  register: compose_ps_result
-  retries: 10
-  delay: 3
-  until: >
-    compose_ps_result.rc == 0 and
-    ('bot' in compose_ps_result.stdout) and
-    ('taskiq-worker' in compose_ps_result.stdout) and
-    ('taskiq-scheduler' in compose_ps_result.stdout) and
-    ('redis' in compose_ps_result.stdout)
-  changed_when: false
-  environment:
-    APP_IMAGE: "{{ image_repository }}:{{ image_tag }}"
+    - name: Read smoke-check Nginx bind host from deployed environment file
+      ansible.builtin.shell: |
+        set -eu
+        value="$(grep '^NGINX_BIND_HOST=' .env | cut -d= -f2- || true)"
+        if [ -z "$value" ]; then
+          echo "127.0.0.1"
+        else
+          printf '%s\n' "$value"
+        fi
+      args:
+        chdir: "{{ deploy_path }}"
+        executable: /bin/sh
+      register: nginx_bind_host_value
+      changed_when: false
 
-- name: Wait for Redis healthcheck to report healthy
-  ansible.builtin.shell: |
-    set -eu
-    cid="$(docker compose -f docker-compose.prod.yml ps -q redis)"
-    [ -n "$cid" ]
-    health="$(docker inspect -f '{{ "{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}" }}' "$cid")"
-    [ "$health" = "healthy" ] || [ "$health" = "none" ]
-  args:
-    chdir: "{{ deploy_path }}"
-    executable: /bin/sh
+    - name: Read smoke-check Nginx port from deployed environment file
+      ansible.builtin.shell: |
+        set -eu
+        value="$(grep '^NGINX_PORT=' .env | cut -d= -f2- || true)"
+        if [ -z "$value" ]; then
+          echo "8088"
+        else
+          printf '%s\n' "$value"
+        fi
+      args:
+        chdir: "{{ deploy_path }}"
+        executable: /bin/sh
+      register: nginx_port_value
+      changed_when: false
+
+    - name: Show compose status after deploy
+      ansible.builtin.command:
+        cmd: docker compose -f docker-compose.prod.yml ps
+        chdir: "{{ deploy_path }}"
+      environment:
+        APP_IMAGE: "{{ image_repository }}:{{ image_tag }}"
+      changed_when: false
+
+    - name: Wait for core production services to appear in compose ps
+      ansible.builtin.command:
+        cmd: docker compose -f docker-compose.prod.yml ps
+        chdir: "{{ deploy_path }}"
+      register: compose_ps_result
+      retries: 10
+      delay: 3
+      until: >
+        compose_ps_result.rc == 0 and
+        ('bot' in compose_ps_result.stdout) and
+        ('taskiq-worker' in compose_ps_result.stdout) and
+        ('taskiq-scheduler' in compose_ps_result.stdout) and
+        ('redis' in compose_ps_result.stdout)
+      changed_when: false
+      environment:
+        APP_IMAGE: "{{ image_repository }}:{{ image_tag }}"
+
+    - name: Wait for Redis healthcheck to report healthy
+      ansible.builtin.shell: |
+        set -eu
+        cid="$(docker compose -f docker-compose.prod.yml ps -q redis)"
+        [ -n "$cid" ]
+        health="$(docker inspect -f '{{ "{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}" }}' "$cid")"
+        [ "$health" = "healthy" ] || [ "$health" = "none" ]
+      args:
+        chdir: "{{ deploy_path }}"
+        executable: /bin/sh
+      retries: 10
+      delay: 3
+      changed_when: false
+
+    - name: Wait for health service to appear in compose ps
+      ansible.builtin.command:
+        cmd: docker compose -f docker-compose.prod.yml ps
+        chdir: "{{ deploy_path }}"
+      register: health_compose_ps_result
+      retries: 10
+      delay: 3
+      until: >
+        health_compose_ps_result.rc == 0 and
+        ('health' in health_compose_ps_result.stdout)
+      changed_when: false
+      environment:
+        APP_IMAGE: "{{ image_repository }}:{{ image_tag }}"
+      when: health_api_enabled_value.stdout | trim | lower in ['1', 'true', 'yes', 'on']
+
+    - name: Probe readiness endpoint until it returns 200
+      ansible.builtin.uri:
+        url: >-
+          http://{{ nginx_bind_host_value.stdout | trim }}:{{ nginx_port_value.stdout | trim }}/health/ready
+        method: GET
+        status_code:
+          - 200
+          - 503
+        return_content: true
+        timeout: 5
+      register: readiness_probe_result
+      retries: 20
+      delay: 3
+      until: >
+        readiness_probe_result is not failed and
+        readiness_probe_result.status == 200
+      failed_when: false
+      changed_when: false
+      when: health_api_enabled_value.stdout | trim | lower in ['1', 'true', 'yes', 'on']
