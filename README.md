@@ -1,6 +1,6 @@
 # PyBot ITAcadem
 
-Асинхронный Telegram-бот для ITAcadem на `Python 3.12`, `aiogram 3`, `Dishka`, `SQLAlchemy 2` и `Pydantic v2`.
+Асинхронный Telegram-бот для ITAcadem на `Python 3.14`, `aiogram 3`, `Dishka`, `SQLAlchemy 2` и `Pydantic v2`.
 
 Сейчас проект закрывает не абстрактный "будущий MVP", а вполне конкретный набор сценариев:
 
@@ -91,7 +91,7 @@
 
 ## Технологический стек
 
-- `Python 3.12+`
+- `Python 3.14+`
 - `aiogram 3.22+`
 - `aiogram-dialog 2.4+`
 - `Dishka`
@@ -137,7 +137,7 @@ PyBot_ITAcadem/
 
 ### 1. Требования
 
-- `Python 3.12+`
+- `Python 3.14+`
 - `uv`
 - `just` - желательно, но не обязательно
 - `Redis` - нужен только если вы хотите локально использовать `FSM_STORAGE_BACKEND=redis` или поднимать полный Docker runtime

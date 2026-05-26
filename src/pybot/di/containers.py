@@ -57,7 +57,7 @@ class DatabaseProvider(Provider):
     """Providers for database resources."""
 
     @provide(scope=Scope.APP)
-    async def engine(self, settings: BotSettings) -> AsyncGenerator[AsyncEngine, None]:
+    async def engine(self, settings: BotSettings) -> AsyncGenerator[AsyncEngine]:
         """Provide one SQLAlchemy engine for the whole app lifecycle."""
         engine = create_database_engine(settings.database_url) if global_engine is None else global_engine
         try:
@@ -71,7 +71,7 @@ class SessionProvider(Provider):
     """Provide one DB session per request/update."""
 
     @provide(scope=Scope.REQUEST)
-    async def session(self, engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
+    async def session(self, engine: AsyncEngine) -> AsyncGenerator[AsyncSession]:
         """Create request-scoped async SQLAlchemy session."""
         session_maker = async_sessionmaker(
             bind=engine,
@@ -245,7 +245,7 @@ class RedisProvider(Provider):
     """Provide Redis resources for runtimes that need a direct client."""
 
     @provide(scope=Scope.APP)
-    async def redis_client(self, settings: BotSettings) -> AsyncGenerator[Redis, None]:
+    async def redis_client(self, settings: BotSettings) -> AsyncGenerator[Redis]:
         client = Redis.from_url(
             settings.redis_url,
             encoding="utf-8",
@@ -278,7 +278,7 @@ class BotProvider(Provider):
     """Telegram Bot provider with APP scope."""
 
     @provide(scope=Scope.APP)
-    async def bot(self, settings: BotSettings) -> AsyncGenerator[Bot, None]:
+    async def bot(self, settings: BotSettings) -> AsyncGenerator[Bot]:
         if settings.telegram_proxy_url is not None:
             bot = Bot(
                 settings.active_bot_token,

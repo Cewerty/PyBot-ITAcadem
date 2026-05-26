@@ -52,7 +52,7 @@ docs-serve: # Serve MkDocs documentation locally
     uv run --extra docs mkdocs serve -f docs-project/mkdocs.yml
 
 type-check: # Run type checker (ty)
-    uv run ty check --python=.venv/ --output-format github --target-version 3.12 src/ tests/
+    uv run ty check --python=.venv/ --output-format github --target-version 3.14 src/ tests/
 
 migrate-create msg: # Create Alembic migration: just migrate-create "add new column"
     uv run alembic revision --autogenerate -m "{{msg}}"

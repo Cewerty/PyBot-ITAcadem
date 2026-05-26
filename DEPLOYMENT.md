@@ -17,6 +17,7 @@ The CI workflow also validates the Docker build, both Compose manifests, and the
 3. `CD - Build and Deploy` starts either from `workflow_run` or `workflow_dispatch`.
 4. GitHub Actions builds a Docker image and pushes it to GHCR.
 5. GitHub Actions runs Ansible against the target server.
+   The deploy workflow uses `Python 3.14` on the GitHub-hosted runner as the control-node baseline for Ansible.
 6. Ansible copies `docker-compose.prod.yml` and `.env` into the deploy user's workspace, runs the one-shot `migrate` process, optionally runs the one-shot `seed` process, and only then starts the runtime services.
 7. Ansible runs a lightweight post-deploy smoke-check: it verifies that the core runtime services appear in `docker compose ps` and waits for Redis health when a healthcheck is present.
 

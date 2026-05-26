@@ -1,10 +1,21 @@
 from __future__ import annotations
 
+from typing import Protocol
+
 from sqlalchemy import event
-from sqlalchemy.dialects.sqlite.aiosqlite import AsyncAdapt_aiosqlite_connection
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from sqlalchemy.pool import ConnectionPoolEntry
+
+
+class _SQLiteCursorProtocol(Protocol):
+    def execute(self, statement: str) -> object: ...
+
+    def close(self) -> None: ...
+
+
+class _SQLiteConnectionProtocol(Protocol):
+    def cursor(self) -> _SQLiteCursorProtocol: ...
 
 
 def _is_sqlite_url(database_url: str) -> bool:
@@ -32,7 +43,7 @@ def _attach_sqlite_foreign_keys_pragma(engine: AsyncEngine) -> None:
 
     @event.listens_for(engine.sync_engine, "connect")
     def set_sqlite_pragma(
-        dbapi_connection: AsyncAdapt_aiosqlite_connection,
+        dbapi_connection: _SQLiteConnectionProtocol,
         _connection_record: ConnectionPoolEntry,
     ) -> None:
         cursor = dbapi_connection.cursor()

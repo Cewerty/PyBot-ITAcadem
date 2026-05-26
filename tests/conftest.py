@@ -4,13 +4,13 @@ import os
 import random
 from collections.abc import AsyncGenerator, Generator
 from pathlib import Path
+from typing import Protocol
 
 import pytest
 import pytest_asyncio
 from dishka import AsyncContainer, make_async_container
 from faker import Faker
 from sqlalchemy import event, func, select
-from sqlalchemy.dialects.sqlite.aiosqlite import AsyncAdapt_aiosqlite_connection
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Mapper
@@ -41,8 +41,18 @@ from pybot.presentation.shared.ai_agent import ai_agent
 from tests.providers import TestDatabaseProvider, TestOverridesProvider
 
 
+class _SQLiteCursorProtocol(Protocol):
+    def execute(self, statement: str) -> object: ...
+
+    def close(self) -> None: ...
+
+
+class _SQLiteConnectionProtocol(Protocol):
+    def cursor(self) -> _SQLiteCursorProtocol: ...
+
+
 @pytest.fixture
-def override_ai_agent() -> Generator[TestModel, None, None]:
+def override_ai_agent() -> Generator[TestModel]:
     """Override the AI agent's model with TestModel for deterministic testing."""
     test_model = TestModel()
     with ai_agent.override(model=test_model):
@@ -65,7 +75,7 @@ def assign_sqlite_role_request_id(
 
 
 @pytest.fixture(autouse=True)
-def faker_seed() -> Generator[None, None, None]:
+def faker_seed() -> Generator[None]:
     """Seed all pseudo-random generators for deterministic tests."""
     random.seed(42)
     Faker.seed(42)
@@ -85,7 +95,7 @@ def test_database_url(test_db_path: Path) -> str:
 
 
 @pytest.fixture(autouse=True)
-def settings_obj(test_database_url: str) -> Generator[BotSettings, None, None]:
+def settings_obj(test_database_url: str) -> Generator[BotSettings]:
     """Provide isolated mutable settings for each test case."""
     get_settings.cache_clear()
     runtime_settings = get_settings().model_copy(deep=True)
@@ -105,20 +115,20 @@ def settings_obj(test_database_url: str) -> Generator[BotSettings, None, None]:
 def patch_di_settings_getter(
     monkeypatch: pytest.MonkeyPatch,
     settings_obj: BotSettings,
-) -> Generator[None, None, None]:
+) -> Generator[None]:
     """Route DI settings requests to the per-test settings object."""
     monkeypatch.setattr(di_containers, "get_settings", lambda: settings_obj)
     yield
 
 
 @pytest_asyncio.fixture
-async def test_engine(test_database_url: str) -> AsyncGenerator[AsyncEngine, None]:
+async def test_engine(test_database_url: str) -> AsyncGenerator[AsyncEngine]:
     """Create isolated async SQLAlchemy engine with FK enforcement."""
     engine = create_async_engine(test_database_url, echo=False)
 
     @event.listens_for(engine.sync_engine, "connect")
     def set_sqlite_pragma(
-        dbapi_connection: AsyncAdapt_aiosqlite_connection,
+        dbapi_connection: _SQLiteConnectionProtocol,
         _connection_record: ConnectionPoolEntry,
     ) -> None:
         cursor = dbapi_connection.cursor()
@@ -132,7 +142,7 @@ async def test_engine(test_database_url: str) -> AsyncGenerator[AsyncEngine, Non
 
 
 @pytest_asyncio.fixture
-async def create_schema(test_engine: AsyncEngine) -> AsyncGenerator[None, None]:
+async def create_schema(test_engine: AsyncEngine) -> AsyncGenerator[None]:
     """Create all DB tables before each test and drop them afterwards."""
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -159,7 +169,7 @@ def db_session_maker(
 @pytest_asyncio.fixture
 async def db_session(
     db_session_maker: async_sessionmaker[AsyncSession],
-) -> AsyncGenerator[AsyncSession, None]:
+) -> AsyncGenerator[AsyncSession]:
     """Request-scoped async session with explicit teardown."""
     async with db_session_maker() as session:
         try:
@@ -173,7 +183,7 @@ async def db_session(
 async def dishka_test_container(
     create_schema: None,
     test_engine: AsyncEngine,
-) -> AsyncGenerator[AsyncContainer, None]:
+) -> AsyncGenerator[AsyncContainer]:
     """Build isolated Dishka test container with fake outbound adapters."""
     container = make_async_container(
         TestDatabaseProvider(test_engine),
@@ -195,7 +205,7 @@ async def dishka_test_container(
 @pytest_asyncio.fixture
 async def dishka_request_container(
     dishka_test_container: AsyncContainer,
-) -> AsyncGenerator[AsyncContainer, None]:
+) -> AsyncGenerator[AsyncContainer]:
     """Open Dishka request scope for service-level tests."""
     async with dishka_test_container() as request_container:
         yield request_container

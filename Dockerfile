@@ -1,5 +1,5 @@
 # --- Stage 1: install dependencies into a virtual-env -----------------
-FROM python:3.12-slim AS builder
+FROM python:3.14-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -27,7 +27,7 @@ COPY scripts/docker-entrypoint.sh ./scripts/docker-entrypoint.sh
 RUN uv sync --frozen --no-dev
 
 # --- Stage 2: lean runtime image -------------------------------------
-FROM python:3.12-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \

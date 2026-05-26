@@ -4,7 +4,7 @@
 
 ## Требования
 
-- Python 3.12+
+- Python 3.14+
 - `uv`
 - доступ к Telegram Bot API
 

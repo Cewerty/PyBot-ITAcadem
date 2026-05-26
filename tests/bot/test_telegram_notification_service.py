@@ -42,7 +42,7 @@ def _expect(condition: bool, message: str) -> None:
 async def fake_bot(
     mocker: MockerFixture,
     settings_obj: BotSettings,
-) -> AsyncGenerator[BotFixture, None]:
+) -> AsyncGenerator[BotFixture]:
     bot = Bot(token=settings_obj.bot_token_test)
     send_message_mock: AsyncMock = mocker.AsyncMock()
     mocker.patch.object(bot, "send_message", send_message_mock)
