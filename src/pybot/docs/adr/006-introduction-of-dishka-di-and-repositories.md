@@ -37,7 +37,7 @@
 
 3. **Service layer** (`services/users.py`, `points.py`):
    - `UserService` получает репозитории в конструкторе
-   - Бизнес-логика (register_student, set_user_role, track_activity) перенесена из хендлеров
+   - Бизнес-логика регистрации и трекинга активности перенесена из хендлеров в service layer
 
 4. **Middleware**:
    - `RoleMiddleware`, `RateLimitMiddleware`, `UserActivityMiddleware` получают зависимости через `async with container()`

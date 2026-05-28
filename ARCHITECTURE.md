@@ -168,7 +168,7 @@ return UserReadDTO(
 DatabaseProvider()   # → Engine (APP scope)
 SessionProvider()    # → AsyncSession (REQUEST scope — новая на каждый update)
 RepositoryProvider() # → UserRepository, LevelRepository (APP scope, stateless)
-ServiceProvider()    # → UserService (REQUEST scope, получает репозитории в конструкторе)
+ServiceProvider()    # → UserService / UserRegistrationService (REQUEST scope, получает репозитории в конструкторе)
 ```
 
 ##### Как это работает
