@@ -43,6 +43,7 @@ This is useful for recovery, token rotation, or controlled re-runs after infrast
 - the deployment uses an immutable image tag;
 - the deploy host only needs Docker, Compose, `.env`, and persistent volumes.
 - both local and production Compose files keep the same process model while differing only in build source (`build` vs `image`).
+- the default image startup runs only `python run.py`, so migrations and seed never happen implicitly during container boot.
 
 ## Shared Compose process model
 
@@ -340,7 +341,6 @@ At minimum, set:
 - `DATABASE_URL=sqlite+aiosqlite:///./data/pybot_itacadem.db`
 - `FSM_STORAGE_BACKEND=redis`
 - `REDIS_URL=redis://redis:6379/0`
-- `AUTO_SEED_DB=false`
 - `LOG_LEVEL=INFO`
 - `HEALTH_API_ENABLED=true`
 - `TASKIQ_WORKERS=1`

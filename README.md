@@ -324,6 +324,8 @@ Production compose использует отдельные one-shot сервис
 
 Runtime process types в production те же, что и локально: `bot`, `taskiq-worker`, `taskiq-scheduler`, optional `health`, `redis`.
 
+Default image startup is runtime-only: the container entrypoint now runs only `python run.py`. Migrations and seed are never executed implicitly during image startup and remain explicit one-shot operator actions.
+
 Кто и когда запускает one-shot процессы:
 
 - `migrate` на каждом production deploy запускает Ansible до `docker compose up -d`;
