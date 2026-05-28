@@ -27,25 +27,45 @@ from tests.factories import (
 )
 
 
+async def _build_user_registration_service(
+    dishka_request_container,
+    settings_obj: BotSettings,
+) -> UserRegistrationService:
+    db = await dishka_request_container.get(AsyncSession)
+    user_repository = await dishka_request_container.get(UserRepository)
+    level_repository = await dishka_request_container.get(LevelRepository)
+    role_repository = await dishka_request_container.get(RoleRepository)
+    competence_repository = await dishka_request_container.get(CompetenceRepository)
+    return UserRegistrationService(
+        db=db,
+        user_repository=user_repository,
+        level_repository=level_repository,
+        role_repository=role_repository,
+        competence_repository=competence_repository,
+        settings=settings_obj,
+    )
+
+
 @pytest.mark.asyncio
 async def test_register_student_success_creates_profile_levels_and_role(
     dishka_request_container,
+    settings_obj: BotSettings,
 ) -> None:
     # Given
     db = await dishka_request_container.get(AsyncSession)
-    service = await dishka_request_container.get(UserService)
+    service = await _build_user_registration_service(dishka_request_container, settings_obj)
     await create_role(db, name="Student")
     await create_level(db, name="A0", level_type=PointsTypeEnum.ACADEMIC, required_points=0)
     await create_level(db, name="R0", level_type=PointsTypeEnum.REPUTATION, required_points=0)
 
-    dto = UserCreateDTOFactory.build(tg_id=700_001, phone="+79876543210")
+    user_data = UserCreateDTOFactory.build(tg_id=700_001, phone="+79876543210")
 
     # When
-    created = await service.register_student(dto)
+    created = await service.register_student(UserRegistrationDTO(user=user_data))
 
     # Then
-    assert created.telegram_id == dto.tg_id
-    assert created.first_name == dto.first_name
+    assert created.telegram_id == user_data.tg_id
+    assert created.first_name == user_data.first_name
 
     roles_service = await dishka_request_container.get(UserRolesService)
     user_roles = await roles_service.find_user_roles(created.id)
@@ -59,32 +79,34 @@ async def test_register_student_success_creates_profile_levels_and_role(
 @pytest.mark.asyncio
 async def test_register_student_raises_when_initial_levels_are_missing(
     dishka_request_container,
+    settings_obj: BotSettings,
 ) -> None:
     # Given
     db = await dishka_request_container.get(AsyncSession)
-    service = await dishka_request_container.get(UserService)
+    service = await _build_user_registration_service(dishka_request_container, settings_obj)
     await create_role(db, name="Student")
-    dto = UserCreateDTOFactory.build(tg_id=700_002, phone="+79876543210")
+    user_data = UserCreateDTOFactory.build(tg_id=700_002, phone="+79876543210")
 
     # When / Then
     with pytest.raises(InitialLevelsNotFoundError):
-        await service.register_student(dto)
+        await service.register_student(UserRegistrationDTO(user=user_data))
 
 
 @pytest.mark.asyncio
 async def test_register_student_raises_when_student_role_is_missing(
     dishka_request_container,
+    settings_obj: BotSettings,
 ) -> None:
     # Given
     db = await dishka_request_container.get(AsyncSession)
-    service = await dishka_request_container.get(UserService)
+    service = await _build_user_registration_service(dishka_request_container, settings_obj)
     await create_level(db, name="A0", level_type=PointsTypeEnum.ACADEMIC, required_points=0)
     await create_level(db, name="R0", level_type=PointsTypeEnum.REPUTATION, required_points=0)
-    dto = UserCreateDTOFactory.build(tg_id=700_003, phone="+79876543210")
+    user_data = UserCreateDTOFactory.build(tg_id=700_003, phone="+79876543210")
 
     # When / Then
     with pytest.raises(RoleNotFoundError):
-        await service.register_student(dto)
+        await service.register_student(UserRegistrationDTO(user=user_data))
 
 
 @pytest.mark.asyncio
@@ -94,17 +116,17 @@ async def test_register_student_assigns_admin_role_for_configured_telegram_ids(
 ) -> None:
     # Given
     db = await dishka_request_container.get(AsyncSession)
-    service = await dishka_request_container.get(UserService)
+    service = await _build_user_registration_service(dishka_request_container, settings_obj)
     await create_role(db, name="Student")
     await create_role(db, name="Admin")
     await create_level(db, name="A0", level_type=PointsTypeEnum.ACADEMIC, required_points=0)
     await create_level(db, name="R0", level_type=PointsTypeEnum.REPUTATION, required_points=0)
     auto_admin_tg_id = 700_099
     settings_obj.auto_admin_telegram_ids = {auto_admin_tg_id}
-    dto = UserCreateDTOFactory.build(tg_id=auto_admin_tg_id, phone="+79876540099")
+    user_data = UserCreateDTOFactory.build(tg_id=auto_admin_tg_id, phone="+79876540099")
 
     # When
-    created = await service.register_student(dto)
+    created = await service.register_student(UserRegistrationDTO(user=user_data))
 
     # Then
     roles_service = await dishka_request_container.get(UserRolesService)
@@ -119,17 +141,17 @@ async def test_register_student_raises_when_admin_role_is_missing_for_configured
 ) -> None:
     # Given
     db = await dishka_request_container.get(AsyncSession)
-    service = await dishka_request_container.get(UserService)
+    service = await _build_user_registration_service(dishka_request_container, settings_obj)
     await create_role(db, name="Student")
     await create_level(db, name="A0", level_type=PointsTypeEnum.ACADEMIC, required_points=0)
     await create_level(db, name="R0", level_type=PointsTypeEnum.REPUTATION, required_points=0)
     auto_admin_tg_id = 700_102
     settings_obj.auto_admin_telegram_ids = {auto_admin_tg_id}
-    dto = UserCreateDTOFactory.build(tg_id=auto_admin_tg_id, phone="+79876540102")
+    user_data = UserCreateDTOFactory.build(tg_id=auto_admin_tg_id, phone="+79876540102")
 
     # When / Then
     with pytest.raises(RoleNotFoundError, match="Роль 'Admin'"):
-        await service.register_student(dto)
+        await service.register_student(UserRegistrationDTO(user=user_data))
 
 
 @pytest.mark.asyncio
@@ -139,16 +161,16 @@ async def test_register_student_does_not_assign_admin_role_for_non_configured_te
 ) -> None:
     # Given
     db = await dishka_request_container.get(AsyncSession)
-    service = await dishka_request_container.get(UserService)
+    service = await _build_user_registration_service(dishka_request_container, settings_obj)
     await create_role(db, name="Student")
     await create_role(db, name="Admin")
     await create_level(db, name="A0", level_type=PointsTypeEnum.ACADEMIC, required_points=0)
     await create_level(db, name="R0", level_type=PointsTypeEnum.REPUTATION, required_points=0)
     settings_obj.auto_admin_telegram_ids = {700_100}
-    dto = UserCreateDTOFactory.build(tg_id=700_101, phone="+79876540101")
+    user_data = UserCreateDTOFactory.build(tg_id=700_101, phone="+79876540101")
 
     # When
-    created = await service.register_student(dto)
+    created = await service.register_student(UserRegistrationDTO(user=user_data))
 
     # Then
     roles_service = await dishka_request_container.get(UserRolesService)
@@ -163,17 +185,7 @@ async def test_user_registration_service_register_student_accepts_duplicate_comp
 ) -> None:
     db = await dishka_request_container.get(AsyncSession)
     user_repository = await dishka_request_container.get(UserRepository)
-    level_repository = await dishka_request_container.get(LevelRepository)
-    role_repository = await dishka_request_container.get(RoleRepository)
-    competence_repository = await dishka_request_container.get(CompetenceRepository)
-    service = UserRegistrationService(
-        db=db,
-        user_repository=user_repository,
-        level_repository=level_repository,
-        role_repository=role_repository,
-        competence_repository=competence_repository,
-        settings=settings_obj,
-    )
+    service = await _build_user_registration_service(dishka_request_container, settings_obj)
     await create_role(db, name="Student")
     await create_level(db, name="A0", level_type=PointsTypeEnum.ACADEMIC, required_points=0)
     await create_level(db, name="R0", level_type=PointsTypeEnum.REPUTATION, required_points=0)

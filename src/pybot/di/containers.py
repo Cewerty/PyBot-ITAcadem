@@ -122,11 +122,8 @@ class ServiceProvider(Provider):
         self,
         db: AsyncSession,
         user_repository: UserRepository,
-        level_repository: LevelRepository,
-        role_repository: RoleRepository,
-        settings: BotSettings,
     ) -> UserService:
-        return UserService(db, user_repository, level_repository, role_repository, settings)
+        return UserService(db, user_repository)
 
     @provide(scope=Scope.REQUEST)
     def user_roles_service(

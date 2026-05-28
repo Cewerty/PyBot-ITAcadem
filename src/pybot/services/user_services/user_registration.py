@@ -2,10 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.config import BotSettings
 from ...core.constants import RoleEnum
-from ...domain.exceptions import (
-    InitialLevelsNotFoundError,
-    RoleNotFoundError,
-)
+from ...domain.exceptions import InitialLevelsNotFoundError, RoleNotFoundError
 from ...dto import UserReadDTO, UserRegistrationDTO
 from ...infrastructure.competence_repository import CompetenceRepository
 from ...infrastructure.level_repository import LevelRepository
@@ -15,12 +12,7 @@ from ...mappers.user_mappers import map_orm_user_to_user_read_dto
 
 
 class UserRegistrationService:
-    """Сервис регистрации пользователей.
-
-    Отвечает за регистрацию новых студентов, назначение им начальных уровней,
-    базовых ролей (в т.ч. автоматической выдачи прав администратора) и
-    начальных компетенций.
-    """
+    """Application service for student registration."""
 
     def __init__(  # noqa: PLR0913
         self,
@@ -31,16 +23,7 @@ class UserRegistrationService:
         competence_repository: CompetenceRepository,
         settings: BotSettings,
     ) -> None:
-        """Инициализирует сервис регистрации пользователей.
-
-        Args:
-            db: Асинхронная сессия базы данных.
-            user_repository: Репозиторий пользователей.
-            level_repository: Репозиторий уровней.
-            role_repository: Репозиторий ролей.
-            competence_repository: Репозиторий компетенций.
-            settings: Настройки бота.
-        """
+        """Initialize the registration service."""
         self.db: AsyncSession = db
         self.user_repository: UserRepository = user_repository
         self.level_repository: LevelRepository = level_repository
@@ -49,24 +32,7 @@ class UserRegistrationService:
         self._settings = settings
 
     async def register_student(self, dto: UserRegistrationDTO) -> UserReadDTO:
-        """Регистрирует нового пользователя как студента.
-
-        Назначает начальные уровни, обязательную роль "Student" и добавляет компетенции.
-        Если Telegram ID находится в списке auto_admin_telegram_ids,
-        также выдается роль "Admin".
-
-        Args:
-            dto: DTO с данными для регистрации пользователя.
-
-        Raises:
-            InitialLevelsNotFoundError: Если в БД нет начальных уровней.
-            RoleNotFoundError: Если системные роли не найдены в БД.
-
-        Returns:
-            UserReadDTO: DTO зарегистрированного пользователя.
-        """
-        # TODO: Выделить единый canonical registration flow вместе с UserService.register_student().
-        # Отличия по компетенциям не отменяют того, что core registration orchestration сейчас дублируется.
+        """Register a new student user."""
         initial_levels = await self.level_repository.find_initial_levels(self.db)
 
         if not initial_levels:
