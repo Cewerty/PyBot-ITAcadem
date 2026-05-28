@@ -155,22 +155,6 @@
   register: health_api_enabled_value
   changed_when: false
 
-- name: Stop existing production compose before redeploy
-  ansible.builtin.command:
-    argv:
-      - docker
-      - compose
-      - -f
-      - docker-compose.prod.yml
-      - down
-      - --remove-orphans
-    chdir: "{{ deploy_path }}"
-  environment:
-    APP_IMAGE: "{{ image_repository }}:{{ image_tag }}"
-  register: compose_down_result
-  failed_when: false
-  changed_when: compose_down_result.rc == 0
-
 - name: Apply production compose
   ansible.builtin.command:
     argv: "{{ base_cmd + health_args + tail_args }}"

@@ -19,7 +19,7 @@ The deploy workflow additionally fails fast if the checked-out production artifa
 4. GitHub Actions builds a Docker image and pushes it to GHCR.
 5. GitHub Actions runs Ansible against the target server.
    The deploy workflow uses `Python 3.14` on the GitHub-hosted runner as the control-node baseline for Ansible.
-6. Ansible copies `docker-compose.prod.yml` and `.env` into the deploy user's workspace, runs the one-shot `migrate` process, optionally runs the one-shot `seed` process, and only then starts the runtime services.
+6. Ansible copies `docker-compose.prod.yml` and `.env` into the deploy user's workspace, runs the one-shot `migrate` process, optionally runs the one-shot `seed` process, and then refreshes the runtime services in place with `docker compose up -d --remove-orphans`.
 7. Ansible runs a lightweight post-deploy smoke-check: it verifies that the core runtime services appear in `docker compose ps` and waits for Redis health when a healthcheck is present.
 
 ## Manual redeploy
@@ -32,6 +32,8 @@ If you need to redeploy the current `main` release without creating an empty com
 4. Run it from the `main` branch.
 
 This is useful for recovery, token rotation, or controlled re-runs after infrastructure-side fixes.
+
+The standard deploy path is in-place and does not run a blanket `docker compose down` first. Compose refreshes only the services whose image, config, or profile inputs actually changed, which reduces avoidable restarts and shortens rollout time on shared hosts.
 
 ## Why production uses a separate compose file
 
@@ -301,6 +303,8 @@ If a smoke-check fails, do not restart everything blindly. First identify the fa
 - Internal checks pass but public checks fail: inspect host Nginx with `sudo nginx -T`, `sudo nginx -t`, and `/var/log/nginx/error.log`.
 - Certificate warning: inspect the served certificate and confirm the SAN contains `DNS:monitoring.probochka-corp.ru`; then check browser cache only after server-side TLS is confirmed.
 - CD smoke-check fails after a new image: prefer redeploying the previous known-good image tag or rerunning the last successful workflow after the root cause is fixed.
+
+Use a full `docker compose -f docker-compose.prod.yml down --remove-orphans` only as a manual recovery action when the normal in-place rollout cannot reconcile the runtime state.
 
 ## Health profile
 
