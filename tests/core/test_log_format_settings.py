@@ -25,7 +25,7 @@ def test_log_format_defaults_to_text_for_test_mode() -> None:
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
         BOT_MODE="test",
-        DATABASE_URL="sqlite+aiosqlite:///./test.db",
+        DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
         ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
     )
 
@@ -37,7 +37,7 @@ def test_log_format_defaults_to_json_for_prod_mode() -> None:
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
         BOT_MODE="prod",
-        DATABASE_URL="sqlite+aiosqlite:///./test.db",
+        DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
         ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
     )
 
@@ -49,9 +49,22 @@ def test_explicit_log_format_overrides_prod_runtime_default() -> None:
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
         BOT_MODE="prod",
-        DATABASE_URL="sqlite+aiosqlite:///./test.db",
+        DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
         ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
         LOG_FORMAT="text",
     )
 
     assert parsed_settings.log_format == "text"
+
+
+def test_fsm_storage_defaults_to_redis_for_local_runtime() -> None:
+    parsed_settings = BotSettingsWithoutDotenv(
+        BOT_TOKEN="123456:prod",
+        BOT_TOKEN_TEST="123456:test",
+        BOT_MODE="test",
+        DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
+        ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
+    )
+
+    assert parsed_settings.fsm_storage_backend == "redis"
+    assert parsed_settings.redis_url == "redis://localhost:6379/0"

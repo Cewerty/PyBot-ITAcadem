@@ -8,7 +8,7 @@ This repository now includes a production deployment skeleton that extends the e
 - `.github/workflows/deploy.yml` for build + push + deploy after successful CI on `main`, plus manual recovery redeploys from GitHub Actions
 - `ansible/` with a minimal bootstrap/deploy playbook and roles
 
-The CI workflow also validates the Docker build, both Compose manifests, and the `fill_point_db.py` CLI help entrypoint before code reaches production deploy.
+The CI workflow also validates the Docker build, both Compose manifests, the local dev/prod parity path (`health` profile + direct probes), and the `fill_point_db.py` CLI help entrypoint before code reaches production deploy.
 The deploy workflow additionally fails fast if the checked-out production artifacts (`docker-compose.prod.yml`, `observability/`), the critical deploy secrets, or the `PROD_ENV_FILE` keys required by deploy/Compose (`DATABASE_URL`, `GRAFANA_ADMIN_PASSWORD`) are missing.
 
 ## Deployment flow
@@ -63,6 +63,8 @@ That alignment is deliberate:
 - Factor VI Processes: each process type has an explicit entrypoint instead of hidden startup side effects
 
 Worker concurrency follows the same env-driven mechanism in dev and prod: `taskiq-worker` reads `${TASKIQ_WORKERS:-1}` from Compose. This is a 12-factor uplift step, but the current runtime still intentionally supports only `TASKIQ_WORKERS=1`; larger values fail fast until multi-instance readiness work is completed.
+
+For local dev/prod parity checks, the one official recommended path is `just run-parity`. It uses the same Compose-based process model plus the dedicated `health` process type, and the direct local readiness probes stay on `http://127.0.0.1:8001/` and `http://127.0.0.1:8001/ready`. Production ingress checks through Nginx remain a separate outer-layer verification path. The old `just run-health` name remains a backward-compatible alias.
 
 ## Required GitHub secrets
 

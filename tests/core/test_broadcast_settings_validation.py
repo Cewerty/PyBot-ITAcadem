@@ -25,7 +25,7 @@ def test_broadcast_jitter_range_validation() -> None:
         BotSettingsWithoutDotenv(
             BOT_TOKEN="123456:prod",
             BOT_TOKEN_TEST="123456:test",
-            DATABASE_URL="sqlite+aiosqlite:///./test.db",
+            DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
             ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
             BROADCAST_JITTER_MIN_MS=200,
             BROADCAST_JITTER_MAX_MS=100,
@@ -37,7 +37,7 @@ def test_broadcast_bulk_size_validation() -> None:
         BotSettingsWithoutDotenv(
             BOT_TOKEN="123456:prod",
             BOT_TOKEN_TEST="123456:test",
-            DATABASE_URL="sqlite+aiosqlite:///./test.db",
+            DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
             ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
             BROADCAST_BULK_SIZE=0,
         )
@@ -48,7 +48,7 @@ def test_broadcast_batch_pause_min_validation() -> None:
         BotSettingsWithoutDotenv(
             BOT_TOKEN="123456:prod",
             BOT_TOKEN_TEST="123456:test",
-            DATABASE_URL="sqlite+aiosqlite:///./test.db",
+            DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
             ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
             BROADCAST_BATCH_PAUSE_MS=600,
         )
@@ -59,7 +59,7 @@ def test_broadcast_max_text_length_validation() -> None:
         BotSettingsWithoutDotenv(
             BOT_TOKEN="123456:prod",
             BOT_TOKEN_TEST="123456:test",
-            DATABASE_URL="sqlite+aiosqlite:///./test.db",
+            DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
             ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
             BROADCAST_MAX_TEXT_LENGTH=0,
         )
@@ -71,7 +71,7 @@ def test_auto_admin_telegram_ids_parsed_from_json_array(monkeypatch: pytest.Monk
     parsed_settings = BotSettingsWithoutDotenv(
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
-        DATABASE_URL="sqlite+aiosqlite:///./test.db",
+        DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
         ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
     )
 
@@ -84,7 +84,7 @@ def test_broadcast_allowed_roles_parsed_from_comma_separated_string(monkeypatch:
     parsed_settings = BotSettingsWithoutDotenv(
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
-        DATABASE_URL="sqlite+aiosqlite:///./test.db",
+        DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
         ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
     )
 
@@ -95,7 +95,7 @@ def test_broadcast_allowed_roles_default_is_admin() -> None:
     parsed_settings = BotSettingsWithoutDotenv(
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
-        DATABASE_URL="sqlite+aiosqlite:///./test.db",
+        DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
         ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
     )
 
@@ -106,7 +106,7 @@ def test_telegram_proxy_url_defaults_to_none() -> None:
     parsed_settings = BotSettingsWithoutDotenv(
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
-        DATABASE_URL="sqlite+aiosqlite:///./test.db",
+        DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
         ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
     )
 
@@ -117,7 +117,7 @@ def test_telegram_proxy_url_is_parsed_from_env_var() -> None:
     parsed_settings = BotSettingsWithoutDotenv(
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
-        DATABASE_URL="sqlite+aiosqlite:///./test.db",
+        DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
         ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
         TELEGRAM_PROXY_URL="socks5://127.0.0.1:1080",
     )
@@ -129,7 +129,7 @@ def test_runtime_alerts_default_to_disabled_without_chat_id() -> None:
     parsed_settings = BotSettingsWithoutDotenv(
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
-        DATABASE_URL="sqlite+aiosqlite:///./test.db",
+        DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
         ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
     )
 
@@ -142,7 +142,7 @@ def test_runtime_alerts_chat_id_is_required_when_alerts_are_enabled() -> None:
         BotSettingsWithoutDotenv(
             BOT_TOKEN="123456:prod",
             BOT_TOKEN_TEST="123456:test",
-            DATABASE_URL="sqlite+aiosqlite:///./test.db",
+            DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
             ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
             RUNTIME_ALERTS_ENABLED=True,
         )
@@ -152,7 +152,7 @@ def test_runtime_alerts_chat_id_is_parsed_when_alerts_are_enabled() -> None:
     parsed_settings = BotSettingsWithoutDotenv(
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
-        DATABASE_URL="sqlite+aiosqlite:///./test.db",
+        DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
         ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
         RUNTIME_ALERTS_ENABLED=True,
         RUNTIME_ALERTS_CHAT_ID=987654321,
@@ -167,7 +167,7 @@ def test_runtime_alerts_chat_id_rejects_negative_value() -> None:
         BotSettingsWithoutDotenv(
             BOT_TOKEN="123456:prod",
             BOT_TOKEN_TEST="123456:test",
-            DATABASE_URL="sqlite+aiosqlite:///./test.db",
+            DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
             ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
             RUNTIME_ALERTS_ENABLED=True,
             RUNTIME_ALERTS_CHAT_ID=-123456789,
@@ -178,7 +178,7 @@ def test_weekly_leaderboard_settings_default_to_disabled() -> None:
     parsed_settings = BotSettingsWithoutDotenv(
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
-        DATABASE_URL="sqlite+aiosqlite:///./test.db",
+        DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
         ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
     )
 
@@ -200,7 +200,7 @@ def test_weekly_leaderboard_recipient_is_required_when_enabled() -> None:
         BotSettingsWithoutDotenv(
             BOT_TOKEN="123456:prod",
             BOT_TOKEN_TEST="123456:test",
-            DATABASE_URL="sqlite+aiosqlite:///./test.db",
+            DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
             ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
             LEADERBOARD_WEEKLY_ENABLED=True,
         )
@@ -210,7 +210,7 @@ def test_weekly_leaderboard_recipient_accepts_negative_chat_id() -> None:
     parsed_settings = BotSettingsWithoutDotenv(
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
-        DATABASE_URL="sqlite+aiosqlite:///./test.db",
+        DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
         ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
         LEADERBOARD_WEEKLY_ENABLED=True,
         LEADERBOARD_WEEKLY_RECIPIENT_ID=-1001234567890,
@@ -225,7 +225,7 @@ def test_weekly_leaderboard_retry_max_delay_must_be_greater_than_or_equal_to_del
         BotSettingsWithoutDotenv(
             BOT_TOKEN="123456:prod",
             BOT_TOKEN_TEST="123456:test",
-            DATABASE_URL="sqlite+aiosqlite:///./test.db",
+            DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
             ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
             LEADERBOARD_WEEKLY_RETRY_DELAY_S=120,
             LEADERBOARD_WEEKLY_RETRY_MAX_DELAY_S=60,
@@ -239,7 +239,7 @@ def test_broadcast_allowed_roles_rejects_unknown_role(monkeypatch: pytest.Monkey
         BotSettingsWithoutDotenv(
             BOT_TOKEN="123456:prod",
             BOT_TOKEN_TEST="123456:test",
-            DATABASE_URL="sqlite+aiosqlite:///./test.db",
+            DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
             ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
         )
 
@@ -249,7 +249,7 @@ def test_role_request_admin_tg_id_must_be_greater_than_zero() -> None:
         BotSettingsWithoutDotenv(
             BOT_TOKEN="123456:prod",
             BOT_TOKEN_TEST="123456:test",
-            DATABASE_URL="sqlite+aiosqlite:///./test.db",
+            DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
             ROLE_REQUEST_ADMIN_TG_ID=0,
         )
 
@@ -261,7 +261,7 @@ def test_role_request_admin_tg_id_is_required(monkeypatch: pytest.MonkeyPatch) -
         BotSettingsWithoutDotenv(
             BOT_TOKEN="123456:prod",
             BOT_TOKEN_TEST="123456:test",
-            DATABASE_URL="sqlite+aiosqlite:///./test.db",
+            DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
         )
 
     assert any(

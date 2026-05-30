@@ -20,7 +20,7 @@ from sqlalchemy.pool import ConnectionPoolEntry
 os.environ.setdefault("BOT_TOKEN", "123456:TEST_TOKEN")
 os.environ.setdefault("BOT_TOKEN_TEST", "123456:TEST_TOKEN")
 os.environ.setdefault("ROLE_REQUEST_ADMIN_TG_ID", "999999999")
-os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///./tests/bootstrap.sqlite3")
+os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///./data/tests/bootstrap.sqlite3")
 os.environ["BOT_MODE"] = "test"
 
 from pydantic_ai.models.test import TestModel
@@ -86,7 +86,7 @@ def faker_seed() -> Generator[None]:
 def test_db_path(tmp_path: Path, request: pytest.FixtureRequest) -> Path:
     """Create isolated SQLite file path per test scenario."""
     safe_name = request.node.name.replace("[", "_").replace("]", "_")
-    return tmp_path / f"{safe_name}.sqlite3"
+    return tmp_path / "data" / f"{safe_name}.sqlite3"
 
 
 @pytest.fixture

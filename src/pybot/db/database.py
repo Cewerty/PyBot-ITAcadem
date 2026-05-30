@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Protocol
 
 from sqlalchemy import event
@@ -29,6 +30,28 @@ def _is_sqlite_url(database_url: str) -> bool:
     """
     url: URL = make_url(database_url)
     return url.get_backend_name() == "sqlite"
+
+
+def _get_sqlite_file_path(database_url: str) -> Path | None:
+    """Return SQLite file path for file-based SQLite URLs."""
+    if not _is_sqlite_url(database_url):
+        return None
+
+    url: URL = make_url(database_url)
+    database_name = url.database
+    if not database_name or database_name == ":memory:":
+        return None
+
+    return Path(database_name)
+
+
+def ensure_sqlite_database_parent_dir(database_url: str) -> None:
+    """Create parent directory for file-based SQLite databases when needed."""
+    sqlite_path = _get_sqlite_file_path(database_url)
+    if sqlite_path is None:
+        return
+
+    sqlite_path.parent.mkdir(parents=True, exist_ok=True)
 
 
 def _attach_sqlite_foreign_keys_pragma(engine: AsyncEngine) -> None:
@@ -68,6 +91,7 @@ def create_database_engine(database_url: str) -> AsyncEngine:
     if not database_url:
         raise ValueError("Database URL is not configured.")
 
+    ensure_sqlite_database_parent_dir(database_url)
     engine = create_async_engine(database_url, echo=False)
     if _is_sqlite_url(database_url):
         _attach_sqlite_foreign_keys_pragma(engine)

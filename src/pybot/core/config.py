@@ -46,7 +46,7 @@ class BotSettings(BaseSettings):
         gt=0,
     )
     fsm_storage_backend: Literal["memory", "redis"] = Field(
-        "memory",
+        "redis",
         alias="FSM_STORAGE_BACKEND",
         description="FSM storage backend: 'memory' or 'redis'",
     )

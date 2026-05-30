@@ -52,6 +52,7 @@ class UserService:
             return await map_orm_user_to_user_read_dto(user)
         return None
 
+    # TODO Вынести в UserActivityService, если activity flow обрастет собственной orchestration
     async def track_activity(self, telegram_id: int) -> int | None:
         """Update the last activity timestamp for the Telegram user."""
         user = await self.user_repository.find_user_by_telegram_id(self.db, telegram_id)
