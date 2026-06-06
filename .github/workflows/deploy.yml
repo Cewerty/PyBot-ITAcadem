@@ -76,12 +76,7 @@ jobs:
             exit 1
           fi
           printf '%s\n' "$PROD_ENV_FILE" > "$RUNNER_TEMP/prod.env.validation"
-          for key in DATABASE_URL GRAFANA_ADMIN_PASSWORD; do
-            if ! grep -q "^${key}=" "$RUNNER_TEMP/prod.env.validation"; then
-              echo "PROD_ENV_FILE must contain ${key}=..." >&2
-              exit 1
-            fi
-          done
+          python "$GITHUB_WORKSPACE/scripts/ci/validate_deploy_env.py" "$RUNNER_TEMP/prod.env.validation"
 
       - name: Prepare deployment metadata
         id: prep
