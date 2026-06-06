@@ -1,15 +1,15 @@
 # Конфигурация
 
-Настройки приложения определены в [`pybot.core.config.BotSettings`](../api-reference/core.md). Источником значений служит `.env`.
+Настройки приложения определены в [`pybot.core.config.AppSettings`](../api-reference/core.md). Значения materialize-ятся через `get_settings()`: bootstrap явно подхватывает локальный `.env`, а сама модель не зашита на конкретный источник.
 
-Отдельно от `BotSettings` есть orchestration-переменные уровня Compose/runtime. Сейчас это `TASKIQ_WORKERS`: она управляет числом worker-процессов TaskIQ в `docker-compose.yml` и `docker-compose.prod.yml`, а не бизнес-конфигом Python-приложения.
+`AppSettings` описывает только runtime-конфигурацию Python-приложения. Deploy-only и orchestration-переменные не materialize-ятся в эту модель и не валидируются приложением: их contract поддерживают `docker-compose*`, GitHub Actions и Ansible.
 
 ## Обязательные переменные
 
 | Переменная | Назначение |
 | --- | --- |
 | `BOT_TOKEN` | production-токен бота |
-| `BOT_TOKEN_TEST` | тестовый токен |
+| `BOT_TOKEN_TEST` | тестовый токен; обязателен при `BOT_MODE=test`, опционален при `BOT_MODE=prod` |
 | `BOT_MODE` | режим `test` или `prod` |
 | `ROLE_REQUEST_ADMIN_TG_ID` | Telegram ID администратора для role request |
 | `DATABASE_URL` | строка подключения к SQLite; канонический runtime path — `sqlite+aiosqlite:///./data/pybot_itacadem.db` |
@@ -28,7 +28,6 @@
 | `RUNTIME_ALERTS_ENABLED` | включает runtime alerts для bot startup/shutdown |
 | `RUNTIME_ALERTS_CHAT_ID` | chat id для runtime alerts |
 | `HEALTH_API_ENABLED` | отдельный health API |
-| `TASKIQ_WORKERS` | concurrency `taskiq-worker` в Compose; сейчас поддерживается только `1` |
 
 ## Logging contract
 
@@ -72,7 +71,9 @@
 - `GET http://127.0.0.1:8001/` — liveness, ожидается `200`;
 - `GET http://127.0.0.1:8001/ready` — readiness, ожидается `200`, когда приложение готово.
 
-## Orchestration-переменные
+## Deploy / Orchestration-переменные
+
+Эти переменные не входят в `AppSettings` и не участвуют в app-side fail-fast. Их проверяют Compose и deploy automation.
 
 `TASKIQ_WORKERS` управляет worker concurrency на уровне Compose:
 
@@ -89,9 +90,16 @@ TASKIQ_WORKERS=1 docker compose -f docker-compose.prod.yml up -d
 
 Синтаксис вида `TASKIQ_WORKERS=2 ...` зарезервирован на будущее, но в текущей системе не поддерживается.
 
+Observability/deploy-only переменные также остаются вне `AppSettings`:
+
+- `GRAFANA_ADMIN_PASSWORD` — обязателен для production Grafana по contract `docker-compose.prod.yml`;
+- `PUBLIC_DOMAIN` — production ingress/domain value для host nginx и compose nginx;
+- `NGINX_BIND_HOST` и `NGINX_PORT` — ingress binding для compose nginx;
+- локальный observability profile имеет безопасные defaults и не требует этих значений для базового старта.
+
 ## Broadcast-настройки
 
-В `BotSettings` также есть группа параметров для рассылок:
+В `AppSettings` также есть группа параметров для рассылок:
 
 - `BROADCAST_BULK_SIZE`
 - `BROADCAST_MAX_CONCURRENCY`

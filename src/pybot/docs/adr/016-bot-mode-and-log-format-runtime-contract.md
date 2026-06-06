@@ -13,7 +13,7 @@
 
 При этом фактический контракт уже стал неоднородным и без явной фиксации выглядит двусмысленно:
 
-- в `BotSettings` default `LOG_FORMAT` выводится из `BOT_MODE`: `text` для `BOT_MODE=test` и `json` для `BOT_MODE=prod`;
+- в `AppSettings` default `LOG_FORMAT` выводится из `BOT_MODE`: `text` для `BOT_MODE=test` и `json` для `BOT_MODE=prod`;
 - `.env.example` уже задаёт `LOG_FORMAT=json`;
 - `docker-compose.prod.yml` жёстко фиксирует `LOG_FORMAT=json`;
 - canonical local runtime теперь запускается через `just run` / `docker compose up --build`, то есть через Compose-based path;

@@ -9,7 +9,7 @@ This repository now includes a production deployment skeleton that extends the e
 - `ansible/` with a minimal bootstrap/deploy playbook and roles
 
 The CI workflow also validates the Docker build, both Compose manifests, the local dev/prod parity path (`health` profile + direct probes), and the `fill_point_db.py` CLI help entrypoint before code reaches production deploy.
-The deploy workflow additionally fails fast if the checked-out production artifacts (`docker-compose.prod.yml`, `observability/`), the critical deploy secrets, or the `PROD_ENV_FILE` keys required by deploy/Compose (`DATABASE_URL`, `GRAFANA_ADMIN_PASSWORD`) are missing.
+The deploy workflow additionally fails fast if the checked-out production artifacts (`docker-compose.prod.yml`, `observability/`), the critical deploy secrets, or the deploy-only `PROD_ENV_FILE` contract required by Compose is violated.
 
 ## Deployment flow
 
@@ -62,7 +62,7 @@ That alignment is deliberate:
 - Factor V Build/Release/Run: runtime processes stay separate from admin one-shot steps
 - Factor VI Processes: each process type has an explicit entrypoint instead of hidden startup side effects
 
-Worker concurrency follows the same env-driven mechanism in dev and prod: `taskiq-worker` reads `${TASKIQ_WORKERS:-1}` from Compose. This is a 12-factor uplift step, but the current runtime still intentionally supports only `TASKIQ_WORKERS=1`; larger values fail fast until multi-instance readiness work is completed.
+Worker concurrency follows the same env-driven mechanism in dev and prod: `taskiq-worker` reads `${TASKIQ_WORKERS:-1}` from Compose. This variable is intentionally outside `AppSettings`; deploy automation and Compose own its contract, and the current supported value remains only `TASKIQ_WORKERS=1`.
 
 For local dev/prod parity checks, the one official recommended path is `just run-parity`. It uses the same Compose-based process model plus the dedicated `health` process type, and the direct local readiness probes stay on `http://127.0.0.1:8001/` and `http://127.0.0.1:8001/ready`. Production ingress checks through Nginx remain a separate outer-layer verification path. The old `just run-health` name remains a backward-compatible alias.
 
@@ -85,6 +85,8 @@ Optional secrets:
 - `RUN_SEED_ON_DEPLOY` - set to `true` only for the initial deploy when you need to run `fill_point_db.py`
 
 If you use `GHCR_DEPLOY_USERNAME` or `GHCR_DEPLOY_TOKEN`, provide both together. The deploy workflow validates that pair explicitly before running Ansible.
+
+`PROD_ENV_FILE` is treated as a deploy artifact, not as an input to `AppSettings`. Runtime env used by the Python application and deploy/orchestration env used by Compose may live in the same `.env` file operationally, but only the runtime subset is materialized by `get_settings()`.
 
 ## Expected server shape
 
@@ -341,7 +343,7 @@ Seed data is handled by the dedicated `seed` service, not by `bot` startup.
 At minimum, set:
 
 - `BOT_TOKEN`
-- `BOT_TOKEN_TEST`
+- `BOT_TOKEN_TEST` - optional when `BOT_MODE=prod`, but keep it if you still use test-mode launches in that environment
 - `BOT_MODE=prod`
 - `ROLE_REQUEST_ADMIN_TG_ID`
 - `DATABASE_URL=sqlite+aiosqlite:///./data/pybot_itacadem.db`
@@ -349,16 +351,20 @@ At minimum, set:
 - `REDIS_URL=redis://redis:6379/0`
 - `LOG_LEVEL=INFO`
 - `HEALTH_API_ENABLED=true`
-- `TASKIQ_WORKERS=1`
-- `PUBLIC_DOMAIN=monitoring.probochka-corp.ru`
-- `NGINX_BIND_HOST=127.0.0.1`
-- `NGINX_PORT=8088`
 - `LEADERBOARD_WEEKLY_RETRY_ENABLED=true`
 - `LEADERBOARD_WEEKLY_RETRY_MAX_RETRIES=3`
 - `LEADERBOARD_WEEKLY_RETRY_DELAY_S=30`
 - `LEADERBOARD_WEEKLY_RETRY_USE_JITTER=true`
 - `LEADERBOARD_WEEKLY_RETRY_USE_EXPONENTIAL_BACKOFF=true`
 - `LEADERBOARD_WEEKLY_RETRY_MAX_DELAY_S=300`
+
+Deploy / orchestration-only baseline:
+
+- `GRAFANA_ADMIN_PASSWORD`
+- `TASKIQ_WORKERS=1`
+- `PUBLIC_DOMAIN=monitoring.probochka-corp.ru`
+- `NGINX_BIND_HOST=127.0.0.1`
+- `NGINX_PORT=8088`
 
 Important:
 

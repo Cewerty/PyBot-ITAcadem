@@ -20,7 +20,7 @@ uv sync
 Создайте `.env` на основе `.env.example` и задайте как минимум:
 
 - `BOT_TOKEN`
-- `BOT_TOKEN_TEST`
+- `BOT_TOKEN_TEST` if you plan to run with `BOT_MODE=test`
 - `ROLE_REQUEST_ADMIN_TG_ID`
 - `DATABASE_URL`
 

@@ -189,7 +189,9 @@ HEALTH_API_PORT=8001
 
 Что важно:
 
-- сейчас `settings` требуют и `BOT_TOKEN`, и `BOT_TOKEN_TEST`, даже если вы запускаете только один режим;
+- `AppSettings` materialize-ятся через `get_settings()`, который явно подхватывает локальный `.env` на bootstrap-этапе;
+- `AppSettings` описывает только runtime-настройки приложения; deploy-only переменные вроде `TASKIQ_WORKERS`, `GRAFANA_ADMIN_PASSWORD`, `PUBLIC_DOMAIN` и `NGINX_*` валидируются Compose/CI/CD, а не Python-приложением;
+- `BOT_TOKEN_TEST` обязателен при `BOT_MODE=test` и опционален при `BOT_MODE=prod`;
 - `BOT_MODE=test` использует `BOT_TOKEN_TEST`, `BOT_MODE=prod` использует `BOT_TOKEN`;
 - `BOT_MODE` отвечает за runtime mode и выбор активного bot token, а `LOG_FORMAT` — за формат stdout-логов; это две независимые настройки;
 - `ROLE_REQUEST_ADMIN_TG_ID` обязателен, потому что role request flow уже является частью рабочего сценария;
