@@ -23,8 +23,6 @@ os.environ.setdefault("ROLE_REQUEST_ADMIN_TG_ID", "999999999")
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///./data/tests/bootstrap.sqlite3")
 os.environ["BOT_MODE"] = "test"
 
-from pydantic_ai.models.test import TestModel
-
 from pybot.core.config import BotSettings, get_settings
 from pybot.db.models import Base
 from pybot.db.models.role_module.role_request import RoleRequest
@@ -37,7 +35,6 @@ from pybot.di.containers import (
     RepositoryProvider,
     ServiceProvider,
 )
-from pybot.presentation.shared.ai_agent import ai_agent
 from tests.providers import TestDatabaseProvider, TestOverridesProvider
 
 
@@ -49,14 +46,6 @@ class _SQLiteCursorProtocol(Protocol):
 
 class _SQLiteConnectionProtocol(Protocol):
     def cursor(self) -> _SQLiteCursorProtocol: ...
-
-
-@pytest.fixture
-def override_ai_agent() -> Generator[TestModel]:
-    """Override the AI agent's model with TestModel for deterministic testing."""
-    test_model = TestModel()
-    with ai_agent.override(model=test_model):
-        yield test_model
 
 
 @event.listens_for(RoleRequest, "before_insert")
