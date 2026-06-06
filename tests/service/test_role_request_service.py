@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from pybot.core.config import BotSettings
+from pybot.core.config import AppSettings
 from pybot.core.constants import RequestStatus
 from pybot.db.models import RoleRequest
 from pybot.domain.exceptions import (
@@ -128,7 +128,7 @@ async def test_create_role_request_raises_when_pending_request_already_exists(
 @pytest.mark.asyncio
 async def test_check_requesting_user_raises_cooldown_error_with_available_at(
     dishka_request_container,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     # Given
     db = await dishka_request_container.get(AsyncSession)

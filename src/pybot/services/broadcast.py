@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from tenacity import AsyncRetrying, RetryCallState, retry_if_exception_type, stop_after_attempt
 
 from ..core import logger
-from ..core.config import BotSettings
+from ..core.config import AppSettings
 from ..db.models import User
 from ..domain.exceptions import BroadcastAlreadyRunningError
 from ..dto import BroadcastDTO, BroadcastResult, CompetenceBroadcastDTO, NotifyDTO, RoleBroadcastDTO
@@ -33,7 +33,7 @@ class BroadcastService:
         db: AsyncSession,
         user_repository: UserRepository,
         notification_service: NotificationPort,
-        settings: BotSettings,
+        settings: AppSettings,
     ) -> None:
         """Инициализирует сервис рассылок.
 

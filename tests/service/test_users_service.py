@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from pybot.core.config import BotSettings
+from pybot.core.config import AppSettings
 from pybot.core.constants import PointsTypeEnum, RoleEnum
 from pybot.db.models import UserLevel
 from pybot.domain.exceptions import InitialLevelsNotFoundError, RoleNotFoundError, UserNotFoundError
@@ -29,7 +29,7 @@ from tests.factories import (
 
 async def _build_user_registration_service(
     dishka_request_container,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> UserRegistrationService:
     db = await dishka_request_container.get(AsyncSession)
     user_repository = await dishka_request_container.get(UserRepository)
@@ -49,7 +49,7 @@ async def _build_user_registration_service(
 @pytest.mark.asyncio
 async def test_register_student_success_creates_profile_levels_and_role(
     dishka_request_container,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     # Given
     db = await dishka_request_container.get(AsyncSession)
@@ -79,7 +79,7 @@ async def test_register_student_success_creates_profile_levels_and_role(
 @pytest.mark.asyncio
 async def test_register_student_raises_when_initial_levels_are_missing(
     dishka_request_container,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     # Given
     db = await dishka_request_container.get(AsyncSession)
@@ -95,7 +95,7 @@ async def test_register_student_raises_when_initial_levels_are_missing(
 @pytest.mark.asyncio
 async def test_register_student_raises_when_student_role_is_missing(
     dishka_request_container,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     # Given
     db = await dishka_request_container.get(AsyncSession)
@@ -112,7 +112,7 @@ async def test_register_student_raises_when_student_role_is_missing(
 @pytest.mark.asyncio
 async def test_register_student_assigns_admin_role_for_configured_telegram_ids(
     dishka_request_container,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     # Given
     db = await dishka_request_container.get(AsyncSession)
@@ -137,7 +137,7 @@ async def test_register_student_assigns_admin_role_for_configured_telegram_ids(
 @pytest.mark.asyncio
 async def test_register_student_raises_when_admin_role_is_missing_for_configured_auto_admin_id(
     dishka_request_container,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     # Given
     db = await dishka_request_container.get(AsyncSession)
@@ -157,7 +157,7 @@ async def test_register_student_raises_when_admin_role_is_missing_for_configured
 @pytest.mark.asyncio
 async def test_register_student_does_not_assign_admin_role_for_non_configured_telegram_ids(
     dishka_request_container,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     # Given
     db = await dishka_request_container.get(AsyncSession)
@@ -181,7 +181,7 @@ async def test_register_student_does_not_assign_admin_role_for_non_configured_te
 @pytest.mark.asyncio
 async def test_user_registration_service_register_student_accepts_duplicate_competence_ids(
     dishka_request_container,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     db = await dishka_request_container.get(AsyncSession)
     user_repository = await dishka_request_container.get(UserRepository)

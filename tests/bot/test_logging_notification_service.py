@@ -1,6 +1,6 @@
 import pytest
 
-from pybot.core.config import BotSettings
+from pybot.core.config import AppSettings
 from pybot.dto import NotifyDTO
 from pybot.infrastructure.ports import logging_notification_service as logging_module
 from pybot.infrastructure.ports.logging_notification_service import LoggingNotificationService
@@ -11,7 +11,7 @@ from pybot.services.ports import NotificationPermanentError
 async def test_send_role_request_to_admin_logs_and_buffers_event(
     monkeypatch: pytest.MonkeyPatch,
     mocker,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     service = LoggingNotificationService(settings_obj)
     info_mock = mocker.patch.object(logging_module.logger, "info")
@@ -38,7 +38,7 @@ async def test_send_role_request_to_admin_logs_and_buffers_event(
 @pytest.mark.asyncio
 async def test_send_role_request_to_admin_maps_logger_failure_to_permanent_error(
     mocker,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     service = LoggingNotificationService(settings_obj)
     mocker.patch.object(logging_module.logger, "exception")
@@ -52,7 +52,7 @@ async def test_send_role_request_to_admin_maps_logger_failure_to_permanent_error
 
 
 @pytest.mark.asyncio
-async def test_send_message_logs_trimmed_text_and_buffers_event(mocker, settings_obj: BotSettings) -> None:
+async def test_send_message_logs_trimmed_text_and_buffers_event(mocker, settings_obj: AppSettings) -> None:
     service = LoggingNotificationService(settings_obj)
     info_mock = mocker.patch.object(logging_module.logger, "info")
 
@@ -84,7 +84,7 @@ async def test_send_message_raises_on_blank_text() -> None:
 @pytest.mark.asyncio
 async def test_send_message_maps_logger_failure_to_permanent_error(
     mocker,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     service = LoggingNotificationService(settings_obj)
     mocker.patch.object(logging_module.logger, "exception")
@@ -98,7 +98,7 @@ async def test_send_message_maps_logger_failure_to_permanent_error(
 
 
 @pytest.mark.asyncio
-async def test_ring_buffer_keeps_last_1000_events(settings_obj: BotSettings) -> None:
+async def test_ring_buffer_keeps_last_1000_events(settings_obj: AppSettings) -> None:
     service = LoggingNotificationService(settings_obj)
 
     for idx in range(1005):
@@ -110,7 +110,7 @@ async def test_ring_buffer_keeps_last_1000_events(settings_obj: BotSettings) -> 
 
 
 @pytest.mark.asyncio
-async def test_send_message_logs_parse_mode_value(mocker, settings_obj: BotSettings) -> None:
+async def test_send_message_logs_parse_mode_value(mocker, settings_obj: AppSettings) -> None:
     service = LoggingNotificationService(settings_obj)
     info_mock = mocker.patch.object(logging_module.logger, "info")
 

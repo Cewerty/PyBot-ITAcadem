@@ -2,12 +2,12 @@ import pytest
 from pydantic import ValidationError
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
 
-from pybot.core.config import BotSettings
+from pybot.core.config import AppSettings
 
 ADMIN_TG_ID = 123_456_789
 
 
-class BotSettingsWithoutDotenv(BotSettings):
+class AppSettingsWithoutDotenv(AppSettings):
     @classmethod
     def settings_customise_sources(
         cls,
@@ -22,7 +22,7 @@ class BotSettingsWithoutDotenv(BotSettings):
 
 def test_broadcast_jitter_range_validation() -> None:
     with pytest.raises(ValidationError, match="BROADCAST_JITTER_MAX_MS"):
-        BotSettingsWithoutDotenv(
+        AppSettingsWithoutDotenv(
             BOT_TOKEN="123456:prod",
             BOT_TOKEN_TEST="123456:test",
             DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
@@ -34,7 +34,7 @@ def test_broadcast_jitter_range_validation() -> None:
 
 def test_broadcast_bulk_size_validation() -> None:
     with pytest.raises(ValidationError, match="BROADCAST_BULK_SIZE"):
-        BotSettingsWithoutDotenv(
+        AppSettingsWithoutDotenv(
             BOT_TOKEN="123456:prod",
             BOT_TOKEN_TEST="123456:test",
             DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
@@ -45,7 +45,7 @@ def test_broadcast_bulk_size_validation() -> None:
 
 def test_broadcast_batch_pause_min_validation() -> None:
     with pytest.raises(ValidationError, match="BROADCAST_BATCH_PAUSE_MS"):
-        BotSettingsWithoutDotenv(
+        AppSettingsWithoutDotenv(
             BOT_TOKEN="123456:prod",
             BOT_TOKEN_TEST="123456:test",
             DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
@@ -56,7 +56,7 @@ def test_broadcast_batch_pause_min_validation() -> None:
 
 def test_broadcast_max_text_length_validation() -> None:
     with pytest.raises(ValidationError, match="BROADCAST_MAX_TEXT_LENGTH"):
-        BotSettingsWithoutDotenv(
+        AppSettingsWithoutDotenv(
             BOT_TOKEN="123456:prod",
             BOT_TOKEN_TEST="123456:test",
             DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
@@ -68,7 +68,7 @@ def test_broadcast_max_text_length_validation() -> None:
 def test_auto_admin_telegram_ids_parsed_from_json_array(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AUTO_ADMIN_TELEGRAM_IDS", "[123456789,987654321,123456789]")
 
-    parsed_settings = BotSettingsWithoutDotenv(
+    parsed_settings = AppSettingsWithoutDotenv(
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
         DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
@@ -81,7 +81,7 @@ def test_auto_admin_telegram_ids_parsed_from_json_array(monkeypatch: pytest.Monk
 def test_broadcast_allowed_roles_parsed_from_comma_separated_string(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("BROADCAST_ALLOWED_ROLES", "Admin,Mentor,Admin")
 
-    parsed_settings = BotSettingsWithoutDotenv(
+    parsed_settings = AppSettingsWithoutDotenv(
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
         DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
@@ -92,7 +92,7 @@ def test_broadcast_allowed_roles_parsed_from_comma_separated_string(monkeypatch:
 
 
 def test_broadcast_allowed_roles_default_is_admin() -> None:
-    parsed_settings = BotSettingsWithoutDotenv(
+    parsed_settings = AppSettingsWithoutDotenv(
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
         DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
@@ -103,7 +103,7 @@ def test_broadcast_allowed_roles_default_is_admin() -> None:
 
 
 def test_telegram_proxy_url_defaults_to_none() -> None:
-    parsed_settings = BotSettingsWithoutDotenv(
+    parsed_settings = AppSettingsWithoutDotenv(
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
         DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
@@ -114,7 +114,7 @@ def test_telegram_proxy_url_defaults_to_none() -> None:
 
 
 def test_telegram_proxy_url_is_parsed_from_env_var() -> None:
-    parsed_settings = BotSettingsWithoutDotenv(
+    parsed_settings = AppSettingsWithoutDotenv(
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
         DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
@@ -126,7 +126,7 @@ def test_telegram_proxy_url_is_parsed_from_env_var() -> None:
 
 
 def test_runtime_alerts_default_to_disabled_without_chat_id() -> None:
-    parsed_settings = BotSettingsWithoutDotenv(
+    parsed_settings = AppSettingsWithoutDotenv(
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
         DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
@@ -139,7 +139,7 @@ def test_runtime_alerts_default_to_disabled_without_chat_id() -> None:
 
 def test_runtime_alerts_chat_id_is_required_when_alerts_are_enabled() -> None:
     with pytest.raises(ValidationError, match="RUNTIME_ALERTS_CHAT_ID"):
-        BotSettingsWithoutDotenv(
+        AppSettingsWithoutDotenv(
             BOT_TOKEN="123456:prod",
             BOT_TOKEN_TEST="123456:test",
             DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
@@ -149,7 +149,7 @@ def test_runtime_alerts_chat_id_is_required_when_alerts_are_enabled() -> None:
 
 
 def test_runtime_alerts_chat_id_is_parsed_when_alerts_are_enabled() -> None:
-    parsed_settings = BotSettingsWithoutDotenv(
+    parsed_settings = AppSettingsWithoutDotenv(
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
         DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
@@ -164,7 +164,7 @@ def test_runtime_alerts_chat_id_is_parsed_when_alerts_are_enabled() -> None:
 
 def test_runtime_alerts_chat_id_rejects_negative_value() -> None:
     with pytest.raises(ValidationError, match="RUNTIME_ALERTS_CHAT_ID"):
-        BotSettingsWithoutDotenv(
+        AppSettingsWithoutDotenv(
             BOT_TOKEN="123456:prod",
             BOT_TOKEN_TEST="123456:test",
             DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
@@ -175,7 +175,7 @@ def test_runtime_alerts_chat_id_rejects_negative_value() -> None:
 
 
 def test_weekly_leaderboard_settings_default_to_disabled() -> None:
-    parsed_settings = BotSettingsWithoutDotenv(
+    parsed_settings = AppSettingsWithoutDotenv(
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
         DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
@@ -197,7 +197,7 @@ def test_weekly_leaderboard_settings_default_to_disabled() -> None:
 
 def test_weekly_leaderboard_recipient_is_required_when_enabled() -> None:
     with pytest.raises(ValidationError, match="LEADERBOARD_WEEKLY_RECIPIENT_ID"):
-        BotSettingsWithoutDotenv(
+        AppSettingsWithoutDotenv(
             BOT_TOKEN="123456:prod",
             BOT_TOKEN_TEST="123456:test",
             DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
@@ -207,7 +207,7 @@ def test_weekly_leaderboard_recipient_is_required_when_enabled() -> None:
 
 
 def test_weekly_leaderboard_recipient_accepts_negative_chat_id() -> None:
-    parsed_settings = BotSettingsWithoutDotenv(
+    parsed_settings = AppSettingsWithoutDotenv(
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
         DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
@@ -222,7 +222,7 @@ def test_weekly_leaderboard_recipient_accepts_negative_chat_id() -> None:
 
 def test_weekly_leaderboard_retry_max_delay_must_be_greater_than_or_equal_to_delay() -> None:
     with pytest.raises(ValidationError, match="LEADERBOARD_WEEKLY_RETRY_MAX_DELAY_S"):
-        BotSettingsWithoutDotenv(
+        AppSettingsWithoutDotenv(
             BOT_TOKEN="123456:prod",
             BOT_TOKEN_TEST="123456:test",
             DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
@@ -236,7 +236,7 @@ def test_broadcast_allowed_roles_rejects_unknown_role(monkeypatch: pytest.Monkey
     monkeypatch.setenv("BROADCAST_ALLOWED_ROLES", "Admin,WrongRole")
 
     with pytest.raises(ValidationError, match="Unknown role"):
-        BotSettingsWithoutDotenv(
+        AppSettingsWithoutDotenv(
             BOT_TOKEN="123456:prod",
             BOT_TOKEN_TEST="123456:test",
             DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
@@ -246,7 +246,7 @@ def test_broadcast_allowed_roles_rejects_unknown_role(monkeypatch: pytest.Monkey
 
 def test_role_request_admin_tg_id_must_be_greater_than_zero() -> None:
     with pytest.raises(ValidationError, match="ROLE_REQUEST_ADMIN_TG_ID"):
-        BotSettingsWithoutDotenv(
+        AppSettingsWithoutDotenv(
             BOT_TOKEN="123456:prod",
             BOT_TOKEN_TEST="123456:test",
             DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
@@ -258,7 +258,7 @@ def test_role_request_admin_tg_id_is_required(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.delenv("ROLE_REQUEST_ADMIN_TG_ID", raising=False)
 
     with pytest.raises(ValidationError) as exc_info:
-        BotSettingsWithoutDotenv(
+        AppSettingsWithoutDotenv(
             BOT_TOKEN="123456:prod",
             BOT_TOKEN_TEST="123456:test",
             DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
@@ -268,3 +268,40 @@ def test_role_request_admin_tg_id_is_required(monkeypatch: pytest.MonkeyPatch) -
         error["loc"] == ("ROLE_REQUEST_ADMIN_TG_ID",) and error["type"] == "missing"
         for error in exc_info.value.errors()
     )
+
+
+def test_bot_token_test_is_optional_in_prod_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("BOT_TOKEN_TEST", raising=False)
+
+    parsed_settings = AppSettingsWithoutDotenv(
+        BOT_TOKEN="123456:prod",
+        BOT_MODE="prod",
+        DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
+        ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
+    )
+
+    assert parsed_settings.bot_token_test is None
+    assert parsed_settings.active_bot_token == "123456:prod"
+
+
+def test_bot_token_test_is_required_in_test_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("BOT_TOKEN_TEST", raising=False)
+
+    with pytest.raises(ValidationError, match="BOT_TOKEN_TEST"):
+        AppSettingsWithoutDotenv(
+            BOT_TOKEN="123456:prod",
+            BOT_MODE="test",
+            DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
+            ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
+        )
+
+
+def test_bot_token_test_is_required_for_default_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("BOT_TOKEN_TEST", raising=False)
+
+    with pytest.raises(ValidationError, match="BOT_TOKEN_TEST"):
+        AppSettingsWithoutDotenv(
+            BOT_TOKEN="123456:prod",
+            DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
+            ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
+        )

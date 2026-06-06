@@ -6,7 +6,7 @@ from dishka.integrations.taskiq import FromDishka, inject
 from taskiq import AsyncBroker, AsyncTaskiqDecoratedTask
 
 from ....core import logger
-from ....core.config import BotSettings
+from ....core.config import AppSettings
 from ....services.weekly_leaderboard_publisher import WeeklyLeaderboardPublisherService
 
 
@@ -15,7 +15,7 @@ async def publish_weekly_leaderboard_task(
     recipient_id: int,
     limit: int,
     service: FromDishka[WeeklyLeaderboardPublisherService],
-    settings: FromDishka[BotSettings],
+    settings: FromDishka[AppSettings],
     message_thread_id: int | None = None,
 ) -> dict[str, int | None]:
     """Публикует еженедельный лидерборд указанному получателю.
@@ -50,7 +50,7 @@ async def publish_weekly_leaderboard_task(
 def register_tasks(
     *,
     broker: AsyncBroker,
-    settings: BotSettings,
+    settings: AppSettings,
 ) -> AsyncTaskiqDecoratedTask[..., Any]:
     """Регистрирует задачу публикации лидерборда в брокере.
 

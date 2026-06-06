@@ -1,7 +1,7 @@
 from collections import deque
 
 from ...core import logger
-from ...core.config import BotSettings
+from ...core.config import AppSettings
 from ...dto import NotificationLogEvent, NotifyDTO
 from ...services.ports import NotificationPermanentError, NotificationPort
 from ...utils import telegram_user_link
@@ -14,7 +14,7 @@ class LoggingNotificationService(NotificationPort):
     Хранит ограниченную историю событий в кольцевом буфере.
     """
 
-    def __init__(self, settings: BotSettings, buffer_size: int = 1000) -> None:
+    def __init__(self, settings: AppSettings, buffer_size: int = 1000) -> None:
         """Инициализирует сервис логирования уведомлений.
 
         Args:

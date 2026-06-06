@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import pytest
 from aiogram import Bot
 
-from pybot.core.config import BotSettings
+from pybot.core.config import AppSettings
 from pybot.di import containers as di_containers
 from pybot.infrastructure.taskiq.taskiq_notification_dispatcher import TaskIQNotificationDispatcher
 from pybot.services.notification_facade import NotificationFacade
@@ -16,7 +16,7 @@ from pybot.services.ports import NotificationDispatchPort
 async def test_notification_runtime_smoke_resolves_facade_and_dispatcher(
     monkeypatch: pytest.MonkeyPatch,
     mocker,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     """Smoke test for the new notification runtime wiring through the public container API."""
 

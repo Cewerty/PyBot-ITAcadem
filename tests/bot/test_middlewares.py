@@ -13,7 +13,7 @@ from dishka import AsyncContainer
 from dishka.integrations.aiogram import CONTAINER_NAME
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from pybot.core.config import BotSettings
+from pybot.core.config import AppSettings
 from pybot.presentation.bot import (
     LoggerMiddleware,
     RateLimitMiddleware,
@@ -43,7 +43,7 @@ def _build_handler_data(**flags: object) -> dict[str, object]:
 async def test_logger_middleware_reuses_same_event_id_for_start_and_finish_logs(
     monkeypatch: pytest.MonkeyPatch,
     mocker,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     settings_obj.enable_logging_middleware = True
     middleware = LoggerMiddleware(settings_obj, enabled=True)
@@ -244,7 +244,7 @@ async def test_user_activity_middleware_enriches_data_and_persists_last_activity
 
 
 @pytest.mark.asyncio
-async def test_rate_limit_middleware_skips_limiting_when_flag_is_missing(settings_obj: BotSettings) -> None:
+async def test_rate_limit_middleware_skips_limiting_when_flag_is_missing(settings_obj: AppSettings) -> None:
     # Given
     middleware = RateLimitMiddleware(settings_obj)
     message = _build_message(from_user_id=700_444)
@@ -272,7 +272,7 @@ async def test_rate_limit_middleware_skips_limiting_when_flag_is_missing(setting
 async def test_rate_limit_middleware_falls_back_to_moderate_limits(
     command_limit: str,
     override_invalid_limit: tuple[int, int] | None,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     # Given
     settings_obj.rate_limit_moderate = 7

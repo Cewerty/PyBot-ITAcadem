@@ -23,7 +23,7 @@ os.environ.setdefault("ROLE_REQUEST_ADMIN_TG_ID", "999999999")
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///./data/tests/bootstrap.sqlite3")
 os.environ["BOT_MODE"] = "test"
 
-from pybot.core.config import BotSettings, get_settings
+from pybot.core.config import AppSettings, get_settings
 from pybot.db.models import Base
 from pybot.db.models.role_module.role_request import RoleRequest
 from pybot.di import containers as di_containers
@@ -75,7 +75,9 @@ def faker_seed() -> Generator[None]:
 def test_db_path(tmp_path: Path, request: pytest.FixtureRequest) -> Path:
     """Create isolated SQLite file path per test scenario."""
     safe_name = request.node.name.replace("[", "_").replace("]", "_")
-    return tmp_path / "data" / f"{safe_name}.sqlite3"
+    database_dir = tmp_path / "data"
+    database_dir.mkdir(parents=True, exist_ok=True)
+    return database_dir / f"{safe_name}.sqlite3"
 
 
 @pytest.fixture
@@ -84,7 +86,7 @@ def test_database_url(test_db_path: Path) -> str:
 
 
 @pytest.fixture(autouse=True)
-def settings_obj(test_database_url: str) -> Generator[BotSettings]:
+def settings_obj(test_database_url: str) -> Generator[AppSettings]:
     """Provide isolated mutable settings for each test case."""
     get_settings.cache_clear()
     runtime_settings = get_settings().model_copy(deep=True)
@@ -103,7 +105,7 @@ def settings_obj(test_database_url: str) -> Generator[BotSettings]:
 @pytest.fixture(autouse=True)
 def patch_di_settings_getter(
     monkeypatch: pytest.MonkeyPatch,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> Generator[None]:
     """Route DI settings requests to the per-test settings object."""
     monkeypatch.setattr(di_containers, "get_settings", lambda: settings_obj)

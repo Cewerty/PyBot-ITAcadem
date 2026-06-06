@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from ..core import logger
-from ..core.config import BotSettings
+from ..core.config import AppSettings
 from ..core.constants import TaskScheduleKind
 from ..dto import NotifyDTO, NotifyUserDTO
 from .notification_facade import NotificationFacade
@@ -16,7 +16,7 @@ class SystemRuntimeAlertsService:
         self,
         notification_facade: NotificationFacade,
         notification_port: NotificationPort,
-        settings: BotSettings,
+        settings: AppSettings,
     ) -> None:
         """Инициализирует сервис системных уведомлений.
 

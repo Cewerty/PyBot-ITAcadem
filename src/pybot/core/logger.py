@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, TextIO
 
 from loguru import logger as loguru_logger
 
-from .config import BotSettings, get_settings
+from .config import AppSettings, get_settings
 
 if TYPE_CHECKING:
     from loguru import Logger, Message
@@ -29,7 +29,7 @@ _HUMAN_FORMAT = (
 )
 
 
-def setup_logger(settings: BotSettings | None = None) -> Logger:
+def setup_logger(settings: AppSettings | None = None) -> Logger:
     """Configure the application logger sink based on LOG_FORMAT setting.
 
     When LOG_FORMAT=json (recommended for production), emits structured
@@ -39,7 +39,7 @@ def setup_logger(settings: BotSettings | None = None) -> Logger:
     When LOG_FORMAT=text (default for local development), emits coloured
     human-readable output to stdout.
 
-    If LOG_FORMAT is not set explicitly, BotSettings derives the default from
+    If LOG_FORMAT is not set explicitly, AppSettings derives the default from
     BOT_MODE: text for test/dev and json for prod.
     """
     runtime_settings = settings or get_settings()

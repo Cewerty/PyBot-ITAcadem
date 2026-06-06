@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
 
-from pybot.core.config import BotSettings
+from pybot.core.config import AppSettings
 
 ADMIN_TG_ID = 123_456_789
 
 
-class BotSettingsWithoutDotenv(BotSettings):
+class AppSettingsWithoutDotenv(AppSettings):
     @classmethod
     def settings_customise_sources(
         cls,
@@ -21,7 +21,7 @@ class BotSettingsWithoutDotenv(BotSettings):
 
 
 def test_log_format_defaults_to_text_for_test_mode() -> None:
-    parsed_settings = BotSettingsWithoutDotenv(
+    parsed_settings = AppSettingsWithoutDotenv(
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
         BOT_MODE="test",
@@ -33,7 +33,7 @@ def test_log_format_defaults_to_text_for_test_mode() -> None:
 
 
 def test_log_format_defaults_to_json_for_prod_mode() -> None:
-    parsed_settings = BotSettingsWithoutDotenv(
+    parsed_settings = AppSettingsWithoutDotenv(
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
         BOT_MODE="prod",
@@ -45,7 +45,7 @@ def test_log_format_defaults_to_json_for_prod_mode() -> None:
 
 
 def test_explicit_log_format_overrides_prod_runtime_default() -> None:
-    parsed_settings = BotSettingsWithoutDotenv(
+    parsed_settings = AppSettingsWithoutDotenv(
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
         BOT_MODE="prod",
@@ -58,7 +58,7 @@ def test_explicit_log_format_overrides_prod_runtime_default() -> None:
 
 
 def test_fsm_storage_defaults_to_redis_for_local_runtime() -> None:
-    parsed_settings = BotSettingsWithoutDotenv(
+    parsed_settings = AppSettingsWithoutDotenv(
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
         BOT_MODE="test",

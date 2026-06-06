@@ -10,13 +10,13 @@ from aiogram.types import Message, TelegramObject, User
 from aiolimiter import AsyncLimiter
 
 from ....core import logger
-from ....core.config import BotSettings
+from ....core.config import AppSettings
 
 
 class RateLimitMiddleware(BaseMiddleware):
     """Класс для RateLimitMiddleware."""
 
-    def __init__(self, settings: BotSettings) -> None:
+    def __init__(self, settings: AppSettings) -> None:
         """Инициализирует объект."""
         super().__init__()
         self.settings = settings

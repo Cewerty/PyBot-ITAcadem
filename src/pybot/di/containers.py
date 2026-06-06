@@ -9,7 +9,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from ..core import logger
-from ..core.config import BotSettings, get_settings
+from ..core.config import AppSettings, get_settings
 from ..db.database import create_database_engine
 from ..domain.services.level_calculator import LevelCalculator
 from ..infrastructure import (
@@ -50,7 +50,7 @@ class DatabaseProvider(Provider):
     """Providers for database resources."""
 
     @provide(scope=Scope.APP)
-    async def engine(self, settings: BotSettings) -> AsyncGenerator[AsyncEngine]:
+    async def engine(self, settings: AppSettings) -> AsyncGenerator[AsyncEngine]:
         """Provide one SQLAlchemy engine for the whole app lifecycle."""
         engine = create_database_engine(settings.database_url) if global_engine is None else global_engine
         try:
@@ -171,7 +171,7 @@ class ServiceProvider(Provider):
         user_repository: UserRepository,
         role_request_repository: RoleRequestRepository,
         notification_service: NotificationPort,
-        settings: BotSettings,
+        settings: AppSettings,
     ) -> RoleRequestService:
         return RoleRequestService(
             db, role_repository, user_repository, role_request_repository, notification_service, settings
@@ -183,7 +183,7 @@ class ServiceProvider(Provider):
         db: AsyncSession,
         user_repository: UserRepository,
         notification_service: NotificationPort,
-        settings: BotSettings,
+        settings: AppSettings,
     ) -> BroadcastService:
         return BroadcastService(db, user_repository, notification_service, settings)
 
@@ -216,7 +216,7 @@ class ServiceProvider(Provider):
         level_repository: LevelRepository,
         role_repository: RoleRepository,
         competence_repository: CompetenceRepository,
-        settings: BotSettings,
+        settings: AppSettings,
     ) -> UserRegistrationService:
         return UserRegistrationService(
             db, user_repository, level_repository, role_repository, competence_repository, settings
@@ -235,7 +235,7 @@ class RedisProvider(Provider):
     """Provide Redis resources for runtimes that need a direct client."""
 
     @provide(scope=Scope.APP)
-    async def redis_client(self, settings: BotSettings) -> AsyncGenerator[Redis]:
+    async def redis_client(self, settings: AppSettings) -> AsyncGenerator[Redis]:
         client = Redis.from_url(
             settings.redis_url,
             encoding="utf-8",
@@ -260,7 +260,7 @@ class ConfigProvider(Provider):
     """Configuration object."""
 
     @provide(scope=Scope.APP)
-    def config(self) -> BotSettings:
+    def config(self) -> AppSettings:
         return get_settings()
 
 
@@ -268,7 +268,7 @@ class BotProvider(Provider):
     """Telegram Bot provider with APP scope."""
 
     @provide(scope=Scope.APP)
-    async def bot(self, settings: BotSettings) -> AsyncGenerator[Bot]:
+    async def bot(self, settings: AppSettings) -> AsyncGenerator[Bot]:
         if settings.telegram_proxy_url is not None:
             bot = Bot(
                 settings.active_bot_token,
@@ -285,7 +285,7 @@ class BotProvider(Provider):
 
 class PortsProvider(Provider):
     @provide(scope=Scope.APP)
-    async def notification_port(self, settings: BotSettings, bot: Bot) -> NotificationPort:
+    async def notification_port(self, settings: AppSettings, bot: Bot) -> NotificationPort:
         if settings.notification_backend == "telegram":
             return TelegramNotificationService(bot, settings)
         elif settings.notification_backend == "logging":
@@ -308,7 +308,7 @@ class FacadeProvider(Provider):
         self,
         notification_facade: NotificationFacade,
         notification_service: NotificationPort,
-        settings: BotSettings,
+        settings: AppSettings,
     ) -> SystemRuntimeAlertsService:
         return SystemRuntimeAlertsService(notification_facade, notification_service, settings)
 

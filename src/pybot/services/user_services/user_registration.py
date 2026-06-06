@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...core.config import BotSettings
+from ...core.config import AppSettings
 from ...core.constants import RoleEnum
 from ...domain.exceptions import InitialLevelsNotFoundError, RoleNotFoundError
 from ...dto import UserReadDTO, UserRegistrationDTO
@@ -21,7 +21,7 @@ class UserRegistrationService:
         level_repository: LevelRepository,
         role_repository: RoleRepository,
         competence_repository: CompetenceRepository,
-        settings: BotSettings,
+        settings: AppSettings,
     ) -> None:
         """Initialize the registration service."""
         self.db: AsyncSession = db

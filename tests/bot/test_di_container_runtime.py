@@ -4,7 +4,7 @@ import pytest
 from aiogram import Bot
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
-from pybot.core.config import BotSettings
+from pybot.core.config import AppSettings
 from pybot.di import containers as di_containers
 from pybot.services.user_services import UserService
 
@@ -14,7 +14,7 @@ async def test_setup_container_smoke_resolves_key_dependencies(
     patched_public_di_engine: AsyncEngine,
     monkeypatch: pytest.MonkeyPatch,
     mocker,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     """Smoke test for DI assembly via public container API."""
 
@@ -49,7 +49,7 @@ async def test_setup_container_smoke_resolves_key_dependencies(
 async def test_container_lifecycle_closes_session_and_disposes_engine(
     monkeypatch: pytest.MonkeyPatch,
     mocker,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     """Verify graceful shutdown closes request session and disposes DB engine."""
 

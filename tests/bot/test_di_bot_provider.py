@@ -5,7 +5,7 @@ from aiogram import Bot as AiogramBot
 from aiogram.client.session.aiohttp import AiohttpSession
 from dishka import make_async_container
 
-from pybot.core.config import BotSettings
+from pybot.core.config import AppSettings
 from pybot.di import containers as di_containers
 
 
@@ -13,7 +13,7 @@ from pybot.di import containers as di_containers
 async def test_container_provides_bot_and_closes_session(
     monkeypatch: pytest.MonkeyPatch,
     mocker,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     class FakeBot:
         def __init__(self, token: str, session=None, **_: object) -> None:
@@ -40,7 +40,7 @@ async def test_container_provides_bot_and_closes_session(
 async def test_container_uses_prod_token_when_bot_mode_is_prod(
     monkeypatch: pytest.MonkeyPatch,
     mocker,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     class FakeBot:
         def __init__(self, token: str, session=None, **_: object) -> None:
@@ -66,7 +66,7 @@ async def test_container_uses_prod_token_when_bot_mode_is_prod(
 @pytest.mark.asyncio
 async def test_container_uses_proxy_session_when_proxy_url_is_configured(
     monkeypatch: pytest.MonkeyPatch,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     class FakeBot:
         def __init__(self, token: str, session=None, **_: object) -> None:

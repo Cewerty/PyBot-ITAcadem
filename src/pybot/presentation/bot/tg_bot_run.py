@@ -13,7 +13,7 @@ from dishka import AsyncContainer
 from dishka.integrations.aiogram import setup_dishka
 
 from ...core import logger
-from ...core.config import BotSettings, get_settings
+from ...core.config import AppSettings, get_settings
 from ...di.containers import setup_container
 from ...services import SystemRuntimeAlertsService
 from .dialogs import user_router
@@ -33,7 +33,7 @@ from .middlewares import (
 )
 
 
-async def setup_dispatcher(settings: BotSettings) -> Dispatcher:
+async def setup_dispatcher(settings: AppSettings) -> Dispatcher:
     """Create dispatcher with the configured FSM backend."""
     if settings.fsm_storage_backend == "redis":
         storage = RedisStorage.from_url(
@@ -47,7 +47,7 @@ async def setup_dispatcher(settings: BotSettings) -> Dispatcher:
     return Dispatcher()
 
 
-async def setup_middlewares(dp: Dispatcher, settings: BotSettings) -> None:
+async def setup_middlewares(dp: Dispatcher, settings: AppSettings) -> None:
     """Attach configured middleware stack to the dispatcher."""
     if settings.enable_logging_middleware:
         logging_middleware = LoggerMiddleware(settings, enabled=True)

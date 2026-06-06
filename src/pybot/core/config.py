@@ -3,26 +3,37 @@ from __future__ import annotations
 import functools
 from typing import Annotated, Literal, Self
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, ValidationInfo, field_validator, model_validator
 from pydantic_extra_types.cron import CronStr
 from pydantic_extra_types.timezone_name import TimeZoneName
-from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+from pydantic_settings import (
+    BaseSettings,
+    DotEnvSettingsSource,
+    NoDecode,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+)
 
 from .constants import RoleEnum
 
 
-class BotSettings(BaseSettings):
-    """Application settings loaded from environment variables."""
+class AppSettings(BaseSettings):
+    """Typed runtime settings loaded from environment variables."""
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict()
 
     # Telegram settings
     bot_token: str = Field(..., alias="BOT_TOKEN", description="Production bot token")
-    bot_token_test: str = Field(..., alias="BOT_TOKEN_TEST", description="Test bot token")
     bot_mode: Literal["test", "prod"] = Field(
         "test",
         alias="BOT_MODE",
         description="Bot runtime mode: 'test' uses BOT_TOKEN_TEST, 'prod' uses BOT_TOKEN",
+    )
+    bot_token_test: str | None = Field(
+        None,
+        alias="BOT_TOKEN_TEST",
+        description="Test bot token",
+        validate_default=True,
     )
     notification_backend: Literal["telegram", "logging"] = Field(
         "telegram",
@@ -56,7 +67,6 @@ class BotSettings(BaseSettings):
         description="Redis URL used for FSM storage when FSM_STORAGE_BACKEND=redis",
     )
     # TODO костыль до поддержки multi-instance
-    taskiq_workers: int = Field(1, alias="TASKIQ_WORKERS", description="Taskiq worker concurrency")
     role_request_admin_tg_id: int = Field(
         ...,
         alias="ROLE_REQUEST_ADMIN_TG_ID",
@@ -221,28 +231,6 @@ class BotSettings(BaseSettings):
         description="Health API port",
     )
 
-    # Observability settings
-    grafana_admin_password: str | None = Field(
-        None,
-        alias="GRAFANA_ADMIN_PASSWORD",
-        description="Grafana admin password (used by docker-compose, not by the bot itself)",
-    )
-    nginx_port: int | None = Field(
-        None,
-        alias="NGINX_PORT",
-        description="Nginx external port (used by docker-compose, not by the bot itself)",
-    )
-    nginx_bind_host: str | None = Field(
-        None,
-        alias="NGINX_BIND_HOST",
-        description="Nginx host bind address (used by docker-compose, not by the bot itself)",
-    )
-    public_domain: str | None = Field(
-        None,
-        alias="PUBLIC_DOMAIN",
-        description="Public domain or IP of the server (used by docker-compose, not by the bot itself)",
-    )
-
     broadcast_allowed_roles: Annotated[set[str], NoDecode] = Field(
         default_factory=lambda: {"Admin"},
         alias="BROADCAST_ALLOWED_ROLES",
@@ -268,6 +256,8 @@ class BotSettings(BaseSettings):
         """Return active bot token based on BOT_MODE."""
         if self.bot_mode == "prod":
             return self.bot_token
+        if self.bot_token_test is None:
+            raise ValueError("BOT_TOKEN_TEST must be set when BOT_MODE is not 'prod'")
         return self.bot_token_test
 
     @property
@@ -294,13 +284,6 @@ class BotSettings(BaseSettings):
 
         raise ValueError("DEBUG must be a boolean-like value (e.g. true/false/debug/release)")
 
-    @field_validator("taskiq_workers")
-    @classmethod
-    def validate_taskiq_workers(cls, value: int) -> int:
-        if value != 1:
-            raise ValueError("TASKIQ_WORKERS=1 is required until multi-instance runtime is supported")
-        return value
-
     @field_validator("telegram_proxy_url", mode="before")
     @classmethod
     def parse_telegram_proxy_url(cls, value: str | None) -> str | None:
@@ -310,6 +293,21 @@ class BotSettings(BaseSettings):
         normalized = value.strip()
         if not normalized:
             return None
+        return normalized
+
+    @field_validator("bot_token_test", mode="after")
+    @classmethod
+    def validate_test_bot_token(cls, value: str | None, info: ValidationInfo) -> str | None:
+        bot_mode = info.data.get("bot_mode", "test")
+        if bot_mode == "prod":
+            return value
+
+        if value is None:
+            raise ValueError("BOT_TOKEN_TEST must be set when BOT_MODE is not 'prod'")
+
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("BOT_TOKEN_TEST must be set when BOT_MODE is not 'prod'")
         return normalized
 
     @field_validator("leaderboard_weekly_recipient_id", mode="before")
@@ -401,6 +399,50 @@ class BotSettings(BaseSettings):
 
 
 @functools.lru_cache(maxsize=1)
-def get_settings() -> BotSettings:
+def get_settings() -> AppSettings:
     """Return the application settings as a cached singleton."""
-    return BotSettings()
+
+    class _BootstrapAppSettings(AppSettings):
+        @staticmethod
+        def _runtime_env_keys(settings_cls: type[BaseSettings]) -> set[str]:
+            runtime_env_keys = set(settings_cls.model_fields)
+            for field_info in settings_cls.model_fields.values():
+                alias = field_info.alias
+                validation_alias = field_info.validation_alias
+
+                if isinstance(alias, str):
+                    runtime_env_keys.add(alias)
+                if isinstance(validation_alias, str):
+                    runtime_env_keys.add(validation_alias)
+
+            return runtime_env_keys
+
+        @classmethod
+        def settings_customise_sources(
+            cls,
+            settings_cls: type[BaseSettings],
+            init_settings: PydanticBaseSettingsSource,
+            env_settings: PydanticBaseSettingsSource,
+            dotenv_settings: PydanticBaseSettingsSource,
+            file_secret_settings: PydanticBaseSettingsSource,
+        ) -> tuple[PydanticBaseSettingsSource, ...]:
+            del dotenv_settings
+
+            class _RuntimeDotEnvSettingsSource(DotEnvSettingsSource):
+                def __call__(self) -> dict[str, object]:
+                    dotenv_values = super().__call__()
+                    runtime_env_keys = _BootstrapAppSettings._runtime_env_keys(settings_cls)
+                    return {key: value for key, value in dotenv_values.items() if key in runtime_env_keys}
+
+            return (
+                init_settings,
+                env_settings,
+                _RuntimeDotEnvSettingsSource(
+                    settings_cls,
+                    env_file=".env",
+                    env_file_encoding="utf-8",
+                ),
+                file_secret_settings,
+            )
+
+    return _BootstrapAppSettings()

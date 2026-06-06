@@ -5,14 +5,14 @@ import json
 import pytest
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
 
-from pybot.core.config import BotSettings
+from pybot.core.config import AppSettings
 from pybot.core.logger import setup_logger
 
 ADMIN_TG_ID = 123_456_789
 USER_ID = 42
 
 
-class BotSettingsWithoutDotenv(BotSettings):
+class AppSettingsWithoutDotenv(AppSettings):
     @classmethod
     def settings_customise_sources(
         cls,
@@ -26,7 +26,7 @@ class BotSettingsWithoutDotenv(BotSettings):
 
 
 def test_json_logger_emits_flat_loki_friendly_record(capsys: pytest.CaptureFixture[str]) -> None:
-    settings = BotSettingsWithoutDotenv(
+    settings = AppSettingsWithoutDotenv(
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
         BOT_MODE="prod",
@@ -53,7 +53,7 @@ def test_json_logger_emits_flat_loki_friendly_record(capsys: pytest.CaptureFixtu
 
 
 def test_json_logger_preserves_exception_context(capsys: pytest.CaptureFixture[str]) -> None:
-    settings = BotSettingsWithoutDotenv(
+    settings = AppSettingsWithoutDotenv(
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
         BOT_MODE="prod",
