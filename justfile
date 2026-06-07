@@ -12,8 +12,17 @@ install: # Install production dependencies
 install-dev: # Install all dependencies, including dev groups
     uv sync --all-groups
 
-run: # Run the bot
-    uv run run.py
+run: # Run full local runtime via Docker Compose
+    docker compose up --build
+
+run-parity: # Run the official local dev/prod-like parity path
+    $env:HEALTH_API_ENABLED='true'; docker compose --profile health up --build
+
+run-health: # Backward-compatible alias for the parity path
+    just run-parity
+
+run-observability: # Run local runtime together with opt-in observability profile
+    docker compose --profile observability up --build
 
 format: # Format code with ruff
     uv run ruff format .
@@ -52,7 +61,7 @@ docs-serve: # Serve MkDocs documentation locally
     uv run --extra docs mkdocs serve -f docs-project/mkdocs.yml
 
 type-check: # Run type checker (ty)
-    uv run ty check --python=.venv/ --output-format github --target-version 3.12 src/ tests/
+    uv run ty check --python=.venv/ --output-format github --target-version 3.14 src/ tests/
 
 migrate-create msg: # Create Alembic migration: just migrate-create "add new column"
     uv run alembic revision --autogenerate -m "{{msg}}"

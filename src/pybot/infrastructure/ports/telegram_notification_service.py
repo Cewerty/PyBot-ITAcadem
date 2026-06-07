@@ -13,7 +13,7 @@ from aiogram.exceptions import (
 )
 
 from ...core import logger
-from ...core.config import BotSettings
+from ...core.config import AppSettings
 from ...dto import NotifyDTO
 from ...presentation.bot import get_admin_decision_kb
 from ...presentation.texts import role_request_admin_notification
@@ -28,7 +28,7 @@ class TelegramNotificationService(NotificationPort):
     Обрабатывает типичные ошибки Telegram API (Rate Limits, Forbidden, и т.д.), транслируя их в доменные исключения.
     """
 
-    def __init__(self, bot: Bot, settings: BotSettings) -> None:
+    def __init__(self, bot: Bot, settings: AppSettings) -> None:
         """Инициализирует сервис уведомлений Telegram.
 
         Args:

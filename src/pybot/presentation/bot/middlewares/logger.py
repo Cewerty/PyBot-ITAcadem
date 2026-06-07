@@ -11,7 +11,7 @@ from aiogram.dispatcher.flags import get_flag
 from aiogram.types import CallbackQuery, ChatMemberUpdated, InlineQuery, Message, TelegramObject
 
 from ....core import logger
-from ....core.config import BotSettings
+from ....core.config import AppSettings
 from ....core.constants import LogPolicyKey
 
 MAX_LOGGED_CONTENT_LENGTH = 80
@@ -20,7 +20,7 @@ MAX_LOGGED_CONTENT_LENGTH = 80
 class LoggerMiddleware(BaseMiddleware):
     """Middleware для единообразного логирования жизненного цикла update."""
 
-    def __init__(self, settings: BotSettings, *, enabled: bool = False, log_sensitive: bool = False) -> None:
+    def __init__(self, settings: AppSettings, *, enabled: bool = False, log_sensitive: bool = False) -> None:
         """Инициализировать middleware логирования.
 
         Args:

@@ -13,10 +13,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from pybot.cli import seed as fill_point_db
 from src.pybot.core.constants import PointsTypeEnum, RoleEnum
-from src.pybot.dto import AdjustUserPointsDTO, CompetenceCreateDTO, CompetenceReadDTO, UserCreateDTO, UserReadDTO
+from src.pybot.dto import (
+    AdjustUserPointsDTO,
+    CompetenceCreateDTO,
+    CompetenceReadDTO,
+    UserCreateDTO,
+    UserReadDTO,
+    UserRegistrationDTO,
+)
 from src.pybot.dto.value_objects import Points
 from src.pybot.db.models import Level, Role
-from src.pybot.services import CompetenceService, LevelService, PointsService, UserCompetenceService, UserService
+from src.pybot.services import (
+    CompetenceService,
+    LevelService,
+    PointsService,
+    UserCompetenceService,
+    UserRegistrationService,
+)
 
 
 class FakeRequestContainer:
@@ -27,14 +40,14 @@ class FakeRequestContainer:
         level_service: "FakeLevelService",
         points_service: "FakePointsService",
         user_competence_service: "FakeUserCompetenceService",
-        user_service: "FakeFillDatabaseUserService",
+        user_registration_service: "FakeFillDatabaseUserRegistrationService",
     ) -> None:
         self._session = session
         self._competence_service = competence_service
         self._level_service = level_service
         self._points_service = points_service
         self._user_competence_service = user_competence_service
-        self._user_service = user_service
+        self._user_registration_service = user_registration_service
 
     async def get(
         self,
@@ -43,8 +56,8 @@ class FakeRequestContainer:
         | type[LevelService]
         | type[PointsService]
         | type[UserCompetenceService]
-        | type[UserService],
-    ) -> "FakeFillDatabaseSession | FakeCompetenceService | FakeLevelService | FakePointsService | FakeUserCompetenceService | FakeFillDatabaseUserService":
+        | type[UserRegistrationService],
+    ) -> "FakeFillDatabaseSession | FakeCompetenceService | FakeLevelService | FakePointsService | FakeUserCompetenceService | FakeFillDatabaseUserRegistrationService":
         if dep_type is AsyncSession:
             return self._session
         if dep_type is CompetenceService:
@@ -55,8 +68,8 @@ class FakeRequestContainer:
             return self._points_service
         if dep_type is UserCompetenceService:
             return self._user_competence_service
-        if dep_type is UserService:
-            return self._user_service
+        if dep_type is UserRegistrationService:
+            return self._user_registration_service
         raise AssertionError(f"Unexpected dependency request: {dep_type!r}")
 
 
@@ -113,16 +126,16 @@ class FakeUserCompetenceService(UserCompetenceService):
         pass
 
 
-class FakeFillDatabaseUserService(UserService):
+class FakeFillDatabaseUserRegistrationService(UserRegistrationService):
     def __init__(self) -> None:
         pass
 
 
-class FakeGenerateUsersService(UserService):
+class FakeGenerateUsersService(UserRegistrationService):
     def __init__(self, created_user: UserReadDTO) -> None:
         self.register_student_mock = AsyncMock(return_value=created_user)
 
-    async def register_student(self, dto: UserCreateDTO) -> UserReadDTO:
+    async def register_student(self, dto: UserRegistrationDTO) -> UserReadDTO:
         return await self.register_student_mock(dto)
 
 
@@ -179,12 +192,13 @@ def build_runtime_dependencies(
         competence_create_dto_cls=CompetenceCreateDTO,
         competence_read_dto_cls=CompetenceReadDTO,
         user_create_dto_cls=UserCreateDTO,
+        user_registration_dto_cls=UserRegistrationDTO,
         points_cls=Points,
         competence_service_cls=CompetenceService,
         level_service_cls=LevelService,
         points_service_cls=PointsService,
         user_competence_service_cls=UserCompetenceService,
-        user_service_cls=UserService,
+        user_registration_service_cls=UserRegistrationService,
     )
 
 
@@ -326,7 +340,7 @@ async def test_fill_database_uses_dishka_container_and_closes_it(monkeypatch: py
     fake_level_service = FakeLevelService()
     fake_points_service = FakePointsService()
     fake_user_competence_service = FakeUserCompetenceService()
-    fake_user_service = FakeFillDatabaseUserService()
+    fake_user_service = FakeFillDatabaseUserRegistrationService()
     fake_request_container = FakeRequestContainer(
         fake_session,
         fake_competence_service,
@@ -382,7 +396,7 @@ async def test_fill_database_skips_disabled_seed_steps(monkeypatch: pytest.Monke
         FakeLevelService(),
         FakePointsService(),
         FakeUserCompetenceService(),
-        FakeFillDatabaseUserService(),
+        FakeFillDatabaseUserRegistrationService(),
     )
     fake_container = _ContainerStub(fake_request_container)
 
@@ -464,11 +478,12 @@ async def test_generate_users_data_uses_services_for_registration_and_points(
     if register_call is None:
         raise AssertionError("register_student was not awaited")
     created_dto = register_call.args[0]
-    assert created_dto.first_name == "\u0418\u0432\u0430\u043d"
-    assert created_dto.last_name == "\u0418\u0432\u0430\u043d\u043e\u0432"
-    assert created_dto.patronymic == "\u0418\u0432\u0430\u043d\u043e\u0432\u0438\u0447"
-    assert created_dto.phone == "+79991234567"
-    assert created_dto.tg_id == config.min_telegram_id
+    assert created_dto.user.first_name == "\u0418\u0432\u0430\u043d"
+    assert created_dto.user.last_name == "\u0418\u0432\u0430\u043d\u043e\u0432"
+    assert created_dto.user.patronymic == "\u0418\u0432\u0430\u043d\u043e\u0432\u0438\u0447"
+    assert created_dto.user.phone == "+79991234567"
+    assert created_dto.user.tg_id == config.min_telegram_id
+    assert created_dto.competence_ids == ()
 
     assert fake_points_service.change_points_mock.await_count == 2
     academic_dto = fake_points_service.change_points_mock.await_args_list[0].args[0]

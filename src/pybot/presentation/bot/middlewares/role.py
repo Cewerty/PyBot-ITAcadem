@@ -9,7 +9,7 @@ from aiogram.types import Message, TelegramObject
 from dishka.integrations.aiogram import CONTAINER_NAME
 
 from ....core import logger
-from ....core.config import BotSettings
+from ....core.config import AppSettings
 from ....core.constants import RolePolicyKey
 from ....services import UserService
 from ....utils import has_any_role
@@ -53,7 +53,7 @@ class RoleMiddleware(BaseMiddleware):
         return policy_keys
 
     @staticmethod
-    def _resolve_policy_roles(config: BotSettings, policy_keys: set[RolePolicyKey]) -> set[str]:
+    def _resolve_policy_roles(config: AppSettings, policy_keys: set[RolePolicyKey]) -> set[str]:
         roles: set[str] = set()
         for policy_key in policy_keys:
             value = getattr(config, policy_key.value, None)
@@ -95,7 +95,7 @@ class RoleMiddleware(BaseMiddleware):
             resolved_user_roles = await service.find_all_user_roles(user_id=user_db_id)
             policy_roles: set[str] = set()
             if required_policy_keys:
-                config = await request_container.get(BotSettings)
+                config = await request_container.get(AppSettings)
                 policy_roles = self._resolve_policy_roles(config, required_policy_keys)
 
         user_roles = resolved_user_roles or set()

@@ -6,7 +6,7 @@ from typing import Protocol, cast
 import pytest
 from taskiq.brokers.inmemory_broker import InMemoryBroker
 
-from pybot.core.config import BotSettings
+from pybot.core.config import AppSettings
 from pybot.infrastructure.taskiq.tasks.leaderboard import publish_weekly_leaderboard_task, register_tasks
 from pybot.services.weekly_leaderboard_publisher import WeeklyLeaderboardPublisherService
 
@@ -49,7 +49,7 @@ class TaskCallable(Protocol):
 
 
 class DishkaContainerStub:
-    def __init__(self, service: WeeklyLeaderboardPublisherService, settings_obj: BotSettings) -> None:
+    def __init__(self, service: WeeklyLeaderboardPublisherService, settings_obj: AppSettings) -> None:
         self._service = service
         self._settings = settings_obj
 
@@ -69,19 +69,19 @@ class DishkaContainerStub:
         assert resolved_component in ("", None)
         if dependency_type is WeeklyLeaderboardPublisherService:
             return self._service
-        if dependency_type is BotSettings:
+        if dependency_type is AppSettings:
             return self._settings
         raise AssertionError(f"Unexpected dependency requested: {dependency_type}")
 
 
-def _build_registered_task(settings_obj: BotSettings) -> TaskCallable:
+def _build_registered_task(settings_obj: AppSettings) -> TaskCallable:
     broker = InMemoryBroker()
     task = register_tasks(broker=broker, settings=settings_obj)
     return cast(TaskCallable, task)
 
 
 @pytest.mark.asyncio
-async def test_publish_weekly_leaderboard_task_uses_service_and_returns_payload(settings_obj: BotSettings) -> None:
+async def test_publish_weekly_leaderboard_task_uses_service_and_returns_payload(settings_obj: AppSettings) -> None:
     service = WeeklyPublisherServiceSpy()
     task = _build_registered_task(settings_obj)
     dishka_container = DishkaContainerStub(service, settings_obj)
@@ -100,7 +100,7 @@ async def test_publish_weekly_leaderboard_task_uses_service_and_returns_payload(
     assert service.calls == [(-100_200_300, 12, str(settings_obj.leaderboard_weekly_timezone), None)]
 
 
-def test_publish_weekly_leaderboard_task_has_retry_labels(settings_obj: BotSettings) -> None:
+def test_publish_weekly_leaderboard_task_has_retry_labels(settings_obj: AppSettings) -> None:
     task = register_tasks(broker=InMemoryBroker(), settings=settings_obj)
 
     assert task.task_name == "leaderboard.publish_weekly"

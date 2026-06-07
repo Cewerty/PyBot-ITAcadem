@@ -6,12 +6,17 @@ x-app-base: &app-base
     - .env
   environment:
     DATABASE_URL: ${DATABASE_URL:-sqlite+aiosqlite:///./data/pybot_itacadem.db}
-    AUTO_SEED_DB: ${AUTO_SEED_DB:-true}
     TELEGRAM_PROXY_URL: ${TELEGRAM_PROXY_URL:-}
     FSM_STORAGE_BACKEND: ${FSM_STORAGE_BACKEND:-redis}
     REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    LOG_FORMAT: ${LOG_FORMAT:-json}
   volumes:
     - pybot_data:/app/data
+  logging:
+    driver: json-file
+    options:
+      max-size: "5m"
+      max-file: "3"
 
 x-app-service: &app-service
   <<: *app-base
@@ -55,7 +60,7 @@ services:
       [
         "sh",
         "-c",
-        "TASKIQ_WORKERS='${TASKIQ_WORKERS:-1}'; if [ \"$TASKIQ_WORKERS\" != \"1\" ]; then echo \"TASKIQ_WORKERS=$TASKIQ_WORKERS is not supported yet; only TASKIQ_WORKERS=1 is allowed until the runtime is ready for multi-instance workers.\" >&2; exit 1; fi; exec taskiq worker src.pybot.infrastructure.taskiq.entrypoint:broker --workers \"$TASKIQ_WORKERS\"",
+        "TASKIQ_WORKERS='${TASKIQ_WORKERS:-1}'; if [ \"$$TASKIQ_WORKERS\" != \"1\" ]; then echo \"TASKIQ_WORKERS=$$TASKIQ_WORKERS is not supported yet; only TASKIQ_WORKERS=1 is allowed until the runtime is ready for multi-instance workers.\" >&2; exit 1; fi; exec taskiq worker src.pybot.infrastructure.taskiq.entrypoint:broker --workers \"$$TASKIQ_WORKERS\"",
       ]
 
   taskiq-scheduler:
@@ -84,6 +89,11 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -92,6 +102,74 @@ services:
       timeout: 5s
       retries: 5
 
+  loki:
+    image: grafana/loki:3.5.0
+    profiles: ["observability"]
+    restart: unless-stopped
+    volumes:
+      - loki_data:/loki
+      - ./observability/loki/local-config.yaml:/etc/loki/local-config.yaml:ro
+    command: -config.file=/etc/loki/local-config.yaml
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  alloy:
+    image: grafana/alloy:v1.6.1
+    profiles: ["observability"]
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+    command: run --server.http.listen-addr=0.0.0.0:12345 /etc/alloy/config.alloy
+    depends_on:
+      - loki
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    profiles: ["observability"]
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-pybot_local_grafana_admin}
+      - GF_SERVER_DOMAIN=${PUBLIC_DOMAIN:-localhost}
+      - GF_SERVER_ROOT_URL=http://${NGINX_BIND_HOST:-127.0.0.1}:${NGINX_PORT:-8088}/grafana/
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - loki
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  nginx:
+    image: nginx:alpine
+    profiles: ["observability"]
+    restart: unless-stopped
+    ports:
+      - "${NGINX_BIND_HOST:-127.0.0.1}:${NGINX_PORT:-8088}:80"
+    volumes:
+      - ./observability/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - grafana
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
 volumes:
   pybot_data:
   redis_data:
+  loki_data:
+  grafana_data:

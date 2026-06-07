@@ -11,7 +11,7 @@ from aiogram.methods import SendMessage
 from pytest_mock import MockerFixture
 
 from pybot.presentation.bot import get_admin_decision_kb
-from pybot.core.config import BotSettings
+from pybot.core.config import AppSettings
 from pybot.dto import NotifyDTO
 from pybot.infrastructure.ports.telegram_notification_service import TelegramNotificationService
 from pybot.services.ports import NotificationPermanentError, NotificationTemporaryError
@@ -41,9 +41,9 @@ def _expect(condition: bool, message: str) -> None:
 @pytest_asyncio.fixture
 async def fake_bot(
     mocker: MockerFixture,
-    settings_obj: BotSettings,
-) -> AsyncGenerator[BotFixture, None]:
-    bot = Bot(token=settings_obj.bot_token_test)
+    settings_obj: AppSettings,
+) -> AsyncGenerator[BotFixture]:
+    bot = Bot(token=settings_obj.active_bot_token)
     send_message_mock: AsyncMock = mocker.AsyncMock()
     mocker.patch.object(bot, "send_message", send_message_mock)
     try:
@@ -55,7 +55,7 @@ async def fake_bot(
 @pytest.mark.asyncio
 async def test_send_role_request_to_admin_sends_message_with_keyboard(
     fake_bot: BotFixture,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     service = TelegramNotificationService(fake_bot.bot, settings_obj)
     settings_obj.role_request_admin_tg_id = ADMIN_TG_ID
@@ -92,7 +92,7 @@ async def test_send_role_request_to_admin_sends_message_with_keyboard(
 @pytest.mark.asyncio
 async def test_send_role_request_to_admin_maps_retry_after_to_temporary_error(
     fake_bot: BotFixture,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     fake_bot.send_message.side_effect = TelegramRetryAfter(_dummy_method(), "retry later", int(RETRY_AFTER_SECONDS))
     service = TelegramNotificationService(fake_bot.bot, settings_obj)
@@ -112,7 +112,7 @@ async def test_send_role_request_to_admin_maps_retry_after_to_temporary_error(
 @pytest.mark.asyncio
 async def test_send_role_request_to_admin_maps_network_error_to_temporary_error(
     fake_bot: BotFixture,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     fake_bot.send_message.side_effect = TelegramNetworkError(_dummy_method(), "network down")
     service = TelegramNotificationService(fake_bot.bot, settings_obj)
@@ -127,7 +127,7 @@ async def test_send_role_request_to_admin_maps_network_error_to_temporary_error(
 @pytest.mark.asyncio
 async def test_send_role_request_to_admin_maps_bad_request_to_permanent_error(
     fake_bot: BotFixture,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     fake_bot.send_message.side_effect = TelegramBadRequest(_dummy_method(), "bad request")
     service = TelegramNotificationService(fake_bot.bot, settings_obj)
@@ -142,7 +142,7 @@ async def test_send_role_request_to_admin_maps_bad_request_to_permanent_error(
 @pytest.mark.asyncio
 async def test_send_role_request_to_admin_maps_generic_api_error_to_permanent_error(
     fake_bot: BotFixture,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     fake_bot.send_message.side_effect = TelegramAPIError(_dummy_method(), "api failure")
     service = TelegramNotificationService(fake_bot.bot, settings_obj)
@@ -157,7 +157,7 @@ async def test_send_role_request_to_admin_maps_generic_api_error_to_permanent_er
 @pytest.mark.asyncio
 async def test_send_role_request_to_admin_maps_unexpected_error_to_permanent_error(
     fake_bot: BotFixture,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     fake_bot.send_message.side_effect = RuntimeError("telegram error")
     service = TelegramNotificationService(fake_bot.bot, settings_obj)
@@ -170,7 +170,7 @@ async def test_send_role_request_to_admin_maps_unexpected_error_to_permanent_err
 
 
 @pytest.mark.asyncio
-async def test_send_message_sends_trimmed_text(fake_bot: BotFixture, settings_obj: BotSettings) -> None:
+async def test_send_message_sends_trimmed_text(fake_bot: BotFixture, settings_obj: AppSettings) -> None:
     service = TelegramNotificationService(fake_bot.bot, settings_obj)
 
     await service.send_message(NotifyDTO(recipient_id=RECIPIENT_USER_ID, message="  hello  "))
@@ -183,7 +183,7 @@ async def test_send_message_sends_trimmed_text(fake_bot: BotFixture, settings_ob
 @pytest.mark.asyncio
 async def test_send_message_passes_parse_mode_only_when_set(
     fake_bot: BotFixture,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     service = TelegramNotificationService(fake_bot.bot, settings_obj)
 
@@ -208,7 +208,7 @@ async def test_send_message_raises_on_blank_text(fake_bot: BotFixture) -> None:
 @pytest.mark.asyncio
 async def test_send_message_maps_retry_after_to_temporary_error(
     fake_bot: BotFixture,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     fake_bot.send_message.side_effect = TelegramRetryAfter(_dummy_method(), "retry later", int(RETRY_AFTER_SECONDS))
     service = TelegramNotificationService(fake_bot.bot, settings_obj)
@@ -227,7 +227,7 @@ async def test_send_message_maps_retry_after_to_temporary_error(
 @pytest.mark.asyncio
 async def test_send_message_maps_network_error_to_temporary_error(
     fake_bot: BotFixture,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     fake_bot.send_message.side_effect = TelegramNetworkError(_dummy_method(), "network down")
     service = TelegramNotificationService(fake_bot.bot, settings_obj)
@@ -241,7 +241,7 @@ async def test_send_message_maps_network_error_to_temporary_error(
 @pytest.mark.asyncio
 async def test_send_message_maps_bad_request_to_permanent_error(
     fake_bot: BotFixture,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     fake_bot.send_message.side_effect = TelegramBadRequest(_dummy_method(), "bad request")
     service = TelegramNotificationService(fake_bot.bot, settings_obj)
@@ -255,7 +255,7 @@ async def test_send_message_maps_bad_request_to_permanent_error(
 @pytest.mark.asyncio
 async def test_send_message_maps_generic_api_error_to_permanent_error(
     fake_bot: BotFixture,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     fake_bot.send_message.side_effect = TelegramAPIError(_dummy_method(), "api failure")
     service = TelegramNotificationService(fake_bot.bot, settings_obj)
@@ -269,7 +269,7 @@ async def test_send_message_maps_generic_api_error_to_permanent_error(
 @pytest.mark.asyncio
 async def test_send_message_maps_unexpected_error_to_permanent_error(
     fake_bot: BotFixture,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     fake_bot.send_message.side_effect = RuntimeError("send failed")
     service = TelegramNotificationService(fake_bot.bot, settings_obj)

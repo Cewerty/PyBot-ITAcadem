@@ -25,7 +25,7 @@ repos:
     hooks:
       - id: ty
         name: ty-check
-        entry: uv run --no-sync ty check --python=.venv/ --target-version 3.12 src/ tests/
+        entry: uv run --no-sync ty check --python=.venv/ --target-version 3.14 src/ tests/
         language: system
         pass_filenames: false
         always_run: true

@@ -9,7 +9,7 @@ import pytest
 from taskiq import AsyncBroker
 from taskiq_redis import ListRedisScheduleSource
 
-from pybot.core.config import BotSettings
+from pybot.core.config import AppSettings
 from pybot.infrastructure.taskiq import taskiq_app
 
 
@@ -63,7 +63,7 @@ async def test_ensure_weekly_leaderboard_schedule_skips_outside_scheduler_proces
     await taskiq_app.ensure_weekly_leaderboard_schedule(
         broker=cast(AsyncBroker, broker),
         schedule_source=cast(ListRedisScheduleSource, source),
-        settings=cast(BotSettings, settings),
+        settings=cast(AppSettings, settings),
     )
 
     source.get_schedules.assert_not_called()
@@ -90,7 +90,7 @@ async def test_ensure_weekly_leaderboard_schedule_noops_when_existing_schedule_m
     await taskiq_app.ensure_weekly_leaderboard_schedule(
         broker=cast(AsyncBroker, broker),
         schedule_source=cast(ListRedisScheduleSource, source),
-        settings=cast(BotSettings, settings),
+        settings=cast(AppSettings, settings),
     )
 
     source.get_schedules.assert_awaited_once()
@@ -118,7 +118,7 @@ async def test_ensure_weekly_leaderboard_schedule_replaces_stale_schedule(
     await taskiq_app.ensure_weekly_leaderboard_schedule(
         broker=cast(AsyncBroker, broker),
         schedule_source=cast(ListRedisScheduleSource, source),
-        settings=cast(BotSettings, settings),
+        settings=cast(AppSettings, settings),
     )
 
     source.delete_schedule.assert_awaited_once_with(taskiq_app.LEADERBOARD_WEEKLY_SCHEDULE_ID)

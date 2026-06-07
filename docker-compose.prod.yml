@@ -5,7 +5,6 @@ x-app-base: &app-base
     - .env
   environment:
     DATABASE_URL: ${DATABASE_URL:-sqlite+aiosqlite:///./data/pybot_itacadem.db}
-    AUTO_SEED_DB: ${AUTO_SEED_DB:-false}
     TELEGRAM_PROXY_URL: ${TELEGRAM_PROXY_URL:-}
     FSM_STORAGE_BACKEND: ${FSM_STORAGE_BACKEND:-redis}
     REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
@@ -46,7 +45,7 @@ services:
 
   taskiq-worker:
     <<: *app-service
-    command: [ "sh", "-c", "TASKIQ_WORKERS='${TASKIQ_WORKERS:-1}'; if [ \"$TASKIQ_WORKERS\" != \"1\" ]; then echo \"TASKIQ_WORKERS=$TASKIQ_WORKERS is not supported yet; only TASKIQ_WORKERS=1 is allowed until the runtime is ready for multi-instance workers.\" >&2; exit 1; fi; exec taskiq worker src.pybot.infrastructure.taskiq.entrypoint:broker --workers \"$TASKIQ_WORKERS\"" ]
+    command: [ "sh", "-c", "TASKIQ_WORKERS='${TASKIQ_WORKERS:-1}'; if [ \"$$TASKIQ_WORKERS\" != \"1\" ]; then echo \"TASKIQ_WORKERS=$$TASKIQ_WORKERS is not supported yet; only TASKIQ_WORKERS=1 is allowed until the runtime is ready for multi-instance workers.\" >&2; exit 1; fi; exec taskiq worker src.pybot.infrastructure.taskiq.entrypoint:broker --workers \"$$TASKIQ_WORKERS\"" ]
 
   taskiq-scheduler:
     <<: *app-service

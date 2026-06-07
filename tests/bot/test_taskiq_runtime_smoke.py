@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from pybot.core.config import BotSettings
+from pybot.core.config import AppSettings
 from pybot.infrastructure.taskiq import taskiq_app
 from pybot.infrastructure.taskiq import taskiq_weekly_leaderboard_wiring
 from pybot.infrastructure.taskiq.tasks import TaskRegistry
@@ -82,7 +82,7 @@ async def test_taskiq_runtime_smoke_builds_singletons_and_wires_worker_hooks(
             self.types_of_exceptions = types_of_exceptions
 
     runtime_settings = cast(
-        BotSettings,
+        AppSettings,
         SimpleNamespace(
             redis_url="redis://smoke-test:6379/7",
             leaderboard_weekly_retry_max_retries=4,

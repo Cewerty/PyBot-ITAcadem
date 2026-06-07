@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..core.config import BotSettings
+from ..core.config import AppSettings
 from ..core.constants import RequestStatus
 from ..db.models.role_module import RoleRequest
 from ..domain.exceptions import (
@@ -34,7 +34,7 @@ class RoleRequestService:
         user_repository: UserRepository,
         role_request_repository: RoleRequestRepository,
         notification_service: NotificationPort,
-        settings: BotSettings,
+        settings: AppSettings,
     ) -> None:
         """Инициализирует сервис запросов ролей.
 

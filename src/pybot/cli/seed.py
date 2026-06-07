@@ -33,9 +33,21 @@ if TYPE_CHECKING:
 
     from pybot.core.constants import PointsTypeEnum, RoleEnum
     from pybot.db.models import Level, Role
-    from pybot.dto import AdjustUserPointsDTO, CompetenceCreateDTO, CompetenceReadDTO, UserCreateDTO
+    from pybot.dto import (
+        AdjustUserPointsDTO,
+        CompetenceCreateDTO,
+        CompetenceReadDTO,
+        UserCreateDTO,
+        UserRegistrationDTO,
+    )
     from pybot.dto.value_objects import Points
-    from pybot.services import CompetenceService, LevelService, PointsService, UserCompetenceService, UserService
+    from pybot.services import (
+        CompetenceService,
+        LevelService,
+        PointsService,
+        UserCompetenceService,
+        UserRegistrationService,
+    )
 
 
 logger = loguru_logger
@@ -55,12 +67,13 @@ class RuntimeDependencies:
     competence_create_dto_cls: type[CompetenceCreateDTO]
     competence_read_dto_cls: type[CompetenceReadDTO]
     user_create_dto_cls: type[UserCreateDTO]
+    user_registration_dto_cls: type[UserRegistrationDTO]
     points_cls: type[Points]
     competence_service_cls: type[CompetenceService]
     level_service_cls: type[LevelService]
     points_service_cls: type[PointsService]
     user_competence_service_cls: type[UserCompetenceService]
-    user_service_cls: type[UserService]
+    user_registration_service_cls: type[UserRegistrationService]
 
 
 @lru_cache(maxsize=1)
@@ -83,12 +96,13 @@ def _get_runtime_dependencies() -> RuntimeDependencies:
         competence_create_dto_cls=dto_module.CompetenceCreateDTO,
         competence_read_dto_cls=dto_module.CompetenceReadDTO,
         user_create_dto_cls=dto_module.UserCreateDTO,
+        user_registration_dto_cls=dto_module.UserRegistrationDTO,
         points_cls=value_objects_module.Points,
         competence_service_cls=services_module.CompetenceService,
         level_service_cls=services_module.LevelService,
         points_service_cls=services_module.PointsService,
         user_competence_service_cls=services_module.UserCompetenceService,
-        user_service_cls=services_module.UserService,
+        user_registration_service_cls=services_module.UserRegistrationService,
     )
 
 
@@ -323,12 +337,12 @@ class SeedServices:
     """Service bundle used by helper steps during user seeding.
 
     Attributes:
-        user_service: Service used to register users.
+        user_registration_service: Service used to register users.
         user_competence_service: Service used to attach competences.
         points_service: Service used to seed points through gamification logic.
     """
 
-    user_service: UserService
+    user_registration_service: UserRegistrationService
     user_competence_service: UserCompetenceService
     points_service: PointsService
 
@@ -444,7 +458,7 @@ def _sanitize_phone_number(phone_raw: str, fake_data: Faker) -> str:
 
 
 async def generate_users_data(
-    user_service: UserService,
+    user_registration_service: UserRegistrationService,
     user_competence_service: UserCompetenceService,
     points_service: PointsService,
     competencies: Sequence[CompetenceReadDTO],
@@ -453,7 +467,7 @@ async def generate_users_data(
     """Generate fake users and seed their gamification state.
 
     Args:
-        user_service: Service used to register users and assign competences.
+        user_registration_service: Service used to register users.
         user_competence_service: Service used to attach competences to users.
         points_service: Service used to seed points through business logic.
         competencies: Available competences that may be attached to users.
@@ -469,7 +483,7 @@ async def generate_users_data(
 
     for idx, user_data in enumerate(users_data, 1):
         try:
-            user_id = await _register_seed_user(user_service, user_data, idx, len(users_data))
+            user_id = await _register_seed_user(user_registration_service, user_data, idx, len(users_data))
             if user_id is None:
                 failed_count += 1
                 continue
@@ -488,7 +502,7 @@ async def generate_users_data(
 
     created_user_ids = [user_id for user_id, _ in created_users]
     services = SeedServices(
-        user_service=user_service,
+        user_registration_service=user_registration_service,
         user_competence_service=user_competence_service,
         points_service=points_service,
     )
@@ -620,7 +634,7 @@ def _pick_competence_ids(
 
 
 async def _register_seed_user(
-    user_service: UserService,
+    user_registration_service: UserRegistrationService,
     user_data: UserDataDict,
     idx: int,
     total_users: int,
@@ -628,7 +642,7 @@ async def _register_seed_user(
     """Register one generated user through the application service.
 
     Args:
-        user_service: Service used for student registration.
+        user_registration_service: Service used for student registration.
         user_data: Generated user payload.
         idx: Current user number for logging.
         total_users: Total number of generated users.
@@ -645,13 +659,16 @@ async def _register_seed_user(
     )
 
     runtime = _get_runtime_dependencies()
-    user = await user_service.register_student(
-        runtime.user_create_dto_cls(
-            first_name=user_data["first_name"],
-            last_name=user_data["last_name"],
-            patronymic=user_data["patronymic"],
-            phone=user_data["phone"],
-            tg_id=user_data["tg_id"],
+    user = await user_registration_service.register_student(
+        runtime.user_registration_dto_cls(
+            user=runtime.user_create_dto_cls(
+                first_name=user_data["first_name"],
+                last_name=user_data["last_name"],
+                patronymic=user_data["patronymic"],
+                phone=user_data["phone"],
+                tg_id=user_data["tg_id"],
+            ),
+            competence_ids=(),
         )
     )
 
@@ -866,7 +883,7 @@ async def fill_database(config: FillDatabaseConfig | None = None) -> None:
             level_service = await request_container.get(runtime.level_service_cls)
             points_service = await request_container.get(runtime.points_service_cls)
             user_competence_service = await request_container.get(runtime.user_competence_service_cls)
-            user_service = await request_container.get(runtime.user_service_cls)
+            user_registration_service = await request_container.get(runtime.user_registration_service_cls)
 
             try:
                 competencies: Sequence[CompetenceReadDTO] = []
@@ -888,7 +905,7 @@ async def fill_database(config: FillDatabaseConfig | None = None) -> None:
 
                 if seed_config.seed_fake_users:
                     await generate_users_data(
-                        user_service,
+                        user_registration_service,
                         user_competence_service,
                         points_service,
                         competencies,

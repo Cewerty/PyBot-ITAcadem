@@ -11,7 +11,7 @@ from taskiq.middlewares.smart_retry_middleware import SmartRetryMiddleware
 from taskiq_redis import ListRedisScheduleSource, RedisStreamBroker
 
 from ...core import logger
-from ...core.config import BotSettings, get_settings
+from ...core.config import AppSettings, get_settings
 from ...di.containers import setup_taskiq_container
 from ...dto import NotificationTaskPayload
 from ...services.ports import NotificationTemporaryError
@@ -66,7 +66,7 @@ async def _on_worker_shutdown(_state: TaskiqState) -> None:
     logger.info("событие=завершение_taskiq_worker status=success")
 
 
-def get_taskiq_task_registry(settings: BotSettings | None = None) -> TaskRegistry:
+def get_taskiq_task_registry(settings: AppSettings | None = None) -> TaskRegistry:
     """Возвращает реестр зарегистрированных задач TaskIQ.
 
     Если брокер еще не инициализирован, выполняет его инициализацию.
@@ -87,7 +87,7 @@ def get_taskiq_task_registry(settings: BotSettings | None = None) -> TaskRegistr
 
 
 def get_taskiq_notification_task(
-    settings: BotSettings | None = None,
+    settings: AppSettings | None = None,
 ) -> AsyncTaskiqDecoratedTask[..., NotificationTaskPayload]:
     """Возвращает декорированный объект задачи для отправки уведомлений.
 
@@ -101,7 +101,7 @@ def get_taskiq_notification_task(
 
 
 def get_taskiq_weekly_leaderboard_task(
-    settings: BotSettings | None = None,
+    settings: AppSettings | None = None,
 ) -> AsyncTaskiqDecoratedTask[..., dict[str, int]]:
     """Возвращает декорированный объект задачи для публикации еженедельного лидерборда.
 
@@ -122,7 +122,7 @@ async def ensure_weekly_leaderboard_schedule(
     *,
     broker: AsyncBroker | None = None,
     schedule_source: ListRedisScheduleSource | None = None,
-    settings: BotSettings | None = None,
+    settings: AppSettings | None = None,
 ) -> None:
     """Идемпотентно гарантирует наличие расписания еженедельного лидерборда.
 
@@ -166,7 +166,7 @@ async def ensure_weekly_leaderboard_schedule(
     )
 
 
-def get_taskiq_broker(settings: BotSettings | None = None) -> AsyncBroker:
+def get_taskiq_broker(settings: AppSettings | None = None) -> AsyncBroker:
     """Возвращает синглтон брокера TaskIQ.
 
     Args:
@@ -207,7 +207,7 @@ def get_taskiq_broker(settings: BotSettings | None = None) -> AsyncBroker:
     return _runtime_state.broker
 
 
-def get_taskiq_schedule_source(settings: BotSettings | None = None) -> ListRedisScheduleSource:
+def get_taskiq_schedule_source(settings: AppSettings | None = None) -> ListRedisScheduleSource:
     """Возвращает синглтон источника расписаний для планировщика.
 
     Args:
@@ -224,7 +224,7 @@ def get_taskiq_schedule_source(settings: BotSettings | None = None) -> ListRedis
     return _runtime_state.schedule_source
 
 
-def get_taskiq_scheduler(settings: BotSettings | None = None) -> TaskiqScheduler:
+def get_taskiq_scheduler(settings: AppSettings | None = None) -> TaskiqScheduler:
     """Возвращает синглтон планировщика TaskIQ.
 
     Args:

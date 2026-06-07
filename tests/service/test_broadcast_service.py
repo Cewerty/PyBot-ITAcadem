@@ -11,7 +11,7 @@ import pytest
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from pybot.core.config import BotSettings
+from pybot.core.config import AppSettings
 from pybot.db.models import User
 from pybot.dto import BroadcastDTO, CompetenceBroadcastDTO, NotifyDTO, RoleBroadcastDTO
 from pybot.infrastructure.user_repository import UserRepository
@@ -86,7 +86,7 @@ def _mk_user(telegram_id: int) -> User:
 
 
 def _configure_broadcast_settings(
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
     *,
     bulk_size: int = 20,
     max_concurrency: int = 5,
@@ -110,7 +110,7 @@ def _configure_broadcast_settings(
 @pytest.mark.asyncio
 async def test_broadcast_for_all_happy_path(
     monkeypatch: pytest.MonkeyPatch,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     _configure_broadcast_settings(settings_obj, bulk_size=2, max_concurrency=2, jitter_min_ms=80, jitter_max_ms=80)
     users = [_mk_user(1), _mk_user(2), _mk_user(3)]
@@ -132,7 +132,7 @@ async def test_broadcast_for_all_happy_path(
 
 
 @pytest.mark.asyncio
-async def test_broadcast_for_all_handles_partial_permanent_failure(settings_obj: BotSettings) -> None:
+async def test_broadcast_for_all_handles_partial_permanent_failure(settings_obj: AppSettings) -> None:
     _configure_broadcast_settings(settings_obj, bulk_size=3, max_concurrency=3, retry_attempts=2)
     users = [_mk_user(10), _mk_user(20), _mk_user(30)]
     user_repository = FakeUserRepository(users=users, role_users={})
@@ -154,7 +154,7 @@ async def test_broadcast_for_all_handles_partial_permanent_failure(settings_obj:
 @pytest.mark.asyncio
 async def test_broadcast_for_all_retries_temporary_then_succeeds(
     monkeypatch: pytest.MonkeyPatch,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     _configure_broadcast_settings(settings_obj, retry_attempts=3, retry_max_wait_s=1)
     users = [_mk_user(100)]
@@ -177,7 +177,7 @@ async def test_broadcast_for_all_retries_temporary_then_succeeds(
 
 
 @pytest.mark.asyncio
-async def test_broadcast_for_all_marks_temporary_failure_when_retry_exhausted(settings_obj: BotSettings) -> None:
+async def test_broadcast_for_all_marks_temporary_failure_when_retry_exhausted(settings_obj: AppSettings) -> None:
     _configure_broadcast_settings(settings_obj, retry_attempts=2, retry_max_wait_s=1)
     users = [_mk_user(200)]
     user_repository = FakeUserRepository(users=users, role_users={})
@@ -197,7 +197,7 @@ async def test_broadcast_for_all_marks_temporary_failure_when_retry_exhausted(se
 
 
 @pytest.mark.asyncio
-async def test_broadcast_for_all_raises_when_already_running(settings_obj: BotSettings) -> None:
+async def test_broadcast_for_all_raises_when_already_running(settings_obj: AppSettings) -> None:
     _configure_broadcast_settings(settings_obj, retry_attempts=1)
     users = [_mk_user(300)]
     user_repository = FakeUserRepository(users=users, role_users={})
@@ -217,14 +217,14 @@ async def test_broadcast_for_all_raises_when_already_running(settings_obj: BotSe
 
 
 @pytest.mark.asyncio
-async def test_broadcast_validates_message(settings_obj: BotSettings) -> None:
+async def test_broadcast_validates_message(settings_obj: AppSettings) -> None:
     _configure_broadcast_settings(settings_obj)
 
     with pytest.raises(ValidationError, match="message must not be empty"):
         BroadcastDTO(broadcast_message="   ")
 
 
-def test_broadcast_for_users_with_role_validates_role_name(settings_obj: BotSettings) -> None:
+def test_broadcast_for_users_with_role_validates_role_name(settings_obj: AppSettings) -> None:
     _configure_broadcast_settings(settings_obj)
 
     with pytest.raises(ValidationError, match="role_name must not be empty"):
@@ -232,7 +232,7 @@ def test_broadcast_for_users_with_role_validates_role_name(settings_obj: BotSett
 
 
 @pytest.mark.asyncio
-async def test_broadcast_for_users_with_role_uses_broadcast_message(settings_obj: BotSettings) -> None:
+async def test_broadcast_for_users_with_role_uses_broadcast_message(settings_obj: AppSettings) -> None:
     _configure_broadcast_settings(settings_obj)
     users = [_mk_user(350)]
     user_repository = FakeUserRepository(users=[], role_users={"Admin": users})
@@ -250,7 +250,7 @@ async def test_broadcast_for_users_with_role_uses_broadcast_message(settings_obj
 @pytest.mark.asyncio
 async def test_broadcast_for_users_with_competence_happy_path(
     monkeypatch: pytest.MonkeyPatch,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     _configure_broadcast_settings(settings_obj, bulk_size=2, max_concurrency=2, jitter_min_ms=80, jitter_max_ms=80)
     users = [_mk_user(400), _mk_user(500), _mk_user(600)]
@@ -273,7 +273,7 @@ async def test_broadcast_for_users_with_competence_happy_path(
     sleep_mock.assert_awaited_once_with(1.28)
 
 
-def test_broadcast_for_users_with_competence_validates_competence_id(settings_obj: BotSettings) -> None:
+def test_broadcast_for_users_with_competence_validates_competence_id(settings_obj: AppSettings) -> None:
     _configure_broadcast_settings(settings_obj)
 
     with pytest.raises(ValidationError, match="greater than or equal to 1"):
@@ -281,7 +281,7 @@ def test_broadcast_for_users_with_competence_validates_competence_id(settings_ob
 
 
 @pytest.mark.asyncio
-async def test_broadcast_crops_text_with_ellipsis_when_message_exceeds_limit(settings_obj: BotSettings) -> None:
+async def test_broadcast_crops_text_with_ellipsis_when_message_exceeds_limit(settings_obj: AppSettings) -> None:
     _configure_broadcast_settings(settings_obj, max_text_length=10)
     user_repository = FakeUserRepository(users=[_mk_user(700)])
     notification_port = ScriptedNotificationPort()
@@ -293,7 +293,7 @@ async def test_broadcast_crops_text_with_ellipsis_when_message_exceeds_limit(set
 
 
 @pytest.mark.asyncio
-async def test_broadcast_keeps_text_as_is_when_message_within_limit(settings_obj: BotSettings) -> None:
+async def test_broadcast_keeps_text_as_is_when_message_within_limit(settings_obj: AppSettings) -> None:
     _configure_broadcast_settings(settings_obj, max_text_length=10)
     user_repository = FakeUserRepository(users=[_mk_user(701)])
     notification_port = ScriptedNotificationPort()

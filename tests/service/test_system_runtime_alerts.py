@@ -1,6 +1,6 @@
 import pytest
 
-from pybot.core.config import BotSettings
+from pybot.core.config import AppSettings
 from pybot.core.constants import TaskScheduleKind
 from pybot.dto import NotifyDTO
 from pybot.services.notification_facade import NotificationFacade
@@ -34,7 +34,7 @@ class NotificationPortSpy(NotificationPort):
 
 @pytest.mark.asyncio
 async def test_runtime_alerts_service_skips_when_alerts_are_disabled(
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     startup_facade = NotificationFacadeSpy()
     notification_port = NotificationPortSpy()
@@ -52,7 +52,7 @@ async def test_runtime_alerts_service_skips_when_alerts_are_disabled(
 
 @pytest.mark.asyncio
 async def test_runtime_alerts_service_dispatches_startup_via_notification_facade(
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     startup_facade = NotificationFacadeSpy()
     notification_port = NotificationPortSpy()
@@ -78,7 +78,7 @@ async def test_runtime_alerts_service_dispatches_startup_via_notification_facade
 
 @pytest.mark.asyncio
 async def test_runtime_alerts_service_falls_back_to_runtime_health_flag_outside_compose(
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     startup_facade = NotificationFacadeSpy()
     notification_port = NotificationPortSpy()
@@ -100,7 +100,7 @@ async def test_runtime_alerts_service_falls_back_to_runtime_health_flag_outside_
 
 @pytest.mark.asyncio
 async def test_runtime_alerts_service_sends_shutdown_directly_via_notification_port(
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     startup_facade = NotificationFacadeSpy()
     notification_port = NotificationPortSpy()

@@ -1,6 +1,6 @@
 # PyBot ITAcadem
 
-Асинхронный Telegram-бот для ITAcadem на `Python 3.12`, `aiogram 3`, `Dishka`, `SQLAlchemy 2` и `Pydantic v2`.
+Асинхронный Telegram-бот для ITAcadem на `Python 3.14`, `aiogram 3`, `Dishka`, `SQLAlchemy 2` и `Pydantic v2`.
 
 Сейчас проект закрывает не абстрактный "будущий MVP", а вполне конкретный набор сценариев:
 
@@ -91,7 +91,7 @@
 
 ## Технологический стек
 
-- `Python 3.12+`
+- `Python 3.14+`
 - `aiogram 3.22+`
 - `aiogram-dialog 2.4+`
 - `Dishka`
@@ -137,10 +137,11 @@ PyBot_ITAcadem/
 
 ### 1. Требования
 
-- `Python 3.12+`
+- `Python 3.14+`
 - `uv`
 - `just` - желательно, но не обязательно
-- `Redis` - нужен только если вы хотите локально использовать `FSM_STORAGE_BACKEND=redis` или поднимать полный Docker runtime
+- `Docker` + `docker compose` - рекомендуемый локальный runtime-path, включая официальный parity path через `just run-parity`
+- доступный `Redis` нужен только для bot-only запуска без Compose, если вы не переключаете `FSM_STORAGE_BACKEND` вручную на `memory`
 
 ### 2. Установка зависимостей
 
@@ -165,7 +166,7 @@ BOT_TOKEN=your_production_bot_token
 BOT_TOKEN_TEST=your_test_bot_token
 BOT_MODE=test
 
-DATABASE_URL=sqlite+aiosqlite:///./pybot_itacadem.db
+DATABASE_URL=sqlite+aiosqlite:///./data/pybot_itacadem.db
 
 ROLE_REQUEST_ADMIN_TG_ID=123456789
 AUTO_ADMIN_TELEGRAM_IDS=
@@ -174,10 +175,11 @@ NOTIFICATION_BACKEND=telegram
 TELEGRAM_PROXY_URL=
 RUNTIME_ALERTS_ENABLED=false
 RUNTIME_ALERTS_CHAT_ID=
-FSM_STORAGE_BACKEND=memory
+FSM_STORAGE_BACKEND=redis
 REDIS_URL=redis://localhost:6379/0
 
 LOG_LEVEL=INFO
+LOG_FORMAT=json
 DEBUG=false
 
 HEALTH_API_ENABLED=false
@@ -187,12 +189,21 @@ HEALTH_API_PORT=8001
 
 Что важно:
 
-- сейчас `settings` требуют и `BOT_TOKEN`, и `BOT_TOKEN_TEST`, даже если вы запускаете только один режим;
+- `AppSettings` materialize-ятся через `get_settings()`, который явно подхватывает локальный `.env` на bootstrap-этапе;
+- `AppSettings` описывает только runtime-настройки приложения; deploy-only переменные вроде `TASKIQ_WORKERS`, `GRAFANA_ADMIN_PASSWORD`, `PUBLIC_DOMAIN` и `NGINX_*` валидируются Compose/CI/CD, а не Python-приложением;
+- `BOT_TOKEN_TEST` обязателен при `BOT_MODE=test` и опционален при `BOT_MODE=prod`;
 - `BOT_MODE=test` использует `BOT_TOKEN_TEST`, `BOT_MODE=prod` использует `BOT_TOKEN`;
+- `BOT_MODE` отвечает за runtime mode и выбор активного bot token, а `LOG_FORMAT` — за формат stdout-логов; это две независимые настройки;
 - `ROLE_REQUEST_ADMIN_TG_ID` обязателен, потому что role request flow уже является частью рабочего сценария;
 - `TELEGRAM_PROXY_URL` опционален и нужен только там, где Telegram Bot API доступен через proxy;
 - `RUNTIME_ALERTS_ENABLED` и `RUNTIME_ALERTS_CHAT_ID` опциональны и включают runtime alerts только для основного bot-процесса;
-- при `FSM_STORAGE_BACKEND=memory` Redis для обычного локального запуска не нужен.
+- локальный и production runtime используют один и тот же SQLite storage contract: база живёт под `./data/pybot_itacadem.db`;
+- каталог `./data/` для SQLite создаётся автоматически при runtime/bootstrap и при `uv run alembic upgrade head`, если его ещё нет;
+- локальный dev-default теперь использует `FSM_STORAGE_BACKEND=redis`, чтобы bot, worker и scheduler работали на том же Redis runtime;
+- официальный dev/prod-like parity path через `just run-parity` / Docker Compose использует `LOG_FORMAT=json` как prod-like logging contract;
+- ручной bot-only запуск через `uv run run.py` может оставаться на `text`, если `LOG_FORMAT` не задан явно; это осознанный debug/DX trade-off, а не drift;
+- `FSM_STORAGE_BACKEND=memory` остаётся только как явный opt-in fallback/debug path;
+- если вы запускаете только bot process через `uv run run.py`, Redis должен быть уже доступен отдельно, если backend не переключён вручную на `memory`.
 
 ### 4. Примените миграции
 
@@ -218,19 +229,76 @@ uv run python fill_point_db.py
 - компетенции;
 - фейковых пользователей.
 
-### 6. Запустите бота
+### 6. Официальный локальный parity path
+
+Если нужен один локальный сценарий, который лучше всего повторяет production process model, используйте именно его:
 
 ```bash
-uv run run.py
+uv run alembic upgrade head
+just run-parity
+curl -i http://127.0.0.1:8001/
+curl -i http://127.0.0.1:8001/ready
 ```
 
-или:
+Это официальный dev/prod-like path, потому что он:
+
+- использует тот же Compose-based runtime;
+- поднимает те же core process types, что и production: `bot`, `taskiq-worker`, `taskiq-scheduler`, `redis`;
+- добавляет отдельный `health` process type через profile, как и production deploy;
+- проверяет readiness приложения, а не только факт старта контейнеров.
+
+### 7. Другие локальные entrypoint'ы
 
 ```bash
 just run
 ```
 
-`run.py` запускает только bot process type. Health API запускается отдельным process type через Docker Compose (`health` profile).
+`just run` теперь использует `docker compose up --build` и поднимает базовый локальный runtime:
+
+- `bot`
+- `taskiq-worker`
+- `taskiq-scheduler`
+- `redis`
+
+Это быстрый local runtime path без отдельного `health` process type.
+
+Официальный parity path поднимается отдельно:
+
+```bash
+just run-parity
+```
+
+`just run-parity` включает `HEALTH_API_ENABLED=true` и запускает тот же отдельный `health` process type через Compose profile, что и production deploy. `just run-health` остаётся совместимым alias. После старта можно проверить:
+
+```bash
+curl -i http://127.0.0.1:8001/
+curl -i http://127.0.0.1:8001/ready
+```
+
+Успешный сценарий: liveness endpoint отвечает `200`, а readiness endpoint тоже доходит до `200`, когда приложение реально готово обслуживать трафик.
+
+Расширенный local observability path поднимается отдельно:
+
+```bash
+just run-observability
+```
+
+Этот сценарий reuse-ит существующие `observability/` assets и дополнительно поднимает:
+
+- `loki`
+- `alloy`
+- `grafana`
+- `nginx`
+
+По умолчанию Grafana после этого доступна на `http://127.0.0.1:8088/grafana/`. Успешный сценарий означает, что Grafana открывается, datasource Loki уже provisioned, а логи `bot`, `taskiq-worker` и `taskiq-scheduler` видны в Loki/Grafana.
+
+Прямой Python-запуск остаётся доступным как advanced bot-only path:
+
+```bash
+uv run run.py
+```
+
+Этот путь не поднимает `worker`, `scheduler` и `redis`.
 
 ## Запуск через Docker Compose
 
@@ -241,16 +309,33 @@ just run
 - `taskiq-scheduler`
 - `redis`
 - `health` (optional, `health` profile)
+- `loki`, `alloy`, `grafana`, `nginx` (optional, `observability` profile)
 
-Команда:
+Официальная dev/prod-like parity команда:
 
 ```bash
-docker compose up --build
+just run-parity
 ```
 
-Эта команда поднимает только runtime-сервисы по умолчанию. `migrate` и `seed` в неё не входят и должны запускаться отдельно как one-shot process types.
+`just run-parity` вызывает локальный Compose path с `HEALTH_API_ENABLED=true` и `--profile health`, то есть поднимает runtime плюс отдельный `health` process type без ручной сборки флагов. Это основной рекомендуемый путь, если вам нужна максимально близкая к production локальная проверка. `just run-health` остаётся backward-compatible alias.
 
-To run dedicated health process type:
+Базовая local runtime команда:
+
+```bash
+just run
+```
+
+`just run` вызывает `docker compose up --build`. Эта команда поднимает только базовые runtime-сервисы по умолчанию. `migrate` и `seed` в неё не входят и должны запускаться отдельно как one-shot process types.
+
+Расширенная observability команда:
+
+```bash
+just run-observability
+```
+
+Она вызывает `docker compose --profile observability up --build` и поднимает runtime вместе с локальным stack'ом `loki/grafana/alloy/nginx`.
+
+Эквивалентная raw compose-команда для dedicated health process type:
 
 ```bash
 HEALTH_API_ENABLED=true COMPOSE_PROFILES=health docker compose up --build
@@ -273,7 +358,13 @@ docker compose --profile seed run --rm seed
 
 - `migrate` запускается отдельным one-shot сервисом и только явно через `docker compose --profile migration run --rm migrate`;
 - `seed` запускается отдельным one-shot сервисом и только явно через `docker compose --profile seed run --rm seed`;
-- по умолчанию в compose уже прокинуты `DATABASE_URL`, `TELEGRAM_PROXY_URL`, `FSM_STORAGE_BACKEND=redis` и `REDIS_URL`.
+- по умолчанию в compose уже прокинуты `DATABASE_URL`, `TELEGRAM_PROXY_URL`, `FSM_STORAGE_BACKEND=redis`, `REDIS_URL` и `LOG_FORMAT=json`;
+- direct local smoke-check для health profile идёт напрямую в health-порт, а не через production ingress path:
+  - `GET http://127.0.0.1:8001/` -> `200`
+  - `GET http://127.0.0.1:8001/ready` -> `200`, когда приложение готово;
+- один официальный dev/prod-like parity path для нового разработчика — `just run-parity`; `just run` остаётся более лёгким локальным runtime, а `uv run run.py` — ручным advanced/debug path;
+- local observability profile рассчитан на HTTP-only локальный ingress и не требует production host nginx или public HTTPS path;
+- для локального observability profile достаточно встроенных local defaults; вручную собирать отдельный `.env` только ради Grafana/nginx не нужно.
 
 ## Проверка качества
 
@@ -323,6 +414,8 @@ Production compose использует отдельные one-shot сервис
 - `seed` - для управляемого initial seed.
 
 Runtime process types в production те же, что и локально: `bot`, `taskiq-worker`, `taskiq-scheduler`, optional `health`, `redis`.
+
+Default image startup is runtime-only: the container entrypoint now runs only `python run.py`. Migrations and seed are never executed implicitly during image startup and remain explicit one-shot operator actions.
 
 Кто и когда запускает one-shot процессы:
 

@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import pytest
 from dishka import make_async_container
 
-from pybot.core.config import BotSettings
+from pybot.core.config import AppSettings
 from pybot.di import containers as di_containers
 from pybot.infrastructure.ports import LoggingNotificationService, TelegramNotificationService
 from pybot.services.ports import NotificationPort
@@ -12,7 +12,7 @@ from pybot.services.ports import NotificationPort
 def _configure_fake_bot(
     monkeypatch: pytest.MonkeyPatch,
     mocker,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     class FakeBot:
         def __init__(self, token: str, session=None, **_: object) -> None:
@@ -29,7 +29,7 @@ def _configure_fake_bot(
 async def test_ports_provider_resolves_logging_backend(
     monkeypatch: pytest.MonkeyPatch,
     mocker,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     _configure_fake_bot(monkeypatch, mocker, settings_obj)
     settings_obj.notification_backend = "logging"
@@ -50,7 +50,7 @@ async def test_ports_provider_resolves_logging_backend(
 async def test_ports_provider_resolves_telegram_backend(
     monkeypatch: pytest.MonkeyPatch,
     mocker,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     _configure_fake_bot(monkeypatch, mocker, settings_obj)
     settings_obj.notification_backend = "telegram"
@@ -71,7 +71,7 @@ async def test_ports_provider_resolves_telegram_backend(
 async def test_ports_provider_raises_on_invalid_backend(
     monkeypatch: pytest.MonkeyPatch,
     mocker,
-    settings_obj: BotSettings,
+    settings_obj: AppSettings,
 ) -> None:
     _configure_fake_bot(monkeypatch, mocker, settings_obj)
     setattr(settings_obj, "notification_backend", "invalid")

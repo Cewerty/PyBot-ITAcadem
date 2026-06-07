@@ -24,18 +24,6 @@ jobs:
       - name: Prepare CI .env for compose validation
         run: |
           cat > .env <<'EOF'
-          BOT_TOKEN=123456:CI_TEST_BOT_TOKEN
-          BOT_TOKEN_TEST=123456:CI_TEST_BOT_TOKEN
-          BOT_MODE=test
-          ROLE_REQUEST_ADMIN_TG_ID=1
-          AUTO_ADMIN_TELEGRAM_IDS=[1]
-          DATABASE_URL=sqlite+aiosqlite:///./data/pybot_itacadem.db
-          AUTO_SEED_DB=false
-          FSM_STORAGE_BACKEND=redis
-          REDIS_URL=redis://redis:6379/0
-          LOG_LEVEL=INFO
-          DEBUG=false
-          HEALTH_API_ENABLED=false
           APP_IMAGE=ghcr.io/example/pybot:test
           GRAFANA_ADMIN_PASSWORD=dummy
           TASKIQ_WORKERS=1
@@ -50,6 +38,37 @@ jobs:
       - name: Validate production compose config
         run: docker compose -f docker-compose.prod.yml config > /dev/null
 
+  local-parity-smoke-check:
+    name: Local Dev/Prod Parity Smoke Check
+    runs-on: ubuntu-latest
+    needs: docker-build-and-compose-validation
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare CI .env for local parity smoke-check
+        run: |
+          cat > .env <<'EOF'
+          BOT_TOKEN=123456:ci-prod-token
+          BOT_TOKEN_TEST=654321:ci-test-token
+          BOT_MODE=test
+          ROLE_REQUEST_ADMIN_TG_ID=1
+          DATABASE_URL=sqlite+aiosqlite:///./data/pybot_itacadem.db
+          FSM_STORAGE_BACKEND=redis
+          REDIS_URL=redis://redis:6379/0
+          TASKIQ_WORKERS=1
+          NOTIFICATION_BACKEND=logging
+          RUNTIME_ALERTS_ENABLED=false
+          LOG_FORMAT=json
+          HEALTH_API_ENABLED=true
+          HEALTH_API_HOST=0.0.0.0
+          HEALTH_API_PORT=8001
+          EOF
+
+      - name: Smoke-check local parity runtime
+        run: bash scripts/ci/run_parity_smoke_check.sh
+
   cli-smoke-checks:
     name: CLI Smoke Checks
     runs-on: ubuntu-latest
@@ -58,10 +77,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.12
+      - name: Set up Python 3.14
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.14"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
@@ -82,10 +101,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.12
+      - name: Set up Python 3.14
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.14'
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3

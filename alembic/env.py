@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from alembic import context
 from src.pybot.core.config import get_settings
 from src.pybot.db.base_class import Base
+from src.pybot.db.database import ensure_sqlite_database_parent_dir
 
 # Импортируем модели, чтобы Base.metadata собрался
 from src.pybot.db.models import *  # noqa: F403  # только для Alembic!
@@ -37,6 +38,7 @@ def _configure_database_url() -> str:
         database_url = get_settings().database_url
 
     if database_url:
+        ensure_sqlite_database_parent_dir(database_url)
         config.set_main_option("sqlalchemy.url", database_url)
     return database_url
 

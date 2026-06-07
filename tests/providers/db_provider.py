@@ -31,6 +31,6 @@ class TestDatabaseProvider(Provider):
     async def provide_session(
         self,
         session_maker: async_sessionmaker[AsyncSession],
-    ) -> AsyncGenerator[AsyncSession, None]:
+    ) -> AsyncGenerator[AsyncSession]:
         async with session_maker() as session:
             yield session

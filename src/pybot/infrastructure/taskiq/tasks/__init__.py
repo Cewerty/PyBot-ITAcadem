@@ -5,7 +5,7 @@ from typing import Any
 
 from taskiq import AsyncBroker, AsyncTaskiqDecoratedTask
 
-from ....core.config import BotSettings
+from ....core.config import AppSettings
 from . import broadcast, leaderboard, notification, system
 
 
@@ -17,7 +17,7 @@ class TaskRegistry:
     weekly_leaderboard_task: AsyncTaskiqDecoratedTask[..., Any]
 
 
-def register_all_tasks(*, broker: AsyncBroker, settings: BotSettings) -> TaskRegistry:
+def register_all_tasks(*, broker: AsyncBroker, settings: AppSettings) -> TaskRegistry:
     return TaskRegistry(
         broadcast_task=broadcast.register_tasks(broker=broker),
         notification_task=notification.register_tasks(broker=broker),
