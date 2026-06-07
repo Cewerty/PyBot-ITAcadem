@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.31.0 (2026-06-07)
+
+### Continuous Integration
+
+- **release**: Validate release history before publishing
+  ([`13df24f`](https://github.com/Cewerty/PyBot-ITAcadem/commit/13df24fc15d5123627075e3cd3096ca09f2b35b3))
+
+
 ## v0.30.0 (2026-05-07)
 
 ### Features
