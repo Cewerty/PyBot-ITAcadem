@@ -57,6 +57,7 @@ jobs:
           DATABASE_URL=sqlite+aiosqlite:///./data/pybot_itacadem.db
           FSM_STORAGE_BACKEND=redis
           REDIS_URL=redis://redis:6379/0
+          TASKIQ_WORKERS=1
           NOTIFICATION_BACKEND=logging
           RUNTIME_ALERTS_ENABLED=false
           LOG_FORMAT=json

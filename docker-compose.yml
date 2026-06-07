@@ -60,7 +60,7 @@ services:
       [
         "sh",
         "-c",
-        "TASKIQ_WORKERS='${TASKIQ_WORKERS:-1}'; if [ \"$TASKIQ_WORKERS\" != \"1\" ]; then echo \"TASKIQ_WORKERS=$TASKIQ_WORKERS is not supported yet; only TASKIQ_WORKERS=1 is allowed until the runtime is ready for multi-instance workers.\" >&2; exit 1; fi; exec taskiq worker src.pybot.infrastructure.taskiq.entrypoint:broker --workers \"$TASKIQ_WORKERS\"",
+        "TASKIQ_WORKERS='${TASKIQ_WORKERS:-1}'; if [ \"$$TASKIQ_WORKERS\" != \"1\" ]; then echo \"TASKIQ_WORKERS=$$TASKIQ_WORKERS is not supported yet; only TASKIQ_WORKERS=1 is allowed until the runtime is ready for multi-instance workers.\" >&2; exit 1; fi; exec taskiq worker src.pybot.infrastructure.taskiq.entrypoint:broker --workers \"$$TASKIQ_WORKERS\"",
       ]
 
   taskiq-scheduler:
