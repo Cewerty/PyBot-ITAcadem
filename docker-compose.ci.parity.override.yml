@@ -1,3 +1,5 @@
 services:
   bot:
     command: ["python", "scripts/ci/bot_runtime_parity_smoke.py"]
+    volumes:
+      - ./scripts/ci:/app/scripts/ci:ro
