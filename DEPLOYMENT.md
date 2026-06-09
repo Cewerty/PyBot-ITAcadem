@@ -1,6 +1,6 @@
 # Deployment
 
-This repository now includes a production deployment skeleton that extends the existing CI without changing the current `CI - Code Quality` or `Release` workflows.
+This repository uses PostgreSQL 18 for local, test, and production database workloads. Production deployment is image-based and keeps schema migration, seed, backup, and restore as explicit process types.
 
 ## What was added
 
@@ -8,8 +8,17 @@ This repository now includes a production deployment skeleton that extends the e
 - `.github/workflows/deploy.yml` for build + push + deploy after successful CI on `main`, plus manual recovery redeploys from GitHub Actions
 - `ansible/` with a minimal bootstrap/deploy playbook and roles
 
-The CI workflow also validates the Docker build, both Compose manifests, the local dev/prod parity path (`health` profile + direct probes), and the `fill_point_db.py` CLI help entrypoint before code reaches production deploy.
+The CI workflow validates the Docker build, both Compose manifests, the PostgreSQL Alembic upgrade/check/downgrade/upgrade cycle, PostgreSQL-backed integration tests, the local dev/prod parity path (`health` profile + direct probes), and the `fill_point_db.py` CLI help entrypoint before code reaches production deploy.
 The deploy workflow additionally fails fast if the checked-out production artifacts (`docker-compose.prod.yml`, `observability/`), the critical deploy secrets, or the deploy-only `PROD_ENV_FILE` contract required by Compose is violated.
+
+## Database support contract
+
+- PostgreSQL 18 is the only supported runtime and deployment database.
+- Application URLs must use `postgresql+asyncpg`.
+- Compose application services connect through the `postgres` service hostname.
+- `POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` must match the percent-decoded database, user, and password components of `DATABASE_URL`.
+- SQLite databases and old Alembic revision IDs cannot be upgraded through the current migration chain.
+- The current Alembic baseline is intended for a new PostgreSQL database. Data migration from SQLite is outside this deployment flow.
 
 ## Deployment flow
 
@@ -19,8 +28,9 @@ The deploy workflow additionally fails fast if the checked-out production artifa
 4. GitHub Actions builds a Docker image and pushes it to GHCR.
 5. GitHub Actions runs Ansible against the target server.
    The deploy workflow uses `Python 3.14` on the GitHub-hosted runner as the control-node baseline for Ansible.
-6. Ansible copies `docker-compose.prod.yml` and `.env` into the deploy user's workspace, runs the one-shot `migrate` process, optionally runs the one-shot `seed` process, and then refreshes the runtime services in place with `docker compose up -d --remove-orphans`.
-7. Ansible runs a lightweight post-deploy smoke-check: it verifies that the core runtime services appear in `docker compose ps` and waits for Redis health when a healthcheck is present.
+6. Ansible copies `docker-compose.prod.yml` and `.env`, validates the PostgreSQL contract without printing secrets, pulls images, and starts PostgreSQL 18 until its healthcheck passes.
+7. Ansible creates a custom-format PostgreSQL backup, runs the one-shot `migrate` process, optionally runs `seed`, and then refreshes the remaining runtime services in place with `docker compose up -d --remove-orphans`.
+8. Ansible runs a lightweight post-deploy smoke-check for the application processes, PostgreSQL, Redis, and the readiness API when enabled.
 
 ## Manual redeploy
 
@@ -52,9 +62,12 @@ The standard deploy path is in-place and does not run a blanket `docker compose 
 Both `docker-compose.yml` and `docker-compose.prod.yml` describe the same operational shape:
 
 - default runtime process types: `bot`, `taskiq-worker`, `taskiq-scheduler`, `redis`
+- default database process type: `postgres` using `postgres:18-alpine`
 - optional runtime process type: `health` behind the `health` profile
 - admin one-shot process type: `migrate` behind the `migration` profile
 - admin one-shot process type: `seed` behind the `seed` profile
+- admin one-shot process type: `backup` behind the `backup` profile
+- admin one-shot process type: `restore` behind the `restore` profile
 
 That alignment is deliberate:
 
@@ -65,6 +78,16 @@ That alignment is deliberate:
 Worker concurrency follows the same env-driven mechanism in dev and prod: `taskiq-worker` reads `${TASKIQ_WORKERS:-1}` from Compose. This variable is intentionally outside `AppSettings`; deploy automation and Compose own its contract, and the current supported value remains only `TASKIQ_WORKERS=1`.
 
 For local dev/prod parity checks, the one official recommended path is `just run-parity`. It uses the same Compose-based process model plus the dedicated `health` process type, and the direct local readiness probes stay on `http://127.0.0.1:8001/` and `http://127.0.0.1:8001/ready`. Production ingress checks through Nginx remain a separate outer-layer verification path. The old `just run-health` name remains a backward-compatible alias.
+
+Before the first local parity run, start PostgreSQL and Redis and apply migrations explicitly:
+
+```bash
+docker compose up -d --wait postgres redis
+docker compose --profile migration run --rm migrate
+just run-parity
+```
+
+Plain `just run`, `just run-parity`, and `docker compose up` do not apply Alembic migrations automatically.
 
 ## Required GitHub secrets
 
@@ -102,14 +125,15 @@ An optional bootstrap playbook is still available for Debian/Ubuntu hosts:
 - it installs `docker.io` and `docker-compose-plugin`
 - it is intentionally separate from the normal CD path so routine deploys do not mutate shared server infrastructure
 
-The app is deployed into `/home/ilya/pybot` by default and keeps persistent data in named Docker volumes:
+The app is deployed into `/home/ilya/pybot` by default and keeps PostgreSQL data, PostgreSQL dumps, and Redis data in separate named Docker volumes:
 
-- `pybot_data_prod`
+- `pybot_postgres_data_prod`
+- `pybot_postgres_backups_prod`
 - `pybot_redis_data_prod`
 
 The deploy also persists the currently released image reference as `APP_IMAGE` inside the server-side `.env`, so routine manual commands like `docker compose ps` and `docker compose logs` work without extra exports.
 
-When SQLite is used in production, the backup step now derives the backup target from `DATABASE_URL` as long as it points under `./data/...`, so backup behavior stays aligned with the configured database filename.
+PostgreSQL 18 mounts `pybot_postgres_data_prod` at `/var/lib/postgresql`. The official image stores the cluster in a version-specific directory below that mount, so this layout follows the PostgreSQL 18 image contract. Dumps are never written into the data volume: `backup` and `restore` share only `/backups` through `pybot_postgres_backups_prod`.
 
 ## Notes about ports
 
@@ -118,6 +142,7 @@ When SQLite is used in production, the backup step now derives the backup target
 That means:
 
 - Redis stays internal to the Docker network
+- PostgreSQL stays internal to the Docker network
 - the bot does not reserve any host port
 - the health API process itself stays internal and is exposed only through the reverse proxy when the `health` profile is enabled
 - the current production Compose entrypoint is the `nginx` service, which binds `${NGINX_BIND_HOST:-127.0.0.1}:${NGINX_PORT:-8088}:80`
@@ -267,7 +292,8 @@ This separation is meant to reduce the risk of affecting unrelated projects host
 
 The deploy role performs a lightweight smoke-check after `docker compose up -d`, grouped as a dedicated post-deploy block in the deploy role:
 
-- verifies that the core process types (`bot`, `taskiq-worker`, `taskiq-scheduler`, `redis`) appear in `docker compose ps`;
+- verifies that the core process types (`bot`, `taskiq-worker`, `taskiq-scheduler`, `redis`, `postgres`) appear in `docker compose ps`;
+- waits for PostgreSQL health to become `healthy`;
 - waits for Redis health to become `healthy` when a healthcheck exists;
 - when `HEALTH_API_ENABLED=true`, asserts that the `health` service appears in `docker compose ps`;
 - when `HEALTH_API_ENABLED=true`, calls `GET http://127.0.0.1:8088/health/ready` through the production Compose Nginx path and fails the deploy unless it reaches `200`.
@@ -281,14 +307,14 @@ Use this short runbook after a manual deploy, failed CD run, or AI-assisted prob
 ```bash
 cd /home/ilya/pybot
 docker compose -f docker-compose.prod.yml ps
-docker compose -f docker-compose.prod.yml logs --tail=80 bot taskiq-worker taskiq-scheduler health nginx grafana
+docker compose -f docker-compose.prod.yml logs --tail=80 postgres redis bot taskiq-worker taskiq-scheduler health nginx grafana
 docker compose -f docker-compose.prod.yml exec nginx nginx -t
 curl -I http://127.0.0.1:8088/health/
 curl -i http://127.0.0.1:8088/health/ready
 curl -I http://127.0.0.1:8088/grafana/
 ```
 
-A release is healthy when the core services are `Up`, Redis is `healthy`, `nginx -t` succeeds, `/health/` returns `200`, `/health/ready` returns `200`, and `/grafana/` returns a successful Grafana response or redirect.
+A release is healthy when the core services are `Up`, PostgreSQL and Redis are `healthy`, `nginx -t` succeeds, `/health/` returns `200`, `/health/ready` returns `200`, and `/grafana/` returns a successful Grafana response or redirect.
 
 For the public observability endpoint, verify the host Nginx layer separately:
 
@@ -329,6 +355,8 @@ That service is attached to the `migration` profile, so:
 - production deploy runs it explicitly via Ansible before `docker compose up -d`;
 - a plain `docker compose up -d` or `docker compose up --build` does not start it.
 
+The active migration history begins with the PostgreSQL initial baseline. It is not connected to the removed SQLite migration history. Apply it only to a new PostgreSQL database or to a database already managed by this baseline.
+
 ## Seed
 
 Seed data is handled by the dedicated `seed` service, not by `bot` startup.
@@ -338,6 +366,60 @@ Seed data is handled by the dedicated `seed` service, not by `bot` startup.
 - production deploy runs it only when `RUN_SEED_ON_DEPLOY=true` is passed from GitHub Secrets into the deploy workflow;
 - it is intended for first deploys or controlled reinitialization, not for every rollout.
 
+The seed process is not fully atomic. Its levels and roles steps, along with
+application services used for competencies and fake users, perform intermediate
+commits. If a later required step fails, the CLI rolls back the current
+uncommitted transaction and exits with a non-zero status so Compose and Ansible
+stop the deploy step. That rollback does not undo changes committed by earlier
+steps, so operators must treat a failed run as potentially partially applied
+and inspect the database before retrying.
+
+## PostgreSQL backup and restore
+
+The `backup` service uses `postgres:18-alpine` and creates a custom-format dump with `pg_dump --format=custom --no-owner --no-privileges`. Every production deploy runs it automatically after PostgreSQL becomes healthy and before `migrate`. Dumps are written with restricted permissions to the separate backup volume and named `pybot-<UTC timestamp>.dump`.
+
+Run an additional manual backup from the deploy directory with:
+
+```bash
+docker compose -f docker-compose.prod.yml --profile backup run --rm backup
+```
+
+List available dump basenames without mounting the backup volume on the host:
+
+```bash
+docker compose -f docker-compose.prod.yml --profile backup run --rm \
+  --entrypoint sh backup -c 'ls -lh /backups'
+```
+
+There is no automatic retention policy. Operators must monitor the backup volume and delete obsolete dumps manually according to the project's operational requirements.
+
+Restore is intentionally destructive and manual. The `restore` service accepts only a dump basename through `RESTORE_FILE`, rejects paths and missing files, and requires exact `CONFIRM_RESTORE=YES`. These values must be passed for a single command and must not be stored in `.env`.
+
+Restore runbook:
+
+1. Stop all writing application services.
+2. Select a dump basename from the backup volume.
+3. Run the confirmed restore. It terminates other connections to the target database and executes `pg_restore --clean --if-exists --no-owner --no-privileges --exit-on-error`.
+4. Apply the current Alembic migration head.
+5. Start the runtime again.
+6. Verify PostgreSQL health and `GET /health/ready`.
+
+```bash
+docker compose -f docker-compose.prod.yml stop bot taskiq-worker taskiq-scheduler health
+
+RESTORE_FILE=pybot-20260609T120000Z.dump CONFIRM_RESTORE=YES \
+  docker compose -f docker-compose.prod.yml --profile restore run --rm restore
+
+docker compose -f docker-compose.prod.yml --profile migration run --rm migrate
+docker compose -f docker-compose.prod.yml --profile health up -d --remove-orphans
+docker compose -f docker-compose.prod.yml ps postgres
+curl -i http://127.0.0.1:8088/health/ready
+```
+
+Omit `--profile health` and the readiness request when `HEALTH_API_ENABLED=false`.
+
+Before relying on a backup operationally, rehearse this flow on a non-production environment: create control data, make a dump, change or remove the data, stop writers, restore the dump, run migrations, and confirm that the control data returned.
+
 ## Recommended production `.env` baseline
 
 At minimum, set:
@@ -346,7 +428,10 @@ At minimum, set:
 - `BOT_TOKEN_TEST` - optional when `BOT_MODE=prod`, but keep it if you still use test-mode launches in that environment
 - `BOT_MODE=prod`
 - `ROLE_REQUEST_ADMIN_TG_ID`
-- `DATABASE_URL=sqlite+aiosqlite:///./data/pybot_itacadem.db`
+- `POSTGRES_DB=pybot_itacadem`
+- `POSTGRES_USER=pybot`
+- `POSTGRES_PASSWORD=<raw strong password>`
+- `DATABASE_URL=postgresql+asyncpg://pybot:<percent-encoded password>@postgres:5432/pybot_itacadem`
 - `FSM_STORAGE_BACKEND=redis`
 - `REDIS_URL=redis://redis:6379/0`
 - `LOG_LEVEL=INFO`
@@ -368,8 +453,10 @@ Deploy / orchestration-only baseline:
 
 Important:
 
-- if you use SQLite in production, keep `DATABASE_URL` under `./data/...`
-- paths like `sqlite+aiosqlite:///./pybot_itacadem.db` will place the database outside the mounted volume and break one-shot migration/seed containers
+- production `DATABASE_URL` must use `postgresql+asyncpg`, hostname `postgres`, and database/user/password values matching `POSTGRES_*`;
+- keep the raw password in `POSTGRES_PASSWORD`, but percent-encode URL-special characters in the password component of `DATABASE_URL`;
+- `POSTGRES_PORT` is only needed for the local host binding; production does not publish port `5432`;
+- host-only commands must temporarily use `127.0.0.1` instead of the Compose hostname `postgres`;
 - when `HEALTH_API_ENABLED=true`, deploy orchestration enables the `health` Compose profile and starts a dedicated `pybot-health` service (`uvicorn src.pybot.presentation.web:app`)
 - production uses the same concurrency knob as local Compose: `TASKIQ_WORKERS=1 docker compose up -d`
 - syntax for future worker scaling is already reserved via `TASKIQ_WORKERS`, but values greater than `1` are intentionally rejected for now

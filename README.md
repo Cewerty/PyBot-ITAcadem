@@ -95,7 +95,7 @@
 - `aiogram 3.22+`
 - `aiogram-dialog 2.4+`
 - `Dishka`
-- `SQLAlchemy 2` + `aiosqlite`
+- `SQLAlchemy 2` + `PostgreSQL 18` + `asyncpg`
 - `Alembic`
 - `Pydantic v2` + `pydantic-settings`
 - `Redis`
@@ -105,6 +105,13 @@
 - `uv`
 - `ruff`, `ty`, `pytest`, `pytest-aiogram`
 - `MkDocs Material`
+
+### Контракт базы данных
+
+- Единственная поддерживаемая runtime БД — PostgreSQL 18.
+- Приложение и Alembic принимают только URL вида `postgresql+asyncpg://...`.
+- SQLite больше не поддерживается ни как runtime БД, ни как источник для обновления через текущую цепочку Alembic.
+- Текущая Alembic baseline рассчитана на пустую PostgreSQL БД. Автоматического переноса существующей SQLite БД или старых revision ID нет.
 
 ## Структура репозитория
 
@@ -129,8 +136,7 @@ PyBot_ITAcadem/
 ├── docker-compose.yml
 ├── docker-compose.prod.yml
 ├── fill_point_db.py
-├── run.py
-└── db_reset_start.py
+└── run.py
 ```
 
 ## Локальный запуск
@@ -140,8 +146,8 @@ PyBot_ITAcadem/
 - `Python 3.14+`
 - `uv`
 - `just` - желательно, но не обязательно
-- `Docker` + `docker compose` - рекомендуемый локальный runtime-path, включая официальный parity path через `just run-parity`
-- доступный `Redis` нужен только для bot-only запуска без Compose, если вы не переключаете `FSM_STORAGE_BACKEND` вручную на `memory`
+- `Docker` + `docker compose` - рекомендуемый локальный runtime-path с PostgreSQL 18, включая официальный parity path через `just run-parity`
+- для запуска без Compose должны быть отдельно доступны PostgreSQL и Redis; Redis не нужен только при явном переключении `FSM_STORAGE_BACKEND=memory`
 
 ### 2. Установка зависимостей
 
@@ -166,7 +172,11 @@ BOT_TOKEN=your_production_bot_token
 BOT_TOKEN_TEST=your_test_bot_token
 BOT_MODE=test
 
-DATABASE_URL=sqlite+aiosqlite:///./data/pybot_itacadem.db
+POSTGRES_DB=pybot_itacadem
+POSTGRES_USER=pybot
+POSTGRES_PASSWORD=change_me_before_run
+POSTGRES_PORT=5432
+DATABASE_URL=postgresql+asyncpg://pybot:change_me_before_run@postgres:5432/pybot_itacadem
 
 ROLE_REQUEST_ADMIN_TG_ID=123456789
 AUTO_ADMIN_TELEGRAM_IDS=
@@ -176,7 +186,7 @@ TELEGRAM_PROXY_URL=
 RUNTIME_ALERTS_ENABLED=false
 RUNTIME_ALERTS_CHAT_ID=
 FSM_STORAGE_BACKEND=redis
-REDIS_URL=redis://localhost:6379/0
+REDIS_URL=redis://redis:6379/0
 
 LOG_LEVEL=INFO
 LOG_FORMAT=json
@@ -197,21 +207,33 @@ HEALTH_API_PORT=8001
 - `ROLE_REQUEST_ADMIN_TG_ID` обязателен, потому что role request flow уже является частью рабочего сценария;
 - `TELEGRAM_PROXY_URL` опционален и нужен только там, где Telegram Bot API доступен через proxy;
 - `RUNTIME_ALERTS_ENABLED` и `RUNTIME_ALERTS_CHAT_ID` опциональны и включают runtime alerts только для основного bot-процесса;
-- локальный и production runtime используют один и тот же SQLite storage contract: база живёт под `./data/pybot_itacadem.db`;
-- каталог `./data/` для SQLite создаётся автоматически при runtime/bootstrap и при `uv run alembic upgrade head`, если его ещё нет;
+- локальный и production Compose используют PostgreSQL 18 и обращаются к нему по service hostname `postgres`;
+- `POSTGRES_DB`, `POSTGRES_USER` и `POSTGRES_PASSWORD` обязательны, а `POSTGRES_PORT` задаёт только локальный bind на `127.0.0.1`;
+- database name, user и password в `DATABASE_URL` должны совпадать с `POSTGRES_DB`, `POSTGRES_USER` и `POSTGRES_PASSWORD`;
+- `POSTGRES_PASSWORD` хранит raw-пароль, но URL-special символы в password component `DATABASE_URL` должны быть percent-encoded;
+- для host-only команд временно замените hostname `postgres` в `DATABASE_URL` и hostname `redis` в `REDIS_URL` на `127.0.0.1`; внутри Compose оставляйте service hostnames;
 - локальный dev-default теперь использует `FSM_STORAGE_BACKEND=redis`, чтобы bot, worker и scheduler работали на том же Redis runtime;
 - официальный dev/prod-like parity path через `just run-parity` / Docker Compose использует `LOG_FORMAT=json` как prod-like logging contract;
 - ручной bot-only запуск через `uv run run.py` может оставаться на `text`, если `LOG_FORMAT` не задан явно; это осознанный debug/DX trade-off, а не drift;
 - `FSM_STORAGE_BACKEND=memory` остаётся только как явный opt-in fallback/debug path;
 - если вы запускаете только bot process через `uv run run.py`, Redis должен быть уже доступен отдельно, если backend не переключён вручную на `memory`.
 
-### 4. Примените миграции
+### 4. Выполните clean start PostgreSQL runtime
 
 ```bash
-uv run alembic upgrade head
+docker compose up -d --wait postgres redis
+docker compose --profile migration run --rm migrate
+docker compose --profile seed run --rm seed
+docker compose up --build
 ```
 
-Это локальный эквивалент one-shot process type `migrate`. Его запускают явно перед первым стартом или после изменений схемы. В Docker Compose этому соответствует `docker compose --profile migration run --rm migrate`.
+`seed` в этой последовательности опционален. Обычный `docker compose up` не запускает ни миграции, ни seed автоматически: `migrate` выполняют явно перед первым стартом и после изменений схемы, а `seed` — только когда нужны initial/test данные. Для полного сброса локальной БД удалите Compose volume только осознанно: это необратимо удалит все локальные PostgreSQL-данные.
+
+Для host-only запуска Alembic PostgreSQL должен быть опубликован локальным Compose на `127.0.0.1:${POSTGRES_PORT:-5432}`. Временно замените hostname в URL:
+
+```bash
+DATABASE_URL=postgresql+asyncpg://pybot:change_me_before_run@127.0.0.1:5432/pybot_itacadem uv run alembic upgrade head
+```
 
 ### 5. При необходимости заполните БД тестовыми данными
 
@@ -221,6 +243,11 @@ uv run python fill_point_db.py
 ```
 
 Это локальный эквивалент one-shot process type `seed`. Он не считается частью обычного runtime-старта и запускается только тогда, когда нужен initial/test seed. В Docker Compose этому соответствует `docker compose --profile seed run --rm seed`.
+
+Seed не является полностью атомарным: отдельные шаги и сервисы выполняют
+промежуточные `commit()`. При ошибке CLI откатывает только текущую
+незавершённую транзакцию и завершается с ненулевым кодом, но ранее
+зафиксированные изменения могут остаться в БД.
 
 Скрипт умеет отдельно включать и отключать:
 
@@ -234,7 +261,8 @@ uv run python fill_point_db.py
 Если нужен один локальный сценарий, который лучше всего повторяет production process model, используйте именно его:
 
 ```bash
-uv run alembic upgrade head
+docker compose up -d --wait postgres redis
+docker compose --profile migration run --rm migrate
 just run-parity
 curl -i http://127.0.0.1:8001/
 curl -i http://127.0.0.1:8001/ready
@@ -243,7 +271,7 @@ curl -i http://127.0.0.1:8001/ready
 Это официальный dev/prod-like path, потому что он:
 
 - использует тот же Compose-based runtime;
-- поднимает те же core process types, что и production: `bot`, `taskiq-worker`, `taskiq-scheduler`, `redis`;
+- поднимает те же core process types, что и production: `bot`, `taskiq-worker`, `taskiq-scheduler`, `postgres`, `redis`;
 - добавляет отдельный `health` process type через profile, как и production deploy;
 - проверяет readiness приложения, а не только факт старта контейнеров.
 
@@ -258,6 +286,7 @@ just run
 - `bot`
 - `taskiq-worker`
 - `taskiq-scheduler`
+- `postgres`
 - `redis`
 
 Это быстрый local runtime path без отдельного `health` process type.
@@ -298,7 +327,7 @@ just run-observability
 uv run run.py
 ```
 
-Этот путь не поднимает `worker`, `scheduler` и `redis`.
+Этот путь не поднимает `worker`, `scheduler`, `redis` и `postgres`.
 
 ## Запуск через Docker Compose
 
@@ -308,6 +337,7 @@ uv run run.py
 - `taskiq-worker`
 - `taskiq-scheduler`
 - `redis`
+- `postgres`
 - `health` (optional, `health` profile)
 - `loki`, `alloy`, `grafana`, `nginx` (optional, `observability` profile)
 
@@ -352,12 +382,16 @@ HEALTH_API_ENABLED=true docker compose --profile health up --build
 ```bash
 docker compose --profile migration run --rm migrate
 docker compose --profile seed run --rm seed
+docker compose --profile backup run --rm backup
 ```
 
 Особенности локального compose:
 
 - `migrate` запускается отдельным one-shot сервисом и только явно через `docker compose --profile migration run --rm migrate`;
 - `seed` запускается отдельным one-shot сервисом и только явно через `docker compose --profile seed run --rm seed`;
+- `backup` создаёт PostgreSQL custom-format dump в отдельном backup volume; destructive `restore` запускается только вручную по runbook из `DEPLOYMENT.md`;
+- PostgreSQL data volume и backup volume разделены: дампы не хранятся внутри каталога кластера;
+- application-сервисы ждут healthy PostgreSQL и Redis перед стартом;
 - по умолчанию в compose уже прокинуты `DATABASE_URL`, `TELEGRAM_PROXY_URL`, `FSM_STORAGE_BACKEND=redis`, `REDIS_URL` и `LOG_FORMAT=json`;
 - direct local smoke-check для health profile идёт напрямую в health-порт, а не через production ingress path:
   - `GET http://127.0.0.1:8001/` -> `200`
@@ -377,10 +411,13 @@ just quality-gate
 Также доступны:
 
 ```bash
-uv run pytest -q
+just test-unit
+just test-integration
 just docs-build
 just test-coverage
 ```
+
+`just test-unit` не требует Docker. `just test-integration` использует один PostgreSQL 18 Testcontainers container на тестовую сессию, применяет реальную Alembic schema и очищает данные между тестами. В CI второй контейнер не создаётся: тесты получают PostgreSQL service URL через `PYBOT_TEST_DATABASE_URL`. Эта переменная принимает только `postgresql+asyncpg` URL к БД с именем `test` или суффиксом `_test`.
 
 ## Документация
 
@@ -411,17 +448,21 @@ just docs-serve
 Production compose использует отдельные one-shot сервисы:
 
 - `migrate` - для `alembic upgrade head`;
-- `seed` - для управляемого initial seed.
+- `seed` - для управляемого initial seed;
+- `backup` - для custom-format дампа PostgreSQL;
+- `restore` - для ручного подтверждаемого восстановления.
 
-Runtime process types в production те же, что и локально: `bot`, `taskiq-worker`, `taskiq-scheduler`, optional `health`, `redis`.
+Runtime process types в production те же, что и локально: `bot`, `taskiq-worker`, `taskiq-scheduler`, optional `health`, `redis`, `postgres`.
 
 Default image startup is runtime-only: the container entrypoint now runs only `python run.py`. Migrations and seed are never executed implicitly during image startup and remain explicit one-shot operator actions.
 
 Кто и когда запускает one-shot процессы:
 
 - `migrate` на каждом production deploy запускает Ansible до `docker compose up -d`;
+- `backup` автоматически запускается Ansible перед production migration;
 - `seed` в production запускает Ansible только при `RUN_SEED_ON_DEPLOY=true`;
-- в local compose те же `migrate` и `seed` явно запускает сам разработчик или оператор.
+- `restore` остаётся только ручной destructive-операцией с явным подтверждением;
+- в local compose admin one-shot процессы явно запускает сам разработчик или оператор.
 
 Подробнее:
 
