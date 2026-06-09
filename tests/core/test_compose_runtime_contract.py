@@ -36,3 +36,12 @@ def test_ci_parity_smoke_migrates_postgresql_before_runtime() -> None:
     assert "required_services=(bot taskiq-worker taskiq-scheduler postgres redis health)" in smoke_script
     assert smoke_script.index(backing_services_command) < smoke_script.index(migration_command)
     assert smoke_script.index(migration_command) < smoke_script.index(runtime_command)
+
+
+def test_production_seed_pipeline_always_skips_fake_users() -> None:
+    project_root = Path(__file__).resolve().parents[2]
+    production_compose = (project_root / "docker-compose.prod.yml").read_text(encoding="utf-8")
+    deploy_tasks = (project_root / "ansible/roles/pybot_deploy/tasks/main.yml").read_text(encoding="utf-8")
+
+    assert 'command: [ "pybot-seed", "--skip-fake-users" ]' in production_compose
+    assert "seed pybot-seed --skip-fake-users" in deploy_tasks

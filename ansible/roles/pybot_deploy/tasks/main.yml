@@ -178,7 +178,8 @@
 - name: Run one-shot seed step when explicitly requested
   ansible.builtin.shell: |
     set -eu
-    docker compose -f docker-compose.prod.yml --profile seed run --rm seed
+    docker compose -f docker-compose.prod.yml --profile seed run --rm \
+      seed pybot-seed --skip-fake-users
   args:
     chdir: "{{ deploy_path }}"
     executable: /bin/sh

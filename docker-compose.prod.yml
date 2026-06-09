@@ -91,7 +91,7 @@ services:
     profiles: [ "seed" ]
     restart: "no"
     depends_on: *app-dependencies
-    command: [ "pybot-seed" ]
+    command: [ "pybot-seed", "--skip-fake-users" ]
 
   backup:
     image: postgres:18-alpine
