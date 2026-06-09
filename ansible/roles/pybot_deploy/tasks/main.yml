@@ -8,14 +8,11 @@
       - image_tag is defined
     fail_msg: "deploy_path, deploy_compose_src, app_env_src, image_repository, and image_tag are required."
 
-- name: Create application directories
+- name: Create application directory
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ deploy_path }}"
     state: directory
     mode: "0755"
-  loop:
-    - "{{ deploy_path }}"
-    - "{{ deploy_path }}/backups"
 
 - name: Copy production compose file
   ansible.builtin.copy:
@@ -37,25 +34,68 @@
     create: true
     mode: "0600"
 
-- name: Validate production SQLite path is volume-backed
+- name: Validate production PostgreSQL environment contract
   ansible.builtin.shell: |
     set -eu
-    db_url="$(grep '^DATABASE_URL=' .env | cut -d= -f2- || true)"
-    if [ -z "$db_url" ]; then
-      exit 0
-    fi
-    case "$db_url" in
-      sqlite+aiosqlite:///./data/*)
-        exit 0
-        ;;
-      sqlite+aiosqlite:///*)
-        echo "Production SQLite DATABASE_URL must point to ./data/... so migrations and runtime share the mounted volume." >&2
-        exit 1
-        ;;
-      *)
-        exit 0
-        ;;
-    esac
+    python3 - <<'PY'
+    from pathlib import Path
+    from typing import Dict
+    from urllib.parse import unquote, urlsplit
+
+    REQUIRED_KEYS = (
+        "POSTGRES_DB",
+        "POSTGRES_USER",
+        "POSTGRES_PASSWORD",
+        "DATABASE_URL",
+    )
+
+
+    def fail(message: str) -> None:
+        raise SystemExit(f"Invalid production database configuration: {message}")
+
+
+    def parse_env(path: Path) -> Dict[str, str]:
+        values: Dict[str, str] = {}
+        for raw_line in path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            key = key.strip()
+            value = value.strip()
+            if (
+                len(value) >= 2
+                and value[0] == value[-1]
+                and value[0] in {"'", '"'}
+            ):
+                value = value[1:-1]
+            values[key] = value
+        return values
+
+
+    try:
+        env = parse_env(Path(".env"))
+        missing_keys = [key for key in REQUIRED_KEYS if not env.get(key)]
+        if missing_keys:
+            fail("missing required variables: " + ", ".join(missing_keys))
+
+        database_url = urlsplit(env["DATABASE_URL"])
+        if database_url.scheme != "postgresql+asyncpg":
+            fail("DATABASE_URL must use the postgresql+asyncpg scheme")
+        if database_url.hostname != "postgres":
+            fail("DATABASE_URL hostname must be postgres")
+        if unquote(database_url.username or "") != env["POSTGRES_USER"]:
+            fail("DATABASE_URL user does not match POSTGRES_USER")
+        if unquote(database_url.password or "") != env["POSTGRES_PASSWORD"]:
+            fail("DATABASE_URL password does not match POSTGRES_PASSWORD")
+        database_name = database_url.path[1:] if database_url.path.startswith("/") else ""
+        if unquote(database_name) != env["POSTGRES_DB"]:
+            fail("DATABASE_URL database does not match POSTGRES_DB")
+    except SystemExit:
+        raise
+    except Exception:
+        fail("unable to parse .env or DATABASE_URL")
+    PY
   args:
     chdir: "{{ deploy_path }}"
     executable: /bin/sh
@@ -74,45 +114,51 @@
     - registry_token is defined
     - registry_token | length > 0
 
-- name: Back up SQLite database volume when present
-  ansible.builtin.shell: |
-    set -eu
-    db_url="$(grep '^DATABASE_URL=' "{{ deploy_path }}/.env" | cut -d= -f2- || true)"
-    case "$db_url" in
-      sqlite+aiosqlite:///./data/*)
-        db_path="${db_url#sqlite+aiosqlite:///./data/}"
-        ;;
-      *)
-        exit 0
-        ;;
-    esac
-
-    if docker volume inspect pybot_data_prod >/dev/null 2>&1; then
-      docker run --rm \
-        -v pybot_data_prod:/data \
-        -v "{{ deploy_path }}/backups:/backup" \
-        -e DB_PATH="$db_path" \
-        alpine:3.20 \
-        sh -eu -c '
-          db_name="$(basename "$DB_PATH")"
-          timestamp="$(date +%Y%m%d%H%M%S)"
-          case "$db_name" in
-            *.db) backup_name="${db_name%.db}-$timestamp.db" ;;
-            *) backup_name="${db_name}-$timestamp.bak" ;;
-          esac
-          if [ -f "/data/$DB_PATH" ]; then
-            cp "/data/$DB_PATH" "/backup/$backup_name"
-          fi
-        '
-    fi
-  args:
-    executable: /bin/sh
-  changed_when: false
-
 - name: Pull production images
   ansible.builtin.shell: |
     set -eu
-    docker compose -f docker-compose.prod.yml pull
+    docker compose -f docker-compose.prod.yml \
+      --profile backup \
+      --profile restore \
+      --profile migration \
+      --profile seed \
+      --profile health \
+      pull
+  args:
+    chdir: "{{ deploy_path }}"
+    executable: /bin/sh
+  environment:
+    APP_IMAGE: "{{ image_repository }}:{{ image_tag }}"
+
+- name: Start PostgreSQL
+  ansible.builtin.command:
+    cmd: docker compose -f docker-compose.prod.yml up -d postgres
+    chdir: "{{ deploy_path }}"
+  environment:
+    APP_IMAGE: "{{ image_repository }}:{{ image_tag }}"
+
+- name: Wait for PostgreSQL healthcheck before admin processes
+  ansible.builtin.shell: |
+    set -eu
+    cid="$(docker compose -f docker-compose.prod.yml ps -q postgres)"
+    [ -n "$cid" ]
+    health="$(docker inspect -f '{{ "{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}" }}' "$cid")"
+    [ "$health" = "healthy" ]
+  args:
+    chdir: "{{ deploy_path }}"
+    executable: /bin/sh
+  register: postgres_pre_migration_health
+  retries: 20
+  delay: 3
+  until: postgres_pre_migration_health.rc == 0
+  changed_when: false
+  environment:
+    APP_IMAGE: "{{ image_repository }}:{{ image_tag }}"
+
+- name: Back up PostgreSQL before migrations
+  ansible.builtin.shell: |
+    set -eu
+    docker compose -f docker-compose.prod.yml --profile backup run --rm backup
   args:
     chdir: "{{ deploy_path }}"
     executable: /bin/sh
@@ -236,24 +282,31 @@
         ('bot' in compose_ps_result.stdout) and
         ('taskiq-worker' in compose_ps_result.stdout) and
         ('taskiq-scheduler' in compose_ps_result.stdout) and
+        ('postgres' in compose_ps_result.stdout) and
         ('redis' in compose_ps_result.stdout)
       changed_when: false
       environment:
         APP_IMAGE: "{{ image_repository }}:{{ image_tag }}"
 
-    - name: Wait for Redis healthcheck to report healthy
+    - name: Wait for PostgreSQL and Redis healthchecks to report healthy
       ansible.builtin.shell: |
         set -eu
-        cid="$(docker compose -f docker-compose.prod.yml ps -q redis)"
-        [ -n "$cid" ]
-        health="$(docker inspect -f '{{ "{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}" }}' "$cid")"
-        [ "$health" = "healthy" ] || [ "$health" = "none" ]
+        for service in postgres redis; do
+          cid="$(docker compose -f docker-compose.prod.yml ps -q "$service")"
+          [ -n "$cid" ]
+          health="$(docker inspect -f '{{ "{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}" }}' "$cid")"
+          [ "$health" = "healthy" ]
+        done
       args:
         chdir: "{{ deploy_path }}"
         executable: /bin/sh
-      retries: 10
+      register: database_and_cache_health
+      retries: 20
       delay: 3
+      until: database_and_cache_health.rc == 0
       changed_when: false
+      environment:
+        APP_IMAGE: "{{ image_repository }}:{{ image_tag }}"
 
     - name: Wait for health service to appear in compose ps
       ansible.builtin.command:
