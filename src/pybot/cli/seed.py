@@ -915,10 +915,10 @@ async def fill_database(config: FillDatabaseConfig | None = None) -> None:
                     runtime_logger.info("Skipping fake user generation by config")
 
                 runtime_logger.success("Database seeding finished successfully")
-            except Exception as exc:
+            except Exception:
                 await session.rollback()
-                runtime_logger.error("Database seeding failed: %s", exc, exc_info=True)
-                runtime_logger.warning("Database seeding was rolled back")
+                runtime_logger.exception("Database seeding failed")
+                raise
     finally:
         await container.close()
 

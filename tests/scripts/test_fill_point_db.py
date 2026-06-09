@@ -202,6 +202,29 @@ def build_runtime_dependencies(
     )
 
 
+def build_seed_subprocess_env(tmp_path: Path) -> dict[str, str]:
+    project_root = Path(__file__).resolve().parents[2]
+    runtime_env = os.environ.copy()
+    runtime_env.update(
+        {
+            "BOT_TOKEN": "123456:PROD_TEST_TOKEN",
+            "BOT_TOKEN_TEST": "123456:TEST_TOKEN",
+            "BOT_MODE": "test",
+            "DATABASE_URL": "postgresql+asyncpg://test:test@127.0.0.1:1/pybot_unit_test",
+            "ROLE_REQUEST_ADMIN_TG_ID": "999999999",
+            "LOG_FORMAT": "text",
+            "PYTHONPATH": os.pathsep.join(
+                [
+                    str(project_root / "src"),
+                    str(project_root),
+                    runtime_env.get("PYTHONPATH", ""),
+                ]
+            ),
+        }
+    )
+    return runtime_env
+
+
 def test_build_seed_config_preserves_default_runtime_behavior() -> None:
     cli_config = fill_point_db.FillDatabaseCLIConfig()
 
@@ -333,6 +356,41 @@ def test_fill_point_db_module_help_does_not_require_runtime_env(tmp_path: Path) 
     assert "BOT_TOKEN" not in result.stderr
 
 
+def test_fill_point_db_returns_non_zero_exit_code_when_seed_fails(tmp_path: Path) -> None:
+    result = subprocess.run(  # noqa: S603
+        [sys.executable, "-m", "pybot.cli.seed"],  # noqa: S607
+        capture_output=True,
+        check=False,
+        cwd=tmp_path,
+        env=build_seed_subprocess_env(tmp_path),
+        text=True,
+    )
+
+    assert result.returncode != 0
+    assert "Database seeding failed" in result.stdout + result.stderr
+
+
+def test_fill_point_db_returns_zero_exit_code_when_seed_succeeds(tmp_path: Path) -> None:
+    result = subprocess.run(  # noqa: S603
+        [
+            sys.executable,
+            "-m",
+            "pybot.cli.seed",
+            "--skip-levels",
+            "--skip-roles",
+            "--skip-competencies",
+            "--skip-fake-users",
+        ],  # noqa: S607
+        capture_output=True,
+        check=False,
+        cwd=tmp_path,
+        env=build_seed_subprocess_env(tmp_path),
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
 @pytest.mark.asyncio
 async def test_fill_database_uses_dishka_container_and_closes_it(monkeypatch: pytest.MonkeyPatch) -> None:
     fake_session = FakeFillDatabaseSession()
@@ -385,6 +443,54 @@ async def test_fill_database_uses_dishka_container_and_closes_it(monkeypatch: py
     )
     fake_session.rollback_mock.assert_not_awaited()
     fake_container.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_fill_database_rolls_back_reraises_and_closes_container(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_session = FakeFillDatabaseSession()
+    fake_request_container = FakeRequestContainer(
+        fake_session,
+        FakeCompetenceService(),
+        FakeLevelService(),
+        FakePointsService(),
+        FakeUserCompetenceService(),
+        FakeFillDatabaseUserRegistrationService(),
+    )
+    fake_container = _ContainerStub(fake_request_container)
+    expected_error = RuntimeError("required seed step failed")
+    generate_levels_data = AsyncMock(side_effect=expected_error)
+    add_roles_data = AsyncMock()
+    add_competencies_data = AsyncMock()
+    generate_users_data = AsyncMock()
+    runtime_logger = Mock()
+
+    monkeypatch.setattr(
+        fill_point_db,
+        "_get_runtime_dependencies",
+        Mock(
+            return_value=build_runtime_dependencies(
+                setup_container=AsyncMock(return_value=fake_container),
+            )
+        ),
+    )
+    monkeypatch.setattr(fill_point_db, "_get_runtime_logger", Mock(return_value=runtime_logger))
+    monkeypatch.setattr(fill_point_db, "generate_levels_data", generate_levels_data)
+    monkeypatch.setattr(fill_point_db, "add_roles_data", add_roles_data)
+    monkeypatch.setattr(fill_point_db, "add_competencies_data", add_competencies_data)
+    monkeypatch.setattr(fill_point_db, "generate_users_data", generate_users_data)
+
+    with pytest.raises(RuntimeError) as exc_info:
+        await fill_point_db.fill_database()
+
+    assert exc_info.value is expected_error
+    fake_session.rollback_mock.assert_awaited_once_with()
+    runtime_logger.exception.assert_called_once_with("Database seeding failed")
+    add_roles_data.assert_not_awaited()
+    add_competencies_data.assert_not_awaited()
+    generate_users_data.assert_not_awaited()
+    fake_container.close.assert_awaited_once_with()
 
 
 @pytest.mark.asyncio
