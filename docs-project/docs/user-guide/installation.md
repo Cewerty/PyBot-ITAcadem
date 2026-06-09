@@ -22,6 +22,9 @@ uv sync
 - `BOT_TOKEN`
 - `BOT_TOKEN_TEST` if you plan to run with `BOT_MODE=test`
 - `ROLE_REQUEST_ADMIN_TG_ID`
+- `POSTGRES_DB`
+- `POSTGRES_USER`
+- `POSTGRES_PASSWORD`
 - `DATABASE_URL`
 
 `.env.example` уже содержит опциональную переменную `TELEGRAM_PROXY_URL`. В обычной среде ее можно оставить пустой и заполнять только там, где Telegram Bot API доступен через proxy.
@@ -29,13 +32,14 @@ uv sync
 После этого можно применить миграции и поднять официальный локальный dev/prod-like path:
 
 ```bash
-uv run alembic upgrade head
+docker compose up -d --wait postgres redis
+docker compose --profile migration run --rm migrate
 just run-parity
 curl -i http://127.0.0.1:8001/
 curl -i http://127.0.0.1:8001/ready
 ```
 
-По умолчанию локальная SQLite база живёт в `./data/pybot_itacadem.db`, то есть в том же смысловом runtime-path, что и production volume-backed storage. Каталог `./data/` создаётся автоматически при запуске runtime или миграций, если его ещё нет.
+Локальный и production runtime используют PostgreSQL 18. Внутри Compose приложение подключается по hostname `postgres`, а локальный PostgreSQL port публикуется только на `127.0.0.1:${POSTGRES_PORT:-5432}`. Обычный `docker compose up` не применяет Alembic migrations автоматически.
 
 Этот путь считается официальным parity path, потому что он использует тот же Compose-based runtime, те же core process types, что и production, и дополнительно поднимает отдельный `health` process type для readiness-проверки.
 
@@ -47,9 +51,9 @@ curl -i http://127.0.0.1:8001/ready
 just run
 ```
 
-`just run` использует `docker compose up --build` и поднимает `bot`, `taskiq-worker`, `taskiq-scheduler` и `redis`.
+`just run` использует `docker compose up --build` и поднимает `bot`, `taskiq-worker`, `taskiq-scheduler`, `postgres` и `redis`.
 
-Прямой `uv run run.py` остаётся доступным как bot-only advanced path, но он не поднимает `worker`, `scheduler` и `redis`. Если `LOG_FORMAT` не задан явно, такой запуск может остаться на `text` — это осознанный debug/DX trade-off для ручного interactive path.
+Прямой `uv run run.py` остаётся доступным как bot-only advanced path, но он не поднимает `worker`, `scheduler`, `postgres` и `redis`. Для него PostgreSQL и Redis должны быть доступны отдельно. Если `LOG_FORMAT` не задан явно, такой запуск может остаться на `text` — это осознанный debug/DX trade-off для ручного interactive path.
 
 Если нужен именно официальный parity path для smoke-check и readiness, используйте:
 
