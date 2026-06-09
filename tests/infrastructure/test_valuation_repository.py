@@ -9,6 +9,9 @@ from pybot.infrastructure.valuation_repository import ValuationRepository
 from tests.factories import UserSpec, ValuationSpec, create_user, create_valuation
 
 
+pytestmark = pytest.mark.integration
+
+
 @pytest.mark.asyncio
 async def test_find_history_by_recipient_filters_sorts_and_limits(db_session) -> None:
     # Given

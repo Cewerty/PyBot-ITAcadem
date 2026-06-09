@@ -7,6 +7,9 @@ from pybot.infrastructure.level_repository import LevelRepository
 from tests.factories import create_level
 
 
+pytestmark = pytest.mark.integration
+
+
 @pytest.mark.asyncio
 async def test_find_all_levels_returns_all_rows(db_session) -> None:
     # Given

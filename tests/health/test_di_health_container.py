@@ -6,6 +6,9 @@ from pybot.di import containers as di_containers
 from pybot.services.health import HealthService
 
 
+pytestmark = pytest.mark.integration
+
+
 @pytest.mark.asyncio
 async def test_setup_health_container_smoke_resolves_key_dependencies(
     patched_public_di_engine: AsyncEngine,

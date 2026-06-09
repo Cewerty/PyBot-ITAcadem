@@ -3,29 +3,30 @@ from __future__ import annotations
 import os
 import random
 from collections.abc import AsyncGenerator, Generator
-from pathlib import Path
-from typing import Protocol
 
 import pytest
 import pytest_asyncio
+from alembic.config import Config
 from dishka import AsyncContainer, make_async_container
 from faker import Faker
-from sqlalchemy import event, func, select
-from sqlalchemy.engine import Connection
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import Mapper
-from sqlalchemy.pool import ConnectionPoolEntry
+from testcontainers.postgres import PostgresContainer
+
+from alembic import command
 
 # Ensure test settings materialization works in CI even without repository .env.
 os.environ.setdefault("BOT_TOKEN", "123456:TEST_TOKEN")
 os.environ.setdefault("BOT_TOKEN_TEST", "123456:TEST_TOKEN")
 os.environ.setdefault("ROLE_REQUEST_ADMIN_TG_ID", "999999999")
-os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///./data/tests/bootstrap.sqlite3")
+os.environ.setdefault(
+    "DATABASE_URL",
+    "postgresql+asyncpg://test:test@127.0.0.1:5432/pybot_unit_test",
+)
 os.environ["BOT_MODE"] = "test"
 
 from pybot.core.config import AppSettings, get_settings
 from pybot.db.models import Base
-from pybot.db.models.role_module.role_request import RoleRequest
 from pybot.di import containers as di_containers
 from pybot.di.containers import (
     ConfigProvider,
@@ -35,32 +36,10 @@ from pybot.di.containers import (
     RepositoryProvider,
     ServiceProvider,
 )
+from tests.database import TEST_DATABASE_ENV, validate_test_database_url
 from tests.providers import TestDatabaseProvider, TestOverridesProvider
 
-
-class _SQLiteCursorProtocol(Protocol):
-    def execute(self, statement: str) -> object: ...
-
-    def close(self) -> None: ...
-
-
-class _SQLiteConnectionProtocol(Protocol):
-    def cursor(self) -> _SQLiteCursorProtocol: ...
-
-
-@event.listens_for(RoleRequest, "before_insert")
-def assign_sqlite_role_request_id(
-    _mapper: Mapper[RoleRequest],
-    connection: Connection,
-    target: RoleRequest,
-) -> None:
-    """Provide sequence-like ids for SQLite tests where BigInteger PK is not autoincremented."""
-    if target.id is not None:
-        return
-
-    max_id_stmt = select(func.max(RoleRequest.id))
-    max_id = connection.execute(max_id_stmt).scalar_one_or_none()
-    target.id = 1 if max_id is None else int(max_id) + 1
+_TEST_POSTGRES_IMAGE = "postgres:18-alpine"
 
 
 @pytest.fixture(autouse=True)
@@ -71,26 +50,12 @@ def faker_seed() -> Generator[None]:
     yield
 
 
-@pytest.fixture
-def test_db_path(tmp_path: Path, request: pytest.FixtureRequest) -> Path:
-    """Create isolated SQLite file path per test scenario."""
-    safe_name = request.node.name.replace("[", "_").replace("]", "_")
-    database_dir = tmp_path / "data"
-    database_dir.mkdir(parents=True, exist_ok=True)
-    return database_dir / f"{safe_name}.sqlite3"
-
-
-@pytest.fixture
-def test_database_url(test_db_path: Path) -> str:
-    return f"sqlite+aiosqlite:///{test_db_path.as_posix()}"
-
-
 @pytest.fixture(autouse=True)
-def settings_obj(test_database_url: str) -> Generator[AppSettings]:
-    """Provide isolated mutable settings for each test case."""
+def settings_obj() -> Generator[AppSettings]:
+    """Provide mutable settings without starting integration infrastructure."""
     get_settings.cache_clear()
     runtime_settings = get_settings().model_copy(deep=True)
-    runtime_settings.database_url = test_database_url
+    runtime_settings.database_url = "postgresql+asyncpg://test:test@127.0.0.1:5432/pybot_unit_test"
     runtime_settings.bot_mode = "test"
     runtime_settings.bot_token = os.environ["BOT_TOKEN"]
     runtime_settings.bot_token_test = os.environ["BOT_TOKEN_TEST"]
@@ -112,20 +77,50 @@ def patch_di_settings_getter(
     yield
 
 
+@pytest.fixture(scope="session")
+def test_database_url() -> Generator[str]:
+    """Provide one PostgreSQL database for the integration test session."""
+    configured_url = os.environ.get(TEST_DATABASE_ENV)
+    if configured_url:
+        try:
+            validated_url = validate_test_database_url(configured_url)
+        except ValueError as err:
+            raise pytest.UsageError(str(err)) from err
+        yield validated_url
+        return
+
+    with PostgresContainer(
+        image=_TEST_POSTGRES_IMAGE,
+        username="test",
+        password="test",  # noqa: S106 - isolated disposable test database
+        dbname="pybot_test",
+        driver="asyncpg",
+    ) as postgres:
+        yield validate_test_database_url(postgres.get_connection_url())
+
+
+@pytest.fixture(scope="session")
+def migrated_test_database(test_database_url: str) -> Generator[None]:
+    """Apply the real Alembic baseline once to the integration database."""
+    previous_database_url = os.environ.get("DATABASE_URL")
+    os.environ["DATABASE_URL"] = test_database_url
+    try:
+        command.upgrade(Config("alembic.ini"), "head")
+    finally:
+        if previous_database_url is None:
+            os.environ.pop("DATABASE_URL", None)
+        else:
+            os.environ["DATABASE_URL"] = previous_database_url
+    yield
+
+
 @pytest_asyncio.fixture
-async def test_engine(test_database_url: str) -> AsyncGenerator[AsyncEngine]:
-    """Create isolated async SQLAlchemy engine with FK enforcement."""
+async def test_engine(
+    migrated_test_database: None,
+    test_database_url: str,
+) -> AsyncGenerator[AsyncEngine]:
+    """Create a function-scoped engine for the migrated PostgreSQL database."""
     engine = create_async_engine(test_database_url, echo=False)
-
-    @event.listens_for(engine.sync_engine, "connect")
-    def set_sqlite_pragma(
-        dbapi_connection: _SQLiteConnectionProtocol,
-        _connection_record: ConnectionPoolEntry,
-    ) -> None:
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
-
     try:
         yield engine
     finally:
@@ -133,21 +128,25 @@ async def test_engine(test_database_url: str) -> AsyncGenerator[AsyncEngine]:
 
 
 @pytest_asyncio.fixture
-async def create_schema(test_engine: AsyncEngine) -> AsyncGenerator[None]:
-    """Create all DB tables before each test and drop them afterwards."""
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+async def clean_database(test_engine: AsyncEngine) -> AsyncGenerator[None]:
+    """Reset all application tables before and after each integration test."""
+    table_names = [
+        test_engine.dialect.identifier_preparer.quote(table.name) for table in reversed(Base.metadata.sorted_tables)
+    ]
+    truncate_statement = text(f"TRUNCATE TABLE {', '.join(table_names)} RESTART IDENTITY CASCADE")
 
+    async with test_engine.begin() as connection:
+        await connection.execute(truncate_statement)
     try:
         yield
     finally:
-        async with test_engine.begin() as conn:
-            await conn.run_sync(Base.metadata.drop_all)
+        async with test_engine.begin() as connection:
+            await connection.execute(truncate_statement)
 
 
 @pytest.fixture
 def db_session_maker(
-    create_schema: None,
+    clean_database: None,
     test_engine: AsyncEngine,
 ) -> async_sessionmaker[AsyncSession]:
     return async_sessionmaker(
@@ -172,7 +171,7 @@ async def db_session(
 
 @pytest_asyncio.fixture
 async def dishka_test_container(
-    create_schema: None,
+    clean_database: None,
     test_engine: AsyncEngine,
 ) -> AsyncGenerator[AsyncContainer]:
     """Build isolated Dishka test container with fake outbound adapters."""
@@ -204,7 +203,7 @@ async def dishka_request_container(
 
 @pytest.fixture
 def patched_public_di_engine(
-    create_schema: None,
+    clean_database: None,
     monkeypatch: pytest.MonkeyPatch,
     test_engine: AsyncEngine,
 ) -> AsyncEngine:

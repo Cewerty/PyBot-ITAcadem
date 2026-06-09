@@ -11,6 +11,9 @@ from pybot.services import UserProfileService
 from tests.factories.model_factories import UserSpec, attach_user_level, create_level, create_user
 
 
+pytestmark = pytest.mark.integration
+
+
 @pytest.mark.asyncio
 async def test_build_profile_view_returns_profile_data_with_user_progress(
     dishka_request_container: AsyncContainer,

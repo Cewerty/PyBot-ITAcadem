@@ -10,6 +10,9 @@ from pybot.services.competence import CompetenceService
 from tests.factories import create_competence
 
 
+pytestmark = pytest.mark.integration
+
+
 @pytest.mark.asyncio
 async def test_find_all_competencies_returns_all_sorted(dishka_request_container) -> None:
     # Given

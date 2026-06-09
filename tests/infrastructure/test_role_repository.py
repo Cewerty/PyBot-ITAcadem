@@ -6,6 +6,9 @@ from pybot.infrastructure.role_repository import RoleRepository
 from tests.factories import create_role
 
 
+pytestmark = pytest.mark.integration
+
+
 @pytest.mark.asyncio
 async def test_find_role_by_name_returns_role_when_present(db_session) -> None:
     # Given

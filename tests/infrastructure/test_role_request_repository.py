@@ -9,6 +9,9 @@ from pybot.infrastructure.roles.role_request_repository import RoleRequestReposi
 from tests.factories import RoleRequestSpec, UserSpec, create_role, create_role_request, create_user
 
 
+pytestmark = pytest.mark.integration
+
+
 @pytest.mark.asyncio
 async def test_find_recent_active_request_returns_pending_for_user(db_session) -> None:
     # Given

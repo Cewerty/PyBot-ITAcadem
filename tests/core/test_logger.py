@@ -30,7 +30,7 @@ def test_json_logger_emits_flat_loki_friendly_record(capsys: pytest.CaptureFixtu
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
         BOT_MODE="prod",
-        DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
+        DATABASE_URL="postgresql+asyncpg://test:test@127.0.0.1:5432/pybot_unit_test",
         ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
         LOG_FORMAT="json",
     )
@@ -57,7 +57,7 @@ def test_json_logger_preserves_exception_context(capsys: pytest.CaptureFixture[s
         BOT_TOKEN="123456:prod",
         BOT_TOKEN_TEST="123456:test",
         BOT_MODE="prod",
-        DATABASE_URL="sqlite+aiosqlite:///./data/test.db",
+        DATABASE_URL="postgresql+asyncpg://test:test@127.0.0.1:5432/pybot_unit_test",
         ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
         LOG_FORMAT="json",
     )

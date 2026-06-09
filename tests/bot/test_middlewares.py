@@ -24,6 +24,9 @@ from pybot.presentation.bot import (
 from tests.factories import UserSpec, attach_user_role, create_role, create_user
 
 
+pytestmark = pytest.mark.integration
+
+
 def _build_message(*, text: str = "/command", from_user_id: int = 700_001) -> Message:
     sender = User(id=from_user_id, is_bot=False, first_name="Tester")
     return Message(

@@ -30,7 +30,7 @@ def test_get_settings_succeeds_without_deploy_only_env(tmp_path: Path) -> None:
     runtime_env["BOT_TOKEN"] = "123456:prod"
     runtime_env["BOT_MODE"] = "prod"
     runtime_env["ROLE_REQUEST_ADMIN_TG_ID"] = "1"
-    runtime_env["DATABASE_URL"] = "sqlite+aiosqlite:///./data/test.db"
+    runtime_env["DATABASE_URL"] = "postgresql+asyncpg://test:test@127.0.0.1:5432/pybot_unit_test"
     for key in (
         "BOT_TOKEN_TEST",
         "TASKIQ_WORKERS",
@@ -67,7 +67,7 @@ def test_get_settings_ignores_deploy_only_keys_from_dotenv(tmp_path: Path) -> No
     runtime_env["BOT_MODE"] = "prod"
     runtime_env["BOT_TOKEN"] = "123456:prod"
     runtime_env["ROLE_REQUEST_ADMIN_TG_ID"] = "1"
-    runtime_env["DATABASE_URL"] = "sqlite+aiosqlite:///./data/test.db"
+    runtime_env["DATABASE_URL"] = "postgresql+asyncpg://test:test@127.0.0.1:5432/pybot_unit_test"
     for key in (
         "BOT_TOKEN_TEST",
         "TASKIQ_WORKERS",

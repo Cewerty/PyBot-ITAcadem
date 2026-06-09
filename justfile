@@ -44,6 +44,12 @@ arch-check: # Check architecture invariants with Tach
 test-coverage: # Run tests with coverage and show missing lines
     uv run pytest --cov=src/pybot --cov-report=term-missing --cov-report=xml --cov-fail-under=80
 
+test-unit: # Run tests that do not require PostgreSQL or Docker
+    uv run pytest -m "not integration"
+
+test-integration: # Run PostgreSQL integration tests
+    uv run pytest -m integration
+
 quality-gate: # Full code quality gate (format check + lint + type check + arch check)
     just format-check
     just lint

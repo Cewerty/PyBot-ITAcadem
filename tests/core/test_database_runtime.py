@@ -3,28 +3,35 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import text
 
-from pybot.db.database import create_database_engine, ensure_sqlite_database_parent_dir
+from pybot.db.database import create_database_engine
 
 
-def test_ensure_sqlite_database_parent_dir_creates_missing_data_directory(tmp_path) -> None:
-    database_path = tmp_path / "data" / "ensure_parent.sqlite3"
-
-    ensure_sqlite_database_parent_dir(f"sqlite+aiosqlite:///{database_path.as_posix()}")
-
-    assert database_path.parent.is_dir()
+def test_create_database_engine_rejects_empty_url() -> None:
+    with pytest.raises(ValueError, match="not configured"):
+        create_database_engine("")
 
 
+@pytest.mark.parametrize(
+    "database_url",
+    (
+        "postgresql://test:test@127.0.0.1:5432/pybot_test",
+        "mysql+aiomysql://test:test@127.0.0.1:3306/pybot_test",
+    ),
+)
+def test_create_database_engine_rejects_unsupported_driver(database_url: str) -> None:
+    with pytest.raises(ValueError, match=r"Only postgresql\+asyncpg is supported"):
+        create_database_engine(database_url)
+
+
+@pytest.mark.integration
 @pytest.mark.asyncio
-async def test_create_database_engine_enables_sqlite_foreign_keys(tmp_path) -> None:
-    database_path = tmp_path / "data" / "runtime_fk.sqlite3"
-    database_url = f"sqlite+aiosqlite:///{database_path.as_posix()}"
-    engine = create_database_engine(database_url)
+async def test_create_database_engine_connects_to_postgresql(test_database_url: str) -> None:
+    engine = create_database_engine(test_database_url)
 
     try:
         async with engine.connect() as connection:
-            foreign_keys_enabled = await connection.scalar(text("PRAGMA foreign_keys"))
+            result = await connection.scalar(text("SELECT 1"))
     finally:
         await engine.dispose()
 
-    assert database_path.parent.is_dir()
-    assert foreign_keys_enabled == 1
+    assert result == 1
