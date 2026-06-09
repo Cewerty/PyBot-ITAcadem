@@ -25,6 +25,11 @@ jobs:
         run: |
           cat > .env <<'EOF'
           APP_IMAGE=ghcr.io/example/pybot:test
+          POSTGRES_DB=pybot_ci
+          POSTGRES_USER=pybot
+          POSTGRES_PASSWORD=ci-compose-password
+          POSTGRES_PORT=5432
+          DATABASE_URL=postgresql+asyncpg://pybot:ci-compose-password@postgres:5432/pybot_ci
           GRAFANA_ADMIN_PASSWORD=dummy
           TASKIQ_WORKERS=1
           EOF
@@ -54,7 +59,11 @@ jobs:
           BOT_TOKEN_TEST=654321:ci-test-token
           BOT_MODE=test
           ROLE_REQUEST_ADMIN_TG_ID=1
-          DATABASE_URL=sqlite+aiosqlite:///./data/pybot_itacadem.db
+          POSTGRES_DB=pybot_parity
+          POSTGRES_USER=pybot
+          POSTGRES_PASSWORD=ci-parity-password
+          POSTGRES_PORT=5432
+          DATABASE_URL=postgresql+asyncpg://pybot:ci-parity-password@postgres:5432/pybot_parity
           FSM_STORAGE_BACKEND=redis
           REDIS_URL=redis://redis:6379/0
           TASKIQ_WORKERS=1
@@ -96,6 +105,23 @@ jobs:
   quality-checks:
     name: Lint, Format Check, Type Check, Architecture Check & Tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: pybot_test
+          POSTGRES_USER: pybot
+          POSTGRES_PASSWORD: ci-test-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready --username pybot --dbname pybot_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+asyncpg://pybot:ci-test-password@127.0.0.1:5432/pybot_test
+      PYBOT_TEST_DATABASE_URL: postgresql+asyncpg://pybot:ci-test-password@127.0.0.1:5432/pybot_test
 
     steps:
       - name: Checkout repository
@@ -117,10 +143,12 @@ jobs:
       - name: Install dependencies (including dev-group)
         run: just install-dev
 
-      - name: Verify alembic migration path (upgrade to head)
+      - name: Verify Alembic PostgreSQL migration cycle
         run: |
-          export DATABASE_URL="sqlite+aiosqlite:///./migration_check.db"
-          just migrate-apply
+          uv run alembic upgrade head
+          uv run alembic check
+          uv run alembic downgrade base
+          uv run alembic upgrade head
 
       - name: Run quality-gate (format check + lint + type check + arch check + tests)
         run: just quality-gate
