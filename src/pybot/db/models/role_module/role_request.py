@@ -3,11 +3,12 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Index, Integer, func, text
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ....core.constants import RequestStatus
 from ...base_class import Base
+from ..schema_types import REQUEST_STATUS_ENUM
 
 if TYPE_CHECKING:
     from ..role_module import Role
@@ -21,22 +22,15 @@ class RoleRequest(Base):
             "uq_role_requests_pending_by_user",
             "user_id",
             unique=True,
-            sqlite_where=text("status = 'PENDING'"),
             postgresql_where=text("status = 'PENDING'"),
         ),
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
-    role_id: Mapped[int] = mapped_column(Integer, ForeignKey("roles.id"), nullable=False)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
+    role_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("roles.id"), nullable=False)
     status: Mapped[RequestStatus] = mapped_column(
-        Enum(
-            RequestStatus,
-            name="request_status_enum",
-            native_enum=False,
-            validate_strings=True,
-            create_constraint=True,
-        ),
+        REQUEST_STATUS_ENUM,
         default=RequestStatus.PENDING,
         nullable=False,
     )

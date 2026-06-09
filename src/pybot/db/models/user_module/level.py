@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Integer, String, Text
+from sqlalchemy import BigInteger, Integer, Text
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ....core.constants import PointsTypeEnum
 from ....dto.value_objects import Points
 from ...base_class import Base
+from ..schema_types import POINTS_TYPE_ENUM
 
 if TYPE_CHECKING:
     from .user_level import UserLevel
@@ -17,10 +18,10 @@ if TYPE_CHECKING:
 class Level(Base):
     __tablename__ = "levels"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     level_type: Mapped[PointsTypeEnum] = mapped_column(
-        String(50),
+        POINTS_TYPE_ENUM,
         nullable=False,
     )
     description: Mapped[str | None] = mapped_column(Text)

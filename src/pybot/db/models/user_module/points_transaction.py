@@ -3,11 +3,12 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, func
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Integer, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ....core.constants import PointsTypeEnum
 from ...base_class import Base
+from ..schema_types import POINTS_TYPE_ENUM
 
 if TYPE_CHECKING:
     from .user import User
@@ -20,20 +21,20 @@ class PointsTransaction(Base):
         Index("ix_points_transactions_points_type_created_at", "points_type", "created_at"),
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     recipient_id: Mapped[int] = mapped_column(
-        Integer,
+        BigInteger,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
     giver_id: Mapped[int | None] = mapped_column(
-        Integer,
+        BigInteger,
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
     amount: Mapped[int] = mapped_column(Integer, nullable=False)
     points_type: Mapped[PointsTypeEnum] = mapped_column(
-        String(50),
+        POINTS_TYPE_ENUM,
         nullable=False,
     )
     created_at: Mapped[datetime] = mapped_column(
