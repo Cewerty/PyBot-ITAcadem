@@ -143,6 +143,22 @@ jobs:
       - name: Install dependencies (including dev-group)
         run: just install-dev
 
+      - name: Install ansible-core for playbook syntax checks
+        run: python -m pip install --upgrade pip ansible-core
+
+      - name: Run Ansible playbook syntax checks
+        run: |
+          cat > "$RUNNER_TEMP/ansible-syntax-check.ini" <<'EOF'
+          [pybot]
+          localhost ansible_connection=local
+          EOF
+          ansible-playbook ansible/playbooks/deploy.yml \
+            -i "$RUNNER_TEMP/ansible-syntax-check.ini" \
+            --syntax-check
+          ansible-playbook ansible/playbooks/bootstrap.yml \
+            -i "$RUNNER_TEMP/ansible-syntax-check.ini" \
+            --syntax-check
+
       - name: Verify Alembic PostgreSQL migration cycle
         run: |
           uv run alembic upgrade head

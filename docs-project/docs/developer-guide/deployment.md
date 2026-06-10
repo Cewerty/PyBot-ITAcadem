@@ -5,13 +5,15 @@
 ## Базовый контур
 
 1. CI на `main` должен пройти успешно.
-2. Workflow `CD - Build and Deploy` собирает Docker image и публикует его в GHCR.
-3. Ansible разворачивает `docker-compose.prod.yml` на сервере.
-4. PostgreSQL 18 запускается и проходит healthcheck.
-5. Отдельный backup-контейнер создаёт custom-format dump.
-6. Отдельный migration-контейнер применяет миграции.
-7. При явном `RUN_SEED_ON_DEPLOY=true` выполняется seed.
-8. Запускается runtime и выполняется post-deploy smoke-check PostgreSQL, Redis и readiness API.
+2. Workflow `CD - Build and Deploy` сначала валидирует `PROD_ENV_FILE` на GitHub Actions runner через `validate_deploy_env.py`, затем через `docker compose ... config --quiet` проверяет production Compose interpolation contract.
+3. После runner-side validation workflow либо собирает и публикует Docker image, либо проверяет существование rollback image в GHCR.
+4. Ansible разворачивает `docker-compose.prod.yml` на сервере.
+5. До старта PostgreSQL и runtime Ansible запускает отдельный `config-check` process type для materialization `AppSettings` из реального production `.env`.
+6. Затем PostgreSQL 18 запускается и проходит healthcheck.
+7. Отдельный backup-контейнер создаёт custom-format dump, migration-контейнер применяет миграции, а seed выполняется только на standard deploy path при явном `RUN_SEED_ON_DEPLOY=true`.
+8. После этого обновляется runtime и выполняется финальный post-deploy smoke-check с readiness gate.
+
+Workflow `CD - Build and Deploy` now also supports a manual rollback path via the optional `rollback_image_tag` input. The root `DEPLOYMENT.md` is the source of truth for operator steps, GHCR image validation, the schema-compatibility warning, and the separate database restore/recovery procedure to use when image rollback is not sufficient.
 
 ## Ключевые файлы
 

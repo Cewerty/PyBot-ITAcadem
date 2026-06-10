@@ -284,6 +284,16 @@ def test_bot_token_test_is_optional_in_prod_mode(monkeypatch: pytest.MonkeyPatch
     assert parsed_settings.active_bot_token == "123456:prod"
 
 
+def test_bot_token_must_not_be_empty_in_prod_mode() -> None:
+    with pytest.raises(ValidationError, match="BOT_TOKEN must be set"):
+        AppSettingsWithoutDotenv(
+            BOT_TOKEN="   ",
+            BOT_MODE="prod",
+            DATABASE_URL="postgresql+asyncpg://test:test@127.0.0.1:5432/pybot_unit_test",
+            ROLE_REQUEST_ADMIN_TG_ID=ADMIN_TG_ID,
+        )
+
+
 def test_bot_token_test_is_required_in_test_mode(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("BOT_TOKEN_TEST", raising=False)
 

@@ -5,11 +5,11 @@ This repository uses PostgreSQL 18 for local, test, and production database work
 ## What was added
 
 - `docker-compose.prod.yml` for immutable image-based production deploys
-- `.github/workflows/deploy.yml` for build + push + deploy after successful CI on `main`, plus manual recovery redeploys from GitHub Actions
+- `.github/workflows/deploy.yml` for build + push + deploy after successful CI on `main`, plus manual recovery redeploys and image rollbacks from GitHub Actions
 - `ansible/` with a minimal bootstrap/deploy playbook and roles
 
 The CI workflow validates the Docker build, both Compose manifests, the PostgreSQL Alembic upgrade/check/downgrade/upgrade cycle, PostgreSQL-backed integration tests, the local dev/prod parity path (`health` profile + direct probes), and the `fill_point_db.py` CLI help entrypoint before code reaches production deploy.
-The deploy workflow additionally fails fast if the checked-out production artifacts (`docker-compose.prod.yml`, `observability/`), the critical deploy secrets, or the deploy-only `PROD_ENV_FILE` contract required by Compose is violated.
+The deploy workflow additionally fails fast if the checked-out production artifacts (`docker-compose.prod.yml`, `observability/`), the critical deploy secrets, the deploy-only `PROD_ENV_FILE` contract required by Compose, or the runner-side production Compose interpolation contract is violated.
 
 ## Database support contract
 
@@ -25,25 +25,58 @@ The deploy workflow additionally fails fast if the checked-out production artifa
 1. A push reaches `main`, or an operator manually starts the production workflow from GitHub Actions on `main`.
 2. Existing CI runs and must finish successfully for the automatic path.
 3. `CD - Build and Deploy` starts either from `workflow_run` or `workflow_dispatch`.
-4. GitHub Actions builds a Docker image and pushes it to GHCR.
-5. GitHub Actions runs Ansible against the target server.
+4. GitHub Actions validates `PROD_ENV_FILE` in two runner-side layers: first via `validate_deploy_env.py`, then via `docker compose --env-file ... -f docker-compose.prod.yml config --quiet` with a synthetic `APP_IMAGE` value.
+5. GitHub Actions either builds the current `main` image and pushes it to GHCR, or validates that the requested rollback image tag already exists in GHCR.
+6. GitHub Actions runs Ansible against the target server.
    The deploy workflow uses `Python 3.14` on the GitHub-hosted runner as the control-node baseline for Ansible.
-6. Ansible copies `docker-compose.prod.yml` and `.env`, validates the PostgreSQL contract without printing secrets, pulls images, and starts PostgreSQL 18 until its healthcheck passes.
-7. Ansible creates a custom-format PostgreSQL backup, runs the one-shot `migrate` process, optionally runs `seed`, and then refreshes the remaining runtime services in place with `docker compose up -d --remove-orphans`.
-8. Ansible runs a lightweight post-deploy smoke-check for the application processes, PostgreSQL, Redis, and the readiness API when enabled.
+7. Ansible copies `docker-compose.prod.yml` and `.env`, validates the PostgreSQL contract without printing secrets, pulls images, and runs a one-shot `config-check` process against the selected image and deployed `.env`.
+8. Only after `config-check` passes, Ansible starts PostgreSQL 18, creates a custom-format PostgreSQL backup, runs the one-shot `migrate` process only for the standard deploy path, optionally runs `seed`, and then refreshes the remaining runtime services in place with `docker compose up -d --remove-orphans`.
+9. Ansible runs a lightweight post-deploy smoke-check for the application processes, PostgreSQL, Redis, and the readiness API when enabled.
 
-## Manual redeploy
+## Manual redeploy and rollback
 
 If you need to redeploy the current `main` release without creating an empty commit:
 
 1. Open `Actions` in GitHub.
 2. Choose `CD - Build and Deploy`.
 3. Click `Run workflow`.
-4. Run it from the `main` branch.
+4. Leave `rollback_image_tag` empty.
+5. Run it from the `main` branch.
 
 This is useful for recovery, token rotation, or controlled re-runs after infrastructure-side fixes.
 
+If you need to roll back to a previously published immutable image:
+
+1. Open `Actions` in GitHub.
+2. Choose `CD - Build and Deploy`.
+3. Click `Run workflow`.
+4. Run it from the `main` branch.
+5. Enter `rollback_image_tag` as the full 40-character SHA tag of the previously known-good image, for example `8b0edd51234abcdeffedcba9876543210abc1234`.
+6. Start the workflow.
+
+Rollback mode uses the current `main` deployment automation (`docker-compose.prod.yml`, Ansible, observability assets) but deploys the existing image `ghcr.io/<owner>/<repo>:<rollback_image_tag>` instead of rebuilding a new image from the checked-out source.
+
+The workflow fails fast before SSH/Ansible if the requested rollback image tag does not already exist in GHCR.
+
+Important: image rollback does not roll back database migrations. The workflow intentionally skips the `migrate` step during rollback. Use rollback only when the selected older code is compatible with the current database schema. If schema rollback is required, follow the manual PostgreSQL restore and recovery procedure documented below instead of relying on image rollback alone.
+
 The standard deploy path is in-place and does not run a blanket `docker compose down` first. Compose refreshes only the services whose image, config, or profile inputs actually changed, which reduces avoidable restarts and shortens rollout time on shared hosts.
+
+## Rollback rehearsal
+
+Rehearse rollback on a safe non-production target before relying on it operationally:
+
+1. Publish at least two deployable images so you have a newer image and an older known-good SHA tag.
+2. Confirm that the older image is schema-compatible with the current database state.
+3. Trigger `CD - Build and Deploy` manually from `main`.
+4. Set `rollback_image_tag` to the older known-good full SHA tag.
+5. Confirm in the workflow logs that:
+   - the rollback warning is shown;
+   - the GHCR image existence check passes;
+   - the build-and-push step is skipped;
+   - Ansible persists `APP_IMAGE` with the requested SHA tag;
+   - the existing post-deploy smoke-check reaches success.
+6. Run the operator release checks from the runbook below and confirm the target environment is healthy.
 
 ## Why production uses a separate compose file
 
@@ -64,6 +97,7 @@ Both `docker-compose.yml` and `docker-compose.prod.yml` describe the same operat
 - default runtime process types: `bot`, `taskiq-worker`, `taskiq-scheduler`, `redis`
 - default database process type: `postgres` using `postgres:18-alpine`
 - optional runtime process type: `health` behind the `health` profile
+- optional admin one-shot process type: `config-check` behind the `validation` profile
 - admin one-shot process type: `migrate` behind the `migration` profile
 - admin one-shot process type: `seed` behind the `seed` profile
 - admin one-shot process type: `backup` behind the `backup` profile
@@ -131,7 +165,7 @@ The app is deployed into `/home/ilya/pybot` by default and keeps PostgreSQL data
 - `pybot_postgres_backups_prod`
 - `pybot_redis_data_prod`
 
-The deploy also persists the currently released image reference as `APP_IMAGE` inside the server-side `.env`, so routine manual commands like `docker compose ps` and `docker compose logs` work without extra exports.
+The deploy also persists the selected released image reference as `APP_IMAGE` inside the server-side `.env`, so routine manual commands like `docker compose ps` and `docker compose logs` work without extra exports.
 
 PostgreSQL 18 mounts `pybot_postgres_data_prod` at `/var/lib/postgresql`. The official image stores the cluster in a version-specific directory below that mount, so this layout follows the PostgreSQL 18 image contract. Dumps are never written into the data volume: `backup` and `restore` share only `/backups` through `pybot_postgres_backups_prod`.
 
@@ -295,10 +329,14 @@ The deploy role performs a lightweight smoke-check after `docker compose up -d`,
 - verifies that the core process types (`bot`, `taskiq-worker`, `taskiq-scheduler`, `redis`, `postgres`) appear in `docker compose ps`;
 - waits for PostgreSQL health to become `healthy`;
 - waits for Redis health to become `healthy` when a healthcheck exists;
+- captures a baseline runtime snapshot for `bot`, `taskiq-worker`, and `taskiq-scheduler`;
+- enforces a 20-second stability window for `bot`, `taskiq-worker`, and `taskiq-scheduler`;
+- fails if any of those runtime services stop running, change container ID, or increase `RestartCount` during that observation window;
 - when `HEALTH_API_ENABLED=true`, asserts that the `health` service appears in `docker compose ps`;
 - when `HEALTH_API_ENABLED=true`, calls `GET http://127.0.0.1:8088/health/ready` through the production Compose Nginx path and fails the deploy unless it reaches `200`.
 
 This complements CI by validating the deployed runtime on the real server instead of rerunning the same test suite, and it adds a real readiness gate for the production health profile.
+The same smoke gate is used for both the standard deploy path and rollback deploys; rollback does not add extra probes or change the readiness criteria.
 
 ## Operator Release Runbook
 
@@ -314,7 +352,7 @@ curl -i http://127.0.0.1:8088/health/ready
 curl -I http://127.0.0.1:8088/grafana/
 ```
 
-A release is healthy when the core services are `Up`, PostgreSQL and Redis are `healthy`, `nginx -t` succeeds, `/health/` returns `200`, `/health/ready` returns `200`, and `/grafana/` returns a successful Grafana response or redirect.
+A release is healthy when the core services are `Up`, `bot`, `taskiq-worker`, and `taskiq-scheduler` stay `running` without restart-count growth during the smoke window, PostgreSQL and Redis are `healthy`, `nginx -t` succeeds, `/health/` returns `200`, `/health/ready` returns `200`, and `/grafana/` returns a successful Grafana response or redirect.
 
 For the public observability endpoint, verify the host Nginx layer separately:
 
@@ -345,6 +383,21 @@ The `health` process type is profile-gated in both Compose files.
 - when the profile is disabled, plain `docker compose up -d` does not start `pybot-health`
 - when the profile is enabled, the process entrypoint is `uvicorn src.pybot.presentation.web:app`
 
+## Configuration validation
+
+Production deploy validates configuration in three separate layers, each with a narrower and more explicit responsibility:
+
+- runner-side `validate_deploy_env.py` checks that `PROD_ENV_FILE` contains the required deploy/orchestration keys and that the PostgreSQL contract stays internally consistent;
+- runner-side `docker compose --env-file "$RUNNER_TEMP/prod.env.validation" -f docker-compose.prod.yml config --quiet` performs canonical Compose interpolation and structure validation with a synthetic `APP_IMAGE`, while a transient repo-root `.env` is materialized only for the duration of that check so `env_file: .env` resolves the same way production Compose expects;
+- target-host `config-check` validates runtime `AppSettings` materialization from the selected image and deployed `.env` before PostgreSQL startup, backup, migrations, and runtime refresh.
+
+- local/manual Compose runs `config-check` explicitly with `docker compose --profile validation run --rm --no-deps config-check`;
+- production deploy runs `config-check` explicitly via Ansible after image pull and before PostgreSQL startup, backup, migrations, and runtime refresh;
+- rollback deploys also run it against the selected older image before the rest of the deploy flow continues;
+- it materializes `get_settings()`, asserts `BOT_MODE=prod`, touches `active_bot_token`, and exits without starting PostgreSQL or Redis because the command is intentionally run with `--no-deps`.
+
+The runner-side Compose check does not create containers or start processes; it exists to prove `${VAR}`, `${VAR:-default}`, and `${VAR:?error}` interpolation plus the overall `docker-compose.prod.yml` structure. The later target-host `config-check` validates runtime env parsing and `Pydantic` validators only. Neither of these gates proves database reachability, Redis reachability, DI wiring, or application readiness, so they complement rather than replace the later post-deploy smoke and readiness gates.
+
 ## Migrations
 
 Migrations are executed by the dedicated `migrate` service, not by `bot` startup.
@@ -352,7 +405,8 @@ Migrations are executed by the dedicated `migrate` service, not by `bot` startup
 That service is attached to the `migration` profile, so:
 
 - local/manual Compose runs it explicitly with `docker compose --profile migration run --rm migrate`;
-- production deploy runs it explicitly via Ansible before `docker compose up -d`;
+- production deploy runs it explicitly via Ansible before `docker compose up -d` on the standard deploy path;
+- rollback deploys intentionally skip this step because image rollback does not imply schema rollback;
 - a plain `docker compose up -d` or `docker compose up --build` does not start it.
 
 The active migration history begins with the PostgreSQL initial baseline. It is not connected to the removed SQLite migration history. Apply it only to a new PostgreSQL database or to a database already managed by this baseline.
@@ -363,7 +417,8 @@ Seed data is handled by the dedicated `seed` service, not by `bot` startup.
 
 - it is disabled by default;
 - local/manual Compose runs it explicitly with `docker compose --profile seed run --rm seed`;
-- production deploy runs it only when `RUN_SEED_ON_DEPLOY=true` is passed from GitHub Secrets into the deploy workflow;
+- production deploy runs it only on the standard deploy path when `RUN_SEED_ON_DEPLOY=true` is passed from GitHub Secrets into the deploy workflow;
+- rollback deploys intentionally skip seed even if the secret is still enabled, so old images do not replay initialization logic accidentally;
 - it is intended for first deploys or controlled reinitialization, not for every rollout.
 
 The seed process is not fully atomic. Its levels and roles steps, along with
@@ -376,7 +431,7 @@ and inspect the database before retrying.
 
 ## PostgreSQL backup and restore
 
-The `backup` service uses `postgres:18-alpine` and creates a custom-format dump with `pg_dump --format=custom --no-owner --no-privileges`. Every production deploy runs it automatically after PostgreSQL becomes healthy and before `migrate`. Dumps are written with restricted permissions to the separate backup volume and named `pybot-<UTC timestamp>.dump`.
+The `backup` service uses `postgres:18-alpine` and creates a custom-format dump with `pg_dump --format=custom --no-owner --no-privileges`. Every production deploy runs it automatically after PostgreSQL becomes healthy and before the remaining deploy steps. Standard deploys then run `migrate`; rollback deploys keep the backup but skip migrations. Dumps are written with restricted permissions to the separate backup volume and named `pybot-<UTC timestamp>.dump`.
 
 Run an additional manual backup from the deploy directory with:
 
@@ -465,6 +520,5 @@ Important:
 
 ## Next hardening steps
 
-- Add a rollback workflow that redeploys a previous image tag
 - Add external monitoring/log shipping
 - Add image vulnerability scanning before deploy

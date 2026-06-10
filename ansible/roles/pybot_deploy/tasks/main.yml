@@ -6,7 +6,9 @@
       - app_env_src is defined
       - image_repository is defined
       - image_tag is defined
-    fail_msg: "deploy_path, deploy_compose_src, app_env_src, image_repository, and image_tag are required."
+      - rollback_mode is defined
+      - run_migrations is defined
+    fail_msg: "deploy_path, deploy_compose_src, app_env_src, image_repository, image_tag, rollback_mode, and run_migrations are required."
 
 - name: Create application directory
   ansible.builtin.file:
@@ -118,12 +120,23 @@
   ansible.builtin.shell: |
     set -eu
     docker compose -f docker-compose.prod.yml \
+      --profile validation \
       --profile backup \
       --profile restore \
       --profile migration \
       --profile seed \
       --profile health \
       pull
+  args:
+    chdir: "{{ deploy_path }}"
+    executable: /bin/sh
+  environment:
+    APP_IMAGE: "{{ image_repository }}:{{ image_tag }}"
+
+- name: Validate runtime configuration before starting deploy dependencies
+  ansible.builtin.shell: |
+    set -eu
+    docker compose -f docker-compose.prod.yml --profile validation run --rm --no-deps config-check
   args:
     chdir: "{{ deploy_path }}"
     executable: /bin/sh
@@ -174,6 +187,7 @@
     executable: /bin/sh
   environment:
     APP_IMAGE: "{{ image_repository }}:{{ image_tag }}"
+  when: run_migrations | bool
 
 - name: Run one-shot seed step when explicitly requested
   ansible.builtin.shell: |
@@ -185,7 +199,9 @@
     executable: /bin/sh
   environment:
     APP_IMAGE: "{{ image_repository }}:{{ image_tag }}"
-  when: run_seed_on_deploy | default(false) | bool
+  when:
+    - run_seed_on_deploy | default(false) | bool
+    - not rollback_mode | bool
 
 - name: Read health API toggle for production compose profile
   ansible.builtin.shell: |
@@ -305,6 +321,56 @@
       retries: 20
       delay: 3
       until: database_and_cache_health.rc == 0
+      changed_when: false
+      environment:
+        APP_IMAGE: "{{ image_repository }}:{{ image_tag }}"
+
+    - name: Capture runtime service stability baseline
+      ansible.builtin.shell: |
+        set -eu
+        for service in bot taskiq-worker taskiq-scheduler; do
+          cid="$(docker compose -f docker-compose.prod.yml ps -q "$service")"
+          [ -n "$cid" ]
+          status="$(docker inspect -f '{{ "{{.State.Status}}" }}' "$cid")"
+          restart_count="$(docker inspect -f '{{ "{{.RestartCount}}" }}' "$cid")"
+          [ "$status" = "running" ]
+          printf '%s\t%s\t%s\t%s\n' "$service" "$cid" "$status" "$restart_count"
+        done
+      args:
+        chdir: "{{ deploy_path }}"
+        executable: /bin/sh
+      register: runtime_service_stability_baseline
+      changed_when: false
+      environment:
+        APP_IMAGE: "{{ image_repository }}:{{ image_tag }}"
+
+    - name: Wait for runtime stability observation window
+      ansible.builtin.pause:
+        seconds: 20
+
+    - name: Verify runtime services remain stable through observation window
+      ansible.builtin.shell: |
+        set -eu
+        {% for snapshot in runtime_service_stability_baseline.stdout_lines %}
+        service="{{ snapshot.split('\t')[0] }}"
+        baseline_cid="{{ snapshot.split('\t')[1] }}"
+        baseline_status="{{ snapshot.split('\t')[2] }}"
+        baseline_restart_count="{{ snapshot.split('\t')[3] }}"
+
+        [ "$baseline_status" = "running" ]
+        current_cid="$(docker compose -f docker-compose.prod.yml ps -q "$service")"
+        [ -n "$current_cid" ]
+        [ "$current_cid" = "$baseline_cid" ]
+
+        current_status="$(docker inspect -f '{{ "{{.State.Status}}" }}' "$current_cid")"
+        [ "$current_status" = "running" ]
+
+        current_restart_count="$(docker inspect -f '{{ "{{.RestartCount}}" }}' "$current_cid")"
+        [ "$current_restart_count" -eq "$baseline_restart_count" ]
+        {% endfor %}
+      args:
+        chdir: "{{ deploy_path }}"
+        executable: /bin/sh
       changed_when: false
       environment:
         APP_IMAGE: "{{ image_repository }}:{{ image_tag }}"
