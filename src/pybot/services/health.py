@@ -42,13 +42,12 @@ class HealthService:
         start = time.perf_counter()
         try:
             await self._db.execute(text("SELECT 1"))
-        except Exception as err:
+        except Exception:
             latency_ms = int((time.perf_counter() - start) * 1000)
             logger.exception("Database readiness check failed")
             return HealthCheckDTO(
                 name="database",
                 status="fail",
-                details=str(err),
                 latency_ms=latency_ms,
             )
 
@@ -63,13 +62,12 @@ class HealthService:
         start = time.perf_counter()
         try:
             await self._redis_probe.ping()
-        except Exception as err:
+        except Exception:
             latency_ms = int((time.perf_counter() - start) * 1000)
             logger.exception("Redis readiness check failed")
             return HealthCheckDTO(
                 name="redis",
                 status="fail",
-                details=str(err),
                 latency_ms=latency_ms,
             )
 

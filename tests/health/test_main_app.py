@@ -164,3 +164,7 @@ def test_create_app_ready_endpoint_smoke(
     payload = response.json()
     assert payload["status"] == expected_status
     assert [check["name"] for check in payload["checks"]] == ["database", "redis"]
+    if not is_ready:
+        assert payload["checks"][0]["details"] == "Сервис базы данных временно недоступен."
+        assert payload["checks"][1]["details"] == "Сервис Redis временно недоступен."
+        assert "database is down" not in str(payload)

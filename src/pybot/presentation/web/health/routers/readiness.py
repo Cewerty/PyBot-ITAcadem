@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 
 from .....dto.health_dto import HealthStatusDTO
 from .....services.health import HealthService
+from ..presenters import sanitize_readiness_status
 
 router = APIRouter(route_class=DishkaRoute)
 
@@ -48,6 +49,7 @@ async def ready(
         HealthStatusDTO | JSONResponse: Readiness payload or 503 response on failure.
     """
     status_dto, is_ready = await health_service.ready()
+    status_dto = sanitize_readiness_status(status_dto)
     if not include_checks:
         status_dto = status_dto.model_copy(update={"checks": []})
     if is_ready:

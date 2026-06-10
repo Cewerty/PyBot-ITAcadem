@@ -12,6 +12,9 @@ from pybot.presentation.web import health_endpoint, ready_endpoint
 from pybot.services.health import HealthService
 from pybot.services.ports.health_probe import SupportsExecute, SupportsPing
 
+DATABASE_UNAVAILABLE_DETAILS = "Сервис базы данных временно недоступен."
+REDIS_UNAVAILABLE_DETAILS = "Сервис Redis временно недоступен."
+
 
 class _FakeSession(SupportsExecute):
     def __init__(self, should_fail: bool, error: Exception | None = None) -> None:
@@ -58,8 +61,8 @@ async def test_health_service_ready_ok_reports_dependency_checks() -> None:
 
 
 @pytest.mark.asyncio
-async def test_health_service_ready_fail_is_descriptive_for_database() -> None:
-    """When DB is down, readiness must fail and explain the broken database dependency."""
+async def test_health_service_ready_fail_hides_database_exception_details() -> None:
+    """When DB is down, readiness must fail without exposing raw DB exception text."""
     service = HealthService(
         _FakeSession(should_fail=True, error=RuntimeError("db down")),
         _FakeRedisProbe(should_fail=False),
@@ -70,13 +73,13 @@ async def test_health_service_ready_fail_is_descriptive_for_database() -> None:
     assert is_ready is False, "Ready must be False when DB is not reachable."
     assert status.status == "fail", "Overall status should be fail when DB check fails."
     assert status.checks[0].status == "fail", "DB check should be marked as fail."
-    assert "db down" in (status.checks[0].details or ""), "Failure should explain why DB is down."
+    assert status.checks[0].details is None, "Service must not expose raw DB failure details."
     assert status.checks[1].status == "ok", "Redis check should still report its own status."
 
 
 @pytest.mark.asyncio
-async def test_health_service_ready_fail_is_descriptive_for_redis() -> None:
-    """When Redis is down, readiness must fail and explain the broken Redis dependency."""
+async def test_health_service_ready_fail_hides_redis_exception_details() -> None:
+    """When Redis is down, readiness must fail without exposing raw Redis exception text."""
     service = HealthService(
         _FakeSession(should_fail=False),
         _FakeRedisProbe(should_fail=True, error=RuntimeError("redis down")),
@@ -87,7 +90,7 @@ async def test_health_service_ready_fail_is_descriptive_for_redis() -> None:
     assert is_ready is False, "Ready must be False when Redis is not reachable."
     assert status.status == "fail", "Overall status should be fail when Redis check fails."
     assert status.checks[1].status == "fail", "Redis check should be marked as fail."
-    assert "redis down" in (status.checks[1].details or ""), "Failure should explain why Redis is down."
+    assert status.checks[1].details is None, "Service must not expose raw Redis failure details."
 
 
 @pytest.mark.asyncio
@@ -102,7 +105,7 @@ async def test_ready_endpoint_returns_200_on_ok() -> None:
 
 @pytest.mark.asyncio
 async def test_ready_endpoint_returns_503_on_fail() -> None:
-    """Friendly test: /ready should return 503 with details when Redis is down."""
+    """Friendly test: /ready should return 503 with sanitized details when Redis is down."""
     service = HealthService(
         _FakeSession(should_fail=False),
         _FakeRedisProbe(should_fail=True, error=RuntimeError("redis down")),
@@ -114,7 +117,8 @@ async def test_ready_endpoint_returns_503_on_fail() -> None:
 
     payload = json.loads(bytes(response.body).decode("utf-8"))
     assert payload["status"] == "fail", "Payload should report fail status."
-    assert payload["checks"][1]["details"] == "redis down", "Payload should include failure details."
+    assert payload["checks"][1]["details"] == REDIS_UNAVAILABLE_DETAILS, "Payload should include safe details."
+    assert "redis down" not in json.dumps(payload, ensure_ascii=False), "Payload must not leak raw exception text."
 
 
 @pytest.mark.asyncio
@@ -139,3 +143,35 @@ async def test_ready_endpoint_can_hide_checks_when_requested() -> None:
     assert isinstance(response, HealthStatusDTO), "Expected DTO response when service is ready."
     assert response.status == "ok", "Readiness status should stay ok."
     assert response.checks == [], "Checks list should be removed when include_checks is false."
+
+
+@pytest.mark.asyncio
+async def test_ready_endpoint_returns_sanitized_database_failure_details() -> None:
+    """Database readiness failures should expose only fixed public-safe details."""
+    service = HealthService(
+        _FakeSession(should_fail=True, error=RuntimeError("db down")),
+        _FakeRedisProbe(should_fail=False),
+    )
+
+    response = await ready_endpoint(service)
+
+    assert isinstance(response, JSONResponse), "Expected JSONResponse when service is not ready."
+    payload = json.loads(bytes(response.body).decode("utf-8"))
+    assert payload["checks"][0]["details"] == DATABASE_UNAVAILABLE_DETAILS
+    assert "db down" not in json.dumps(payload, ensure_ascii=False)
+
+
+@pytest.mark.asyncio
+async def test_ready_endpoint_hides_failed_checks_when_requested() -> None:
+    """include_checks=False should remove checks even for failure responses."""
+    service = HealthService(
+        _FakeSession(should_fail=True, error=RuntimeError("db down")),
+        _FakeRedisProbe(should_fail=False),
+    )
+
+    response = await ready_endpoint(service, include_checks=False)
+
+    assert isinstance(response, JSONResponse), "Expected JSONResponse when service is not ready."
+    payload = json.loads(bytes(response.body).decode("utf-8"))
+    assert payload["status"] == "fail"
+    assert payload["checks"] == []
