@@ -312,6 +312,74 @@ echo | openssl s_client \
 
 The SAN must contain `DNS:monitoring.probochka-corp.ru`.
 
+## Loki log retention
+
+Production Loki keeps logs for 14 days.
+
+- `limits_config.retention_period: 336h`
+- `limits_config.max_query_lookback: 336h`
+- `compactor.retention_enabled: true`
+- `compactor.retention_delete_worker_count: 10`
+
+Retention is age-based, not a hard disk quota. A log storm can still fill the disk before 14 days pass, so this change limits history growth but does not replace disk monitoring.
+
+Validate the exact pinned Loki config before rollout:
+
+```bash
+docker run --rm \
+  -v "$PWD/observability/loki/local-config.yaml:/etc/loki/config.yaml:ro" \
+  grafana/loki:3.5.0 \
+  -config.file=/etc/loki/config.yaml \
+  -verify-config=true
+```
+
+Capture the baseline state before changing production Loki:
+
+```bash
+docker system df -v
+docker volume inspect pybot_loki_data_prod
+docker run --rm -v pybot_loki_data_prod:/loki-data alpine sh -c 'du -sh /loki-data'
+```
+
+Also record the oldest log timestamp still visible in Grafana Explore so you can confirm the post-rollout retention window later.
+
+Existing Loki data is an explicit rollout choice:
+
+- if old logs are not needed, recreate `pybot_loki_data_prod` once before enabling retention;
+- if old logs must be preserved, keep the volume and accept that previously ingested data may remain outside the new retention behavior;
+- do not manually delete individual Loki chunk or index files.
+
+One-time Loki volume reset procedure:
+
+```bash
+cd /home/ilya/pybot
+docker compose -f docker-compose.prod.yml stop alloy grafana nginx loki
+docker compose -f docker-compose.prod.yml rm -f loki
+docker volume rm pybot_loki_data_prod
+docker compose -f docker-compose.prod.yml up -d loki alloy grafana nginx
+```
+
+Controlled rollout procedure:
+
+1. Capture baseline Docker disk usage, Loki volume size, and oldest visible log timestamp.
+2. Validate `observability/loki/local-config.yaml` locally with `-verify-config=true`.
+3. Deploy the config change.
+4. Restart only the observability contour: `loki`, `alloy`, `grafana`, `nginx`.
+5. Verify Loki readiness, Alloy ingestion, and Grafana queries.
+6. Re-check Docker disk usage and Loki volume size after 24 hours.
+7. Re-check again after 15-17 days and confirm logs older than 14 days are no longer queryable.
+
+Local smoke path before production rollout:
+
+```bash
+just run-observability
+docker compose --profile observability ps
+docker compose --profile observability logs --tail=100 loki alloy grafana nginx
+curl -I http://127.0.0.1:8088/grafana/
+```
+
+Treat retention as successfully introduced only when Loki starts cleanly after restart, Alloy still sends logs, Grafana queries continue to work, compactor logs stay free of persistent errors, and old logs disappear after one full retention window. Retention deletions are irreversible once compactor executes them.
+
 ## Safety for Shared Servers
 
 The normal CD flow is intentionally non-root:

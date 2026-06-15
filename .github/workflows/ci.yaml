@@ -43,6 +43,14 @@ jobs:
       - name: Validate production compose config
         run: docker compose -f docker-compose.prod.yml config > /dev/null
 
+      - name: Verify Loki production config with pinned image
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE/observability/loki/local-config.yaml:/etc/loki/config.yaml:ro" \
+            grafana/loki:3.5.0 \
+            -config.file=/etc/loki/config.yaml \
+            -verify-config=true
+
   local-parity-smoke-check:
     name: Local Dev/Prod Parity Smoke Check
     runs-on: ubuntu-latest
