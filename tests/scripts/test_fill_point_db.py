@@ -231,6 +231,23 @@ def test_build_seed_config_preserves_default_runtime_behavior() -> None:
     runtime_config = fill_point_db.build_seed_config(cli_config)
 
     assert runtime_config == fill_point_db.FillDatabaseConfig()
+    assert runtime_config.num_levels_per_type == 30
+
+
+def test_professionals_preset_contains_current_itacadem_directions() -> None:
+    competencies = fill_point_db._COMPETENCE_PRESETS[fill_point_db.CompetencePreset.PROFESSIONALS]
+
+    assert [(competence.name, competence.description) for competence in competencies] == [
+        ("Блокчейн", "Разработка децентрализованных приложений и блокчейн-систем"),
+        ("1С Разработка", "Разработка и сопровождение решений на платформе 1С"),
+        ("Геймдев", "Разработка компьютерных и мобильных игр"),
+        ("Веб-разработка", "Full-stack разработка веб-приложений"),
+        ("Цифровой дизайн", "Проектирование цифровых интерфейсов и визуальных материалов"),
+        ("3Д Моделирование", "Создание и визуализация трёхмерных моделей"),
+        ("МЛ и большие данные", "Машинное обучение и обработка больших данных"),
+        ("Бэкенд разработка", "Разработка серверной логики и API"),
+        ("Мобильная разработка", "Разработка приложений для мобильных платформ"),
+    ]
 
 
 def test_build_seed_config_inverts_skip_flags() -> None:
