@@ -58,8 +58,8 @@ HELP_PRIVATE = textwrap.dedent(
     /removerole @user <Student|Mentor|Admin> "причина" - снять роль
 
     Работа с компетенциями:
-    /addcompetence @user Python,SQL - добавить компетенции
-    /removecompetence @user Python,SQL - удалить компетенции
+    /addcompetence @user Геймдев,Веб-разработка - добавить компетенции
+    /removecompetence @user Геймдев,Веб-разработка - удалить компетенции
     """
 ).strip()
 
@@ -256,10 +256,11 @@ ROLE_REQUEST_COOLDOWN_UNTIL = "Ваш предыдущий запрос неда
 COMPETENCE_TARGET_REQUIRED = (
     "Не удалось определить пользователя для команды.\n"
     "Укажите пользователя через reply, text_mention или Telegram ID.\n"
-    "Формат: /{command} <tg_id|@mention> Python,SQL"
+    "Формат: /{command} <tg_id|@mention> Геймдев,Веб-разработка"
 )
 COMPETENCE_LIST_REQUIRED = (
-    "Не удалось определить список компетенций.\nУкажите их через запятую, например: /{command} 12345 Python,SQL"
+    "Не удалось определить список компетенций.\n"
+    "Укажите их через запятую, например: /{command} 12345 Геймдев,Веб-разработка"
 )
 COMPETENCE_ADD_SUCCESS = "✅ Пользователю {first_name} добавлены компетенции: {competencies}"
 COMPETENCE_REMOVE_SUCCESS = "✅ У пользователя {first_name} удалены компетенции: {competencies}"
@@ -271,11 +272,12 @@ COMPETENCE_DESCRIPTION_FALLBACK = "Описание не указано"
 ROLE_CATALOG_EMPTY = "<b>Роли:</b>\n\nПока в системе нет доступных ролей."
 ROLE_CATALOG = "<b>Роли:</b>\n\n{role_lines}"
 COMPETENCE_VALIDATION_ERROR = (
-    "Не удалось обработать список компетенций.\nИспользуйте существующие названия через запятую, например: Python, SQL."
+    "Не удалось обработать список компетенций.\n"
+    "Используйте существующие названия через запятую, например: Геймдев, Веб-разработка."
 )
 COMPETENCE_MISSING_NAMES_ERROR = (
     "Не удалось найти компетенции: {names}.\n"
-    "Проверьте названия и укажите существующие компетенции через запятую, например: Python, SQL."
+    "Проверьте названия и укажите существующие компетенции через запятую, например: Геймдев, Веб-разработка."
 )
 COMPETENCE_UNEXPECTED_ERROR = "Не удалось обработать компетенции.\nПопробуйте ещё раз позже."
 

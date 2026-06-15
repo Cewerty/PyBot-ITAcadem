@@ -136,12 +136,15 @@ class CompetencePreset(enum.StrEnum):
 _COMPETENCE_PRESETS: dict[CompetencePreset, tuple[CompetenceSeedConfig, ...]] = {
     CompetencePreset.NONE: (),
     CompetencePreset.PROFESSIONALS: (
-        CompetenceSeedConfig("Python", "Разработка на Python"),
-        CompetenceSeedConfig("SQL", "Работа с реляционными базами данных"),
-        CompetenceSeedConfig("Git", "Контроль версий и командная разработка"),
-        CompetenceSeedConfig("Linux", "Базовые навыки администрирования Linux"),
-        CompetenceSeedConfig("Docker", "Контейнеризация приложений"),
-        CompetenceSeedConfig("Algorithms", "Базовые алгоритмы и структуры данных"),
+        CompetenceSeedConfig("Блокчейн", "Разработка децентрализованных приложений и блокчейн-систем"),
+        CompetenceSeedConfig("1С Разработка", "Разработка и сопровождение решений на платформе 1С"),
+        CompetenceSeedConfig("Геймдев", "Разработка компьютерных и мобильных игр"),
+        CompetenceSeedConfig("Веб-разработка", "Full-stack разработка веб-приложений"),
+        CompetenceSeedConfig("Цифровой дизайн", "Проектирование цифровых интерфейсов и визуальных материалов"),
+        CompetenceSeedConfig("3Д Моделирование", "Создание и визуализация трёхмерных моделей"),
+        CompetenceSeedConfig("МЛ и большие данные", "Машинное обучение и обработка больших данных"),
+        CompetenceSeedConfig("Бэкенд разработка", "Разработка серверной логики и API"),
+        CompetenceSeedConfig("Мобильная разработка", "Разработка приложений для мобильных платформ"),
     ),
 }
 
@@ -170,7 +173,7 @@ class FillDatabaseConfig:
 
     faker_locale: str = "ru_RU"
     num_fake_users: int = 50
-    num_levels_per_type: int = 15
+    num_levels_per_type: int = 30
     max_points_range: int = 1_050
     point_steps: tuple[int, ...] = (5, 10)
     min_telegram_id: int = 1_000_000_000
@@ -232,7 +235,7 @@ class FillDatabaseCLIConfig:
 
     faker_locale: str = "ru_RU"
     num_fake_users: int = 50
-    num_levels_per_type: int = 15
+    num_levels_per_type: int = 30
     max_points_range: int = 1_050
     point_steps: tuple[int, ...] = (5, 10)
     min_telegram_id: int = 1_000_000_000

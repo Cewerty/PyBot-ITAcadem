@@ -481,7 +481,7 @@ async def test_removecompetence_invalid_list_returns_error_message(
     assert user_competence_service.remove_calls == [(target_user.id, ["Unknown"])]
     reply_text = _last_reply_text(reply_mock)
     assert "Unknown" in reply_text
-    assert "Python, SQL" in reply_text
+    assert "Геймдев, Веб-разработка" in reply_text
 
 
 @pytest.mark.asyncio
@@ -710,7 +710,7 @@ async def test_addcompetence_unknown_names_returns_validation_error(
     assert user_competence_service.add_calls == [(target_user.id, ["Unknown"])]
     reply_text = _last_reply_text(reply_mock)
     assert "Unknown" in reply_text
-    assert "Python, SQL" in reply_text
+    assert "Геймдев, Веб-разработка" in reply_text
 
 
 @pytest.mark.asyncio
