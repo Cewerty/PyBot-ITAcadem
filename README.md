@@ -419,6 +419,37 @@ just test-coverage
 
 `just test-unit` не требует Docker. `just test-integration` использует один PostgreSQL 18 Testcontainers container на тестовую сессию, применяет реальную Alembic schema и очищает данные между тестами. В CI второй контейнер не создаётся: тесты получают PostgreSQL service URL через `PYBOT_TEST_DATABASE_URL`. Эта переменная принимает только `postgresql+asyncpg` URL к БД с именем `test` или суффиксом `_test`.
 
+Если локальный `uv` или host Python path не может дать стабильный `Python 3.14`, используйте Docker-based tooling path:
+
+```bash
+just test-unit-docker
+just test-integration-docker
+just test-coverage-docker
+just quality-gate-docker
+```
+
+Этот путь не заменяет runtime/admin-process model приложения. Он добавляет отдельные one-shot tooling runners через `docker compose --profile tooling run --rm --build ...` и нужен прежде всего для Linux/host Python drift.
+
+Как различать пути:
+
+- host quality/test path:
+  - `just test-unit`
+  - `just test-integration`
+  - `just test-coverage`
+  - `just quality-gate`
+- docker quality/test path:
+  - `just test-unit-docker`
+  - `just test-integration-docker`
+  - `just test-coverage-docker`
+  - `just quality-gate-docker`
+
+Когда использовать:
+
+- host path - когда локальный `Python 3.14` и `uv` уже работают стабильно;
+- docker path - когда локальная ОС или пакетный менеджер ломает host tooling path, но Docker Compose доступен.
+
+`test-integration-docker`, `test-coverage-docker` и `quality-gate-docker` используют существующий Compose PostgreSQL, передают `PYBOT_TEST_DATABASE_URL` и автоматически создают `${POSTGRES_DB}_test`, если эта test DB ещё не существует.
+
 ## Документация
 
 Перед значимыми изменениями по проекту сначала читайте:

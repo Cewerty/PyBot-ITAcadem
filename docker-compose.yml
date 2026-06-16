@@ -39,6 +39,24 @@ x-app-service: &app-service
   restart: unless-stopped
   depends_on: *app-dependencies
 
+x-tooling-base: &tooling-base
+  build:
+    context: .
+    dockerfile: Dockerfile
+    target: tooling
+  env_file:
+    - .env
+  working_dir: /workspace
+  volumes:
+    - .:/workspace
+  environment:
+    PYBOT_TEST_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:?POSTGRES_USER must be set}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:?POSTGRES_DB must be set}_test
+  logging:
+    driver: json-file
+    options:
+      max-size: "5m"
+      max-file: "3"
+
 services:
   postgres:
     image: postgres:18-alpine
@@ -128,6 +146,41 @@ services:
     restart: "no"
     depends_on: *app-dependencies
     command: ["pybot-seed"]
+
+  # These tooling runners are not app admin processes like migrate or seed.
+  # They are a separate Docker-based execution path for local and CI quality checks.
+  test-unit:
+    <<: *tooling-base
+    profiles: ["tooling"]
+    restart: "no"
+    command: ["uv", "run", "pytest", "-m", "not integration"]
+
+  test-integration:
+    <<: *tooling-base
+    profiles: ["tooling"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["sh", "-ec", "sh scripts/ci/ensure_compose_test_database.sh && uv run pytest -m integration"]
+
+  test-coverage:
+    <<: *tooling-base
+    profiles: ["tooling"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["sh", "scripts/ci/run_container_test_coverage.sh"]
+
+  quality-gate:
+    <<: *tooling-base
+    profiles: ["tooling"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["sh", "scripts/ci/run_container_quality_gate.sh"]
 
   backup:
     image: postgres:18-alpine
