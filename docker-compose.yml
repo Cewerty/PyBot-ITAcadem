@@ -44,8 +44,6 @@ x-tooling-base: &tooling-base
     context: .
     dockerfile: Dockerfile
     target: tooling
-  env_file:
-    - .env
   working_dir: /workspace
   volumes:
     - .:/workspace
@@ -157,6 +155,10 @@ services:
     <<: *tooling-base
     profiles: ["tooling"]
     restart: "no"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB must be set}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be set}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     depends_on:
       postgres:
         condition: service_healthy
@@ -171,6 +173,10 @@ services:
     <<: *tooling-base
     profiles: ["tooling"]
     restart: "no"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB must be set}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be set}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     depends_on:
       postgres:
         condition: service_healthy
@@ -180,6 +186,10 @@ services:
     <<: *tooling-base
     profiles: ["tooling"]
     restart: "no"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB must be set}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be set}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     depends_on:
       postgres:
         condition: service_healthy
