@@ -49,8 +49,6 @@ x-tooling-base: &tooling-base
   working_dir: /workspace
   volumes:
     - .:/workspace
-  environment:
-    PYBOT_TEST_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:?POSTGRES_USER must be set}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:?POSTGRES_DB must be set}_test
   logging:
     driver: json-file
     options:
@@ -162,7 +160,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: ["sh", "-ec", "sh scripts/ci/ensure_compose_test_database.sh && uv run pytest -m integration"]
+    command:
+      [
+        "sh",
+        "-ec",
+        "export PYBOT_TEST_DATABASE_URL=\"postgresql+asyncpg://$${POSTGRES_USER:?POSTGRES_USER must be set}:$${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/$${POSTGRES_DB:?POSTGRES_DB must be set}_test\" && sh scripts/ci/ensure_compose_test_database.sh && uv run pytest -m integration",
+      ]
 
   test-coverage:
     <<: *tooling-base
