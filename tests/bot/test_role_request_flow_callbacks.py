@@ -26,6 +26,9 @@ from tests.factories import RoleRequestSpec, UserSpec, create_role, create_role_
 from tests.providers import FakeNotificationPort
 
 
+pytestmark = pytest.mark.integration
+
+
 def _build_callback_query(user_id: int, callback_id: str, message_text: str) -> CallbackQuery:
     from_user = User(id=user_id, is_bot=False, first_name="Admin")
     message = Message(

@@ -54,6 +54,8 @@ Run migration command with argument:
 - `docs-serve` - Start the local MkDocs dev server
 - `migrate-create "<msg>"` - Create Alembic migration
 - `migrate-apply` - Apply all Alembic migrations
+- `test-unit` - Run tests that do not require PostgreSQL or Docker
+- `test-integration` - Run PostgreSQL integration tests
 - `clean` - Remove local caches and virtualenv
 - `pre-commit` - Install and run pre-commit hooks
 

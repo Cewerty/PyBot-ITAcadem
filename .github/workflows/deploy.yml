@@ -2,6 +2,11 @@ name: CD - Build and Deploy
 
 on:
   workflow_dispatch:
+    inputs:
+      rollback_image_tag:
+        description: "Optional full SHA tag of an existing GHCR image to deploy instead of rebuilding main"
+        required: false
+        type: string
   workflow_run:
     workflows:
       - CI - Code Quality
@@ -49,7 +54,7 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.event.workflow_run.head_sha }}
 
-      - name: Validate required deploy secrets and workflow artifacts
+      - name: Validate required deploy secrets and runner-side production config contracts
         run: |
           set -eu
           for var in DEPLOY_HOST DEPLOY_USER DEPLOY_KNOWN_HOSTS PROD_ENV_FILE; do
@@ -75,26 +80,71 @@ jobs:
             echo "GHCR_DEPLOY_USERNAME and GHCR_DEPLOY_TOKEN must be provided together." >&2
             exit 1
           fi
-          printf '%s\n' "$PROD_ENV_FILE" > "$RUNNER_TEMP/prod.env.validation"
-          python "$GITHUB_WORKSPACE/scripts/ci/validate_deploy_env.py" "$RUNNER_TEMP/prod.env.validation"
+          validation_env_path="$RUNNER_TEMP/prod.env.validation"
+          workspace_env_path="$GITHUB_WORKSPACE/.env"
+          workspace_env_backup_path="$RUNNER_TEMP/workspace.env.backup"
+          workspace_env_backup_exists=0
 
-      - name: Prepare deployment metadata
+          cleanup_validation_files() {
+            rm -f "$validation_env_path"
+            rm -f "$workspace_env_path"
+            if [ "$workspace_env_backup_exists" -eq 1 ]; then
+              mv "$workspace_env_backup_path" "$workspace_env_path"
+            fi
+          }
+          trap cleanup_validation_files EXIT
+
+          if [ -f "$workspace_env_path" ]; then
+            cp "$workspace_env_path" "$workspace_env_backup_path"
+            workspace_env_backup_exists=1
+          fi
+
+          printf '%s\n' "$PROD_ENV_FILE" > "$validation_env_path"
+          cp "$validation_env_path" "$workspace_env_path"
+
+          python "$GITHUB_WORKSPACE/scripts/ci/validate_deploy_env.py" "$validation_env_path"
+
+          validation_image_repo="ghcr.io/${GITHUB_REPOSITORY}"
+          validation_image_repo="$(printf '%s' "$validation_image_repo" | tr '[:upper:]' '[:lower:]')"
+          APP_IMAGE="${validation_image_repo}:validation" \
+          docker compose \
+            --env-file "$validation_env_path" \
+            -f docker-compose.prod.yml \
+            config --quiet
+
+      - name: Resolve deploy mode and prepare deployment metadata
         id: prep
+        env:
+          ROLLBACK_IMAGE_TAG_INPUT: ${{ github.event.inputs.rollback_image_tag || '' }}
         run: |
           set -eu
           image_repo="ghcr.io/${GITHUB_REPOSITORY}"
           image_repo="$(printf '%s' "$image_repo" | tr '[:upper:]' '[:lower:]')"
           deploy_port="${DEPLOY_PORT:-22}"
           deploy_path="${DEPLOY_PATH:-/home/ilya/pybot}"
-          image_tag="$(git rev-parse HEAD)"
+          deploy_mode_json="$RUNNER_TEMP/deploy-mode.json"
+          python "$GITHUB_WORKSPACE/scripts/ci/resolve_deploy_mode.py" \
+            --current-sha "$(git rev-parse HEAD)" \
+            --rollback-image-tag "${ROLLBACK_IMAGE_TAG_INPUT:-}" > "$deploy_mode_json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          deploy_mode = json.loads(Path(os.environ["RUNNER_TEMP"], "deploy-mode.json").read_text(encoding="utf-8"))
+          github_output = Path(os.environ["GITHUB_OUTPUT"])
+          with github_output.open("a", encoding="utf-8") as fh:
+              fh.write(f"image_tag={deploy_mode['image_tag']}\n")
+              fh.write(f"rollback_mode={str(deploy_mode['rollback_mode']).lower()}\n")
+              fh.write(f"run_migrations={str(deploy_mode['run_migrations']).lower()}\n")
+          PY
           {
             echo "image_repo=$image_repo"
             echo "deploy_port=$deploy_port"
             echo "deploy_path=$deploy_path"
-            echo "image_tag=$image_tag"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Log in to GHCR for image push
+      - name: Log in to GHCR for deploy workflow
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -104,7 +154,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Rollback image compatibility warning
+        if: steps.prep.outputs.rollback_mode == 'true'
+        run: |
+          echo "::warning title=Rollback deploy::Image rollback does not revert database migrations. Use this only when the selected image is compatible with the current database schema, or follow the documented database recovery procedure separately."
+
       - name: Build and push production image
+        if: steps.prep.outputs.rollback_mode != 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -115,6 +171,13 @@ jobs:
             ${{ steps.prep.outputs.image_repo }}:main
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Verify rollback image exists in GHCR
+        if: steps.prep.outputs.rollback_mode == 'true'
+        run: |
+          set -eu
+          docker buildx imagetools inspect \
+            "${{ steps.prep.outputs.image_repo }}:${{ steps.prep.outputs.image_tag }}" > /dev/null
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -134,6 +197,9 @@ jobs:
           chmod 644 "$HOME/.ssh/known_hosts"
 
       - name: Prepare deploy inventory and vars
+        env:
+          ROLLBACK_MODE: ${{ steps.prep.outputs.rollback_mode }}
+          RUN_MIGRATIONS: ${{ steps.prep.outputs.run_migrations }}
         run: |
           set -eu
           printf '%s\n' "$PROD_ENV_FILE" > "$RUNNER_TEMP/prod.env"
@@ -153,6 +219,8 @@ jobs:
               "app_env_src": str(Path(os.environ["RUNNER_TEMP"]) / "prod.env"),
               "image_repository": "${{ steps.prep.outputs.image_repo }}",
               "image_tag": "${{ steps.prep.outputs.image_tag }}",
+              "rollback_mode": os.environ["ROLLBACK_MODE"].lower() == "true",
+              "run_migrations": os.environ["RUN_MIGRATIONS"].lower() == "true",
               "registry_username": os.environ.get("GHCR_DEPLOY_USERNAME", ""),
               "registry_token": os.environ.get("GHCR_DEPLOY_TOKEN", ""),
               "run_seed_on_deploy": os.environ.get("RUN_SEED_ON_DEPLOY", ""),

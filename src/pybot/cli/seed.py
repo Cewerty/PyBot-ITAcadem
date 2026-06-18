@@ -136,12 +136,15 @@ class CompetencePreset(enum.StrEnum):
 _COMPETENCE_PRESETS: dict[CompetencePreset, tuple[CompetenceSeedConfig, ...]] = {
     CompetencePreset.NONE: (),
     CompetencePreset.PROFESSIONALS: (
-        CompetenceSeedConfig("Python", "Разработка на Python"),
-        CompetenceSeedConfig("SQL", "Работа с реляционными базами данных"),
-        CompetenceSeedConfig("Git", "Контроль версий и командная разработка"),
-        CompetenceSeedConfig("Linux", "Базовые навыки администрирования Linux"),
-        CompetenceSeedConfig("Docker", "Контейнеризация приложений"),
-        CompetenceSeedConfig("Algorithms", "Базовые алгоритмы и структуры данных"),
+        CompetenceSeedConfig("Блокчейн", "Разработка децентрализованных приложений и блокчейн-систем"),
+        CompetenceSeedConfig("1С Разработка", "Разработка и сопровождение решений на платформе 1С"),
+        CompetenceSeedConfig("Геймдев", "Разработка компьютерных и мобильных игр"),
+        CompetenceSeedConfig("Веб-разработка", "Full-stack разработка веб-приложений"),
+        CompetenceSeedConfig("Цифровой дизайн", "Проектирование цифровых интерфейсов и визуальных материалов"),
+        CompetenceSeedConfig("3Д Моделирование", "Создание и визуализация трёхмерных моделей"),
+        CompetenceSeedConfig("МЛ и большие данные", "Машинное обучение и обработка больших данных"),
+        CompetenceSeedConfig("Бэкенд разработка", "Разработка серверной логики и API"),
+        CompetenceSeedConfig("Мобильная разработка", "Разработка приложений для мобильных платформ"),
     ),
 }
 
@@ -170,7 +173,7 @@ class FillDatabaseConfig:
 
     faker_locale: str = "ru_RU"
     num_fake_users: int = 50
-    num_levels_per_type: int = 15
+    num_levels_per_type: int = 30
     max_points_range: int = 1_050
     point_steps: tuple[int, ...] = (5, 10)
     min_telegram_id: int = 1_000_000_000
@@ -232,7 +235,7 @@ class FillDatabaseCLIConfig:
 
     faker_locale: str = "ru_RU"
     num_fake_users: int = 50
-    num_levels_per_type: int = 15
+    num_levels_per_type: int = 30
     max_points_range: int = 1_050
     point_steps: tuple[int, ...] = (5, 10)
     min_telegram_id: int = 1_000_000_000
@@ -796,6 +799,10 @@ async def role_exists(session: AsyncSession) -> bool:
     Returns:
         `True` when roles are already present in the database.
     """
+    # TODO: Harden the seed contract for partially initialized databases.
+    # The current bootstrap treats "at least one role exists" as sufficient and
+    # skips the whole step, which is fine for clean-start flows but not for
+    # repair-idempotent reruns that should backfill missing roles explicitly.
     runtime = _get_runtime_dependencies()
     stmt = select(runtime.role_model).limit(1)
     result = await session.execute(stmt)
@@ -915,10 +922,10 @@ async def fill_database(config: FillDatabaseConfig | None = None) -> None:
                     runtime_logger.info("Skipping fake user generation by config")
 
                 runtime_logger.success("Database seeding finished successfully")
-            except Exception as exc:
+            except Exception:
                 await session.rollback()
-                runtime_logger.error("Database seeding failed: %s", exc, exc_info=True)
-                runtime_logger.warning("Database seeding was rolled back")
+                runtime_logger.exception("Database seeding failed")
+                raise
     finally:
         await container.close()
 

@@ -12,6 +12,9 @@ from pybot.services import LeaderboardService
 from tests.factories import PointsTransactionSpec, UserSpec, create_points_transaction, create_user
 
 
+pytestmark = pytest.mark.integration
+
+
 @pytest.mark.asyncio
 async def test_get_previous_calendar_week_leaderboard_uses_previous_week_bounds(
     dishka_request_container,

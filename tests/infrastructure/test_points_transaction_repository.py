@@ -9,6 +9,9 @@ from pybot.infrastructure.points_transaction_repository import PointsTransaction
 from tests.factories import PointsTransactionSpec, UserSpec, create_points_transaction, create_user
 
 
+pytestmark = pytest.mark.integration
+
+
 @pytest.mark.asyncio
 async def test_find_top_recipients_for_period_aggregates_filters_and_sorts(db_session) -> None:
     # Given

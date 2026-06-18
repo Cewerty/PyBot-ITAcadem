@@ -12,7 +12,7 @@ __pycache__
 *.pyd
 build
 dist
-tests
+# Keep tests in the build context because the tooling target copies them.
 coverage.xml
 htmlcov
 *.db

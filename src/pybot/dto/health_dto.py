@@ -1,4 +1,4 @@
-"""DTO для проверки состояния (health checks) сервисов и приложения."""
+"""DTO for application health and readiness checks."""
 
 from __future__ import annotations
 
@@ -11,22 +11,15 @@ from .base_dto import BaseDTO
 
 
 class HealthCheckDTO(BaseDTO):
-    """Детали одиночной проверки готовности (readiness check).
-
-    Args:
-        name (str): Человекочитаемое название проверки (например, "database").
-        status (str): Статус проверки ("ok" или "fail").
-        details (str | None): Опциональные детали сбоя или дополнительная информация.
-        latency_ms (int | None): Опциональное время выполнения проверки в миллисекундах.
-    """
+    """Public details about a single readiness check."""
 
     model_config = ConfigDict(
         json_schema_extra={
             "examples": [
                 {
                     "name": "database",
-                    "status": "ok",
-                    "details": None,
+                    "status": "fail",
+                    "details": "Сервис базы данных временно недоступен.",
                     "latency_ms": 8,
                 }
             ]
@@ -34,45 +27,39 @@ class HealthCheckDTO(BaseDTO):
     )
 
     name: str = Field(
-        description="Название проверки (например, database).",
+        description="Name of the readiness check, for example database.",
         examples=["database"],
     )
     status: Literal["ok", "fail"] = Field(
-        description="Статус проверки.",
+        description="Status of the readiness check.",
         examples=["ok"],
     )
     details: str | None = Field(
         default=None,
-        description="Дополнительные детали или текст ошибки.",
-        examples=["db timeout"],
+        description="Safe public-facing description of the component state.",
+        examples=["Сервис базы данных временно недоступен."],
     )
     latency_ms: int | None = Field(
         default=None,
         ge=0,
-        description="Время выполнения проверки в миллисекундах.",
+        description="Execution time of the readiness check in milliseconds.",
         examples=[8],
     )
 
 
 class HealthStatusDTO(BaseDTO):
-    """Общий статус работоспособности / готовности приложения.
-
-    Args:
-        status (str): Сводный статус ("ok" или "fail").
-        checks (list[HealthCheckDTO]): Список отдельных проверок (может быть пустым).
-        timestamp (datetime): UTC-метка времени генерации статуса.
-    """
+    """Overall liveness or readiness status payload."""
 
     model_config = ConfigDict(
         json_schema_extra={
             "examples": [
                 {
-                    "status": "ok",
+                    "status": "fail",
                     "checks": [
                         {
                             "name": "database",
-                            "status": "ok",
-                            "details": None,
+                            "status": "fail",
+                            "details": "Сервис базы данных временно недоступен.",
                             "latency_ms": 8,
                         }
                     ],
@@ -83,23 +70,23 @@ class HealthStatusDTO(BaseDTO):
     )
 
     status: Literal["ok", "fail"] = Field(
-        description="Общий статус сервиса.",
+        description="Overall service status.",
         examples=["ok"],
     )
     checks: list[HealthCheckDTO] = Field(
-        description="Список проверок готовности.",
+        description="List of readiness checks.",
         examples=[
             [
                 {
                     "name": "database",
-                    "status": "ok",
-                    "details": None,
+                    "status": "fail",
+                    "details": "Сервис базы данных временно недоступен.",
                     "latency_ms": 8,
                 }
             ]
         ],
     )
     timestamp: datetime = Field(
-        description="UTC-время формирования статуса.",
+        description="UTC timestamp when the status payload was produced.",
         examples=["2026-02-23T18:00:00Z"],
     )

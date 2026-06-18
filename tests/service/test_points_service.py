@@ -13,6 +13,9 @@ from pybot.services.points import PointsService
 from tests.factories import UserSpec, attach_user_level, create_level, create_user
 
 
+pytestmark = pytest.mark.integration
+
+
 @pytest.mark.asyncio
 async def test_change_points_updates_points_level_and_creates_valuation(
     dishka_request_container,
@@ -51,6 +54,7 @@ async def test_change_points_updates_points_level_and_creates_valuation(
     assert len(valuations) == 1
     assert valuations[0].points == 20
     assert valuations[0].giver_id == giver.id
+    assert valuations[0].created_at.tzinfo is None
 
     transactions_stmt = select(PointsTransaction).where(PointsTransaction.recipient_id == recipient.id)
     transactions = (await db.execute(transactions_stmt)).scalars().all()

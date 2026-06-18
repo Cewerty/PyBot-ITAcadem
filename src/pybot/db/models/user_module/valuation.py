@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, Text, func
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -10,13 +10,14 @@ from ....core.constants import PointsTypeEnum
 from ....domain.exceptions import ZeroPointsAdjustmentError
 from ....dto.value_objects import Points
 from ...base_class import Base
+from ..schema_types import POINTS_TYPE_ENUM
 from .user import User
 
 
 class Valuation(Base):
     __tablename__ = "valuations"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     recipient_id: Mapped[int] = mapped_column(
         BigInteger,
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -30,11 +31,11 @@ class Valuation(Base):
     reason: Mapped[str | None] = mapped_column(Text)
     points: Mapped[int] = mapped_column(Integer, nullable=False)
     points_type: Mapped[PointsTypeEnum] = mapped_column(
-        String(50),
+        POINTS_TYPE_ENUM,
         nullable=False,
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=False),  # SQLite не поддерживает timezone
+        DateTime(timezone=False),
         nullable=False,
         server_default=func.now(),
     )
@@ -88,7 +89,7 @@ class Valuation(Base):
             points=points.value,
             points_type=points.point_type,
             reason=clean_reason,
-            created_at=datetime.now(UTC),
+            created_at=datetime.now(UTC).replace(tzinfo=None),
             recipient=recipient,
             giver=giver,
         )

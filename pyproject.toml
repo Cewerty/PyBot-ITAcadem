@@ -16,7 +16,6 @@ dependencies = [
     "pydantic-settings>=2.12.0",
     "pydantic>=2.11.10",
     "phonenumbers>=9.0.21",
-    "aiosqlite>=0.22.1",
     "aiolimiter>=1.2.1",
     "aiocache>=0.12.3",
     "dishka>=1.7.2",
@@ -65,6 +64,7 @@ dev = [
     "pytest-aiogram>=0.1.0",
     "tach>=0.34.1",
     "faker>=38.2.0",
+    "testcontainers>=4.14.2",
 ]
 
 [tool.uv]
@@ -212,6 +212,9 @@ prerelease = false
 pythonpath = ["src", "."]
 testpaths = ["tests"]
 addopts = "-q --strict-markers"
+markers = [
+    "integration: tests requiring a real PostgreSQL database",
+]
 
 # ── uv build settings ────────────────────────────────────────────────────────────
 # Required so that uv installs [project.scripts] entry points (pybot-seed).

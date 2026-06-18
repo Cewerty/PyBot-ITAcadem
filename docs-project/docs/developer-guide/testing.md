@@ -2,6 +2,30 @@
 
 Качество кода проверяется через `just quality-gate`.
 
+Если локальный `uv` или host Python path не может дать стабильный `Python 3.14`, используйте Docker-based tooling path:
+
+```bash
+just test-unit-docker
+just test-integration-docker
+just test-coverage-docker
+just quality-gate-docker
+```
+
+Host path и Docker path существуют параллельно:
+
+- host quality/test path:
+  - `just test-unit`
+  - `just test-integration`
+  - `just test-coverage`
+  - `just quality-gate`
+- docker quality/test path:
+  - `just test-unit-docker`
+  - `just test-integration-docker`
+  - `just test-coverage-docker`
+  - `just quality-gate-docker`
+
+Используйте host path как быстрый вариант на машинах со стабильным `Python 3.14`, а Docker path - как reproducible fallback для Linux/host Python drift.
+
 ## Основные команды
 
 ```bash

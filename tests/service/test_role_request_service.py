@@ -24,6 +24,9 @@ from tests.factories import RoleRequestSpec, UserSpec, attach_user_role, create_
 from tests.providers import FakeNotificationPort
 
 
+pytestmark = pytest.mark.integration
+
+
 @pytest.mark.asyncio
 async def test_get_time_since_last_reject_uses_passed_request_time(
     dishka_request_container,

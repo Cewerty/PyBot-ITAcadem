@@ -9,6 +9,9 @@ from pybot.di import containers as di_containers
 from pybot.services.user_services import UserService
 
 
+pytestmark = pytest.mark.integration
+
+
 @pytest.mark.asyncio
 async def test_setup_container_smoke_resolves_key_dependencies(
     patched_public_di_engine: AsyncEngine,

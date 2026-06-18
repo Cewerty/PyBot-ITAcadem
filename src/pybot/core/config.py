@@ -310,6 +310,14 @@ class AppSettings(BaseSettings):
             raise ValueError("BOT_TOKEN_TEST must be set when BOT_MODE is not 'prod'")
         return normalized
 
+    @field_validator("bot_token", mode="after")
+    @classmethod
+    def validate_prod_bot_token(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("BOT_TOKEN must be set")
+        return normalized
+
     @field_validator("leaderboard_weekly_recipient_id", mode="before")
     @classmethod
     def parse_weekly_recipient_id(cls, value: int | str | None) -> int | None:

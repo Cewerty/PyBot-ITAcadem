@@ -4,13 +4,12 @@ import sys
 from logging.config import fileConfig
 
 from sqlalchemy import pool
-from sqlalchemy.engine import Connection
+from sqlalchemy.engine import Connection, make_url
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from alembic import context
 from src.pybot.core.config import get_settings
 from src.pybot.db.base_class import Base
-from src.pybot.db.database import ensure_sqlite_database_parent_dir
 
 # Импортируем модели, чтобы Base.metadata собрался
 from src.pybot.db.models import *  # noqa: F403  # только для Alembic!
@@ -38,7 +37,9 @@ def _configure_database_url() -> str:
         database_url = get_settings().database_url
 
     if database_url:
-        ensure_sqlite_database_parent_dir(database_url)
+        backend_name = make_url(database_url).get_backend_name()
+        if backend_name != "postgresql":
+            raise ValueError(f"Alembic supports only PostgreSQL for this project; received backend {backend_name!r}.")
         config.set_main_option("sqlalchemy.url", database_url)
     return database_url
 
@@ -50,7 +51,6 @@ def do_run_migrations(connection: Connection) -> None:
         target_metadata=target_metadata,
         compare_type=True,
         compare_server_default=True,
-        render_as_batch=True,
     )
 
     with context.begin_transaction():
@@ -63,12 +63,9 @@ async def run_migrations_online() -> None:
     if not url:
         raise ValueError("DATABASE_URL не настроен в alembic.ini / settings")
 
-    connect_args = {"check_same_thread": False} if "sqlite" in url else {}
-
     connectable = create_async_engine(
         url,
         poolclass=pool.NullPool,
-        connect_args=connect_args,
     )
 
     async with connectable.connect() as connection:
@@ -87,7 +84,6 @@ def run_migrations_offline() -> None:
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
-        render_as_batch=True,
         dialect_opts={"paramstyle": "named"},
     )
 

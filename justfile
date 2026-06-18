@@ -44,12 +44,31 @@ arch-check: # Check architecture invariants with Tach
 test-coverage: # Run tests with coverage and show missing lines
     uv run pytest --cov=src/pybot --cov-report=term-missing --cov-report=xml --cov-fail-under=80
 
+test-unit: # Run tests that do not require PostgreSQL or Docker
+    uv run pytest -m "not integration"
+
+test-integration: # Run PostgreSQL integration tests
+    uv run pytest -m integration
+
 quality-gate: # Full code quality gate (format check + lint + type check + arch check)
     just format-check
     just lint
     just type-check
     just arch-check
     just test-coverage
+
+# Docker-based tooling runners for Linux and host Python drift scenarios.
+test-unit-docker: # Run unit tests inside the tooling compose runner
+    docker compose --profile tooling run --rm --build test-unit
+
+test-integration-docker: # Run integration tests inside the tooling compose runner
+    docker compose --profile tooling run --rm --build test-integration
+
+test-coverage-docker: # Run coverage tests inside the tooling compose runner
+    docker compose --profile tooling run --rm --build test-coverage
+
+quality-gate-docker: # Run the full quality gate inside the tooling compose runner
+    docker compose --profile tooling run --rm --build quality-gate
 
 docs-install: # Install optional documentation dependencies
     uv sync --extra docs

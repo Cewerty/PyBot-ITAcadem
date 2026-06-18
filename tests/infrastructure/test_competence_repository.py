@@ -7,6 +7,9 @@ from pybot.infrastructure.competence_repository import CompetenceRepository
 from tests.factories import create_competence
 
 
+pytestmark = pytest.mark.integration
+
+
 @pytest.mark.asyncio
 async def test_find_by_names_returns_matching_competencies_case_insensitive(dishka_request_container) -> None:
     db = await dishka_request_container.get(AsyncSession)

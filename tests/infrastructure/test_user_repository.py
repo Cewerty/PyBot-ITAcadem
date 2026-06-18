@@ -19,6 +19,9 @@ from tests.factories import (
 )
 
 
+pytestmark = pytest.mark.integration
+
+
 @pytest.mark.asyncio
 async def test_get_by_id_returns_user_with_loaded_relations(db_session) -> None:
     # Given

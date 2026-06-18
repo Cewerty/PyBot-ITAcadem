@@ -7,7 +7,7 @@ compose_files=(
 )
 
 profile_args=(--profile health)
-required_services=(bot taskiq-worker taskiq-scheduler redis health)
+required_services=(bot taskiq-worker taskiq-scheduler postgres redis health)
 
 print_debug() {
   echo "::group::Parity smoke-check docker compose ps"
@@ -25,7 +25,10 @@ cleanup() {
 
 trap cleanup EXIT
 
-docker compose "${compose_files[@]}" "${profile_args[@]}" up -d --build
+docker compose "${compose_files[@]}" up -d --wait --wait-timeout 120 postgres redis
+docker compose "${compose_files[@]}" --profile migration run --rm --build migrate
+docker compose "${compose_files[@]}" "${profile_args[@]}" up -d --build \
+  bot taskiq-worker taskiq-scheduler health
 
 for attempt in {1..30}; do
   running_services="$(docker compose "${compose_files[@]}" "${profile_args[@]}" ps --services --status running || true)"

@@ -2,7 +2,11 @@
 
 ## Дата: 20-01-2026
 
-## Статус: Accepted
+## Статус: Superseded by [ADR 0017](017-postgresql-only-runtime-and-baseline-reset.md)
+
+> Это историческое решение больше не определяет текущий runtime-контракт.
+> Проект вернулся на PostgreSQL 18 без поддержки SQLite и без переноса старой
+> SQLite Alembic history. Актуальное решение описано в ADR 0017.
 
 ## Контекст
 

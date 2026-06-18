@@ -27,6 +27,9 @@ from tests.factories import (
 )
 
 
+pytestmark = pytest.mark.integration
+
+
 async def _build_user_registration_service(
     dishka_request_container,
     settings_obj: AppSettings,

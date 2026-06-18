@@ -1,3 +1,21 @@
+x-postgres-environment: &postgres-environment
+  POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB must be set}
+  POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be set}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+
+x-postgres-client-environment: &postgres-client-environment
+  PGHOST: postgres
+  PGPORT: "5432"
+  PGDATABASE: ${POSTGRES_DB:?POSTGRES_DB must be set}
+  PGUSER: ${POSTGRES_USER:?POSTGRES_USER must be set}
+  PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+
+x-app-dependencies: &app-dependencies
+  postgres:
+    condition: service_healthy
+  redis:
+    condition: service_healthy
+
 x-app-base: &app-base
   build:
     context: .
@@ -5,13 +23,11 @@ x-app-base: &app-base
   env_file:
     - .env
   environment:
-    DATABASE_URL: ${DATABASE_URL:-sqlite+aiosqlite:///./data/pybot_itacadem.db}
+    DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set}
     TELEGRAM_PROXY_URL: ${TELEGRAM_PROXY_URL:-}
     FSM_STORAGE_BACKEND: ${FSM_STORAGE_BACKEND:-redis}
     REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
     LOG_FORMAT: ${LOG_FORMAT:-json}
-  volumes:
-    - pybot_data:/app/data
   logging:
     driver: json-file
     options:
@@ -21,11 +37,41 @@ x-app-base: &app-base
 x-app-service: &app-service
   <<: *app-base
   restart: unless-stopped
-  depends_on:
-    redis:
-      condition: service_healthy
+  depends_on: *app-dependencies
+
+x-tooling-base: &tooling-base
+  build:
+    context: .
+    dockerfile: Dockerfile
+    target: tooling
+  working_dir: /workspace
+  volumes:
+    - .:/workspace
+  logging:
+    driver: json-file
+    options:
+      max-size: "5m"
+      max-file: "3"
 
 services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment: *postgres-environment
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready --username \"$${POSTGRES_USER}\" --dbname \"$${POSTGRES_DB}\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   bot:
     <<: *app-service
     command:
@@ -39,9 +85,7 @@ services:
     <<: *app-base
     profiles: ["health"]
     restart: unless-stopped
-    depends_on:
-      redis:
-        condition: service_healthy
+    depends_on: *app-dependencies
     command:
       [
         "uvicorn",
@@ -73,17 +117,159 @@ services:
         "--skip-first-run",
       ]
 
+  config-check:
+    <<: *app-base
+    profiles: ["validation"]
+    restart: "no"
+    # TODO: replace inline Python with a dedicated `pybot-config-check` CLI when we are ready to widen scope.
+    command:
+      [
+        "python",
+        "-c",
+        "from pybot.core.config import get_settings; settings = get_settings(); assert settings.bot_mode == 'prod', settings.bot_mode; settings.active_bot_token; print('Runtime configuration is valid')",
+      ]
+
   migrate:
     <<: *app-base
     profiles: ["migration"]
     restart: "no"
+    depends_on: *app-dependencies
     command: ["alembic", "upgrade", "head"]
 
   seed:
     <<: *app-base
     profiles: ["seed"]
     restart: "no"
+    depends_on: *app-dependencies
     command: ["pybot-seed"]
+
+  # These tooling runners are not app admin processes like migrate or seed.
+  # They are a separate Docker-based execution path for local and CI quality checks.
+  test-unit:
+    <<: *tooling-base
+    profiles: ["tooling"]
+    restart: "no"
+    command: ["uv", "run", "pytest", "-m", "not integration"]
+
+  test-integration:
+    <<: *tooling-base
+    profiles: ["tooling"]
+    restart: "no"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB must be set}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be set}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command:
+      [
+        "sh",
+        "-ec",
+        "export PYBOT_TEST_DATABASE_URL=\"postgresql+asyncpg://$${POSTGRES_USER:?POSTGRES_USER must be set}:$${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/$${POSTGRES_DB:?POSTGRES_DB must be set}_test\" && sh scripts/ci/ensure_compose_test_database.sh && uv run pytest -m integration",
+      ]
+
+  test-coverage:
+    <<: *tooling-base
+    profiles: ["tooling"]
+    restart: "no"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB must be set}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be set}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["sh", "scripts/ci/run_container_test_coverage.sh"]
+
+  quality-gate:
+    <<: *tooling-base
+    profiles: ["tooling"]
+    restart: "no"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB must be set}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be set}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["sh", "scripts/ci/run_container_quality_gate.sh"]
+
+  backup:
+    image: postgres:18-alpine
+    profiles: ["backup"]
+    restart: "no"
+    environment: *postgres-client-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - postgres_backups:/backups
+    command:
+      - sh
+      - -ec
+      - |
+        umask 077
+        timestamp="$$(date -u +%Y%m%dT%H%M%SZ)"
+        backup_file="/backups/pybot-$${timestamp}.dump"
+        trap 'rm -f "$${backup_file}"' EXIT
+        pg_dump \
+          --format=custom \
+          --no-owner \
+          --no-privileges \
+          --file="$${backup_file}"
+        chmod 600 "$${backup_file}"
+        test -s "$${backup_file}"
+        trap - EXIT
+        printf 'Backup created: %s\n' "$${backup_file}"
+
+  restore:
+    image: postgres:18-alpine
+    profiles: ["restore"]
+    restart: "no"
+    environment:
+      <<: *postgres-client-environment
+      RESTORE_FILE: ${RESTORE_FILE:-}
+      CONFIRM_RESTORE: ${CONFIRM_RESTORE:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - postgres_backups:/backups
+    command:
+      - sh
+      - -ec
+      - |
+        if [ "$${CONFIRM_RESTORE:-}" != "YES" ]; then
+          echo "Restore refused: set CONFIRM_RESTORE=YES." >&2
+          exit 1
+        fi
+        restore_file="$${RESTORE_FILE:-}"
+        case "$${restore_file}" in
+          ""|"."|".."|*/*|*\\*)
+            echo "Restore refused: RESTORE_FILE must be a dump basename." >&2
+            exit 1
+            ;;
+        esac
+        backup_file="/backups/$${restore_file}"
+        if [ ! -f "$${backup_file}" ]; then
+          echo "Restore refused: dump file does not exist." >&2
+          exit 1
+        fi
+        pg_restore --list "$${backup_file}" >/dev/null
+        psql \
+          --dbname="$${PGDATABASE}" \
+          --set=ON_ERROR_STOP=1 \
+          --command="SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid();"
+        pg_restore \
+          --clean \
+          --if-exists \
+          --no-owner \
+          --no-privileges \
+          --exit-on-error \
+          --dbname="$${PGDATABASE}" \
+          "$${backup_file}"
+        printf 'Restore completed from: %s\n' "$${backup_file}"
 
   redis:
     image: redis:7-alpine
@@ -169,7 +355,8 @@ services:
         max-file: "3"
 
 volumes:
-  pybot_data:
+  postgres_data:
+  postgres_backups:
   redis_data:
   loki_data:
   grafana_data:
