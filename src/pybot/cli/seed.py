@@ -799,6 +799,10 @@ async def role_exists(session: AsyncSession) -> bool:
     Returns:
         `True` when roles are already present in the database.
     """
+    # TODO: Harden the seed contract for partially initialized databases.
+    # The current bootstrap treats "at least one role exists" as sufficient and
+    # skips the whole step, which is fine for clean-start flows but not for
+    # repair-idempotent reruns that should backfill missing roles explicitly.
     runtime = _get_runtime_dependencies()
     stmt = select(runtime.role_model).limit(1)
     result = await session.execute(stmt)
