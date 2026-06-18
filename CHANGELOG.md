@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.32.1 (2026-06-18)
+
+### Bug Fixes
+
+- Исправил ошибку с некоректной обработке Jinja в Ansible
+  ([`9d673ec`](https://github.com/Cewerty/PyBot-ITAcadem/commit/9d673ec909aca4716e14d626771999fc2b8e8b1d))
+
+
 ## v0.32.0 (2026-06-18)
 
 ### Bug Fixes
