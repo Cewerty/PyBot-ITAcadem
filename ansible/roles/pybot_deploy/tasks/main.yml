@@ -353,17 +353,36 @@
         set -eu
         while IFS="$(printf '\t')" read -r service baseline_cid baseline_status baseline_restart_count; do
           [ -n "$service" ] || continue
-          [ "$baseline_status" = "running" ]
+          if [ "$baseline_status" != "running" ]; then
+            echo "Runtime stability baseline for $service was not running: status=$baseline_status" >&2
+            exit 1
+          fi
 
           current_cid="$(docker compose -f docker-compose.prod.yml ps -q "$service")"
-          [ -n "$current_cid" ]
-          [ "$current_cid" = "$baseline_cid" ]
+          if [ -z "$current_cid" ]; then
+            echo "Runtime stability check failed for $service: service no longer resolves to a container id after the 20-second observation window." >&2
+            docker compose -f docker-compose.prod.yml ps "$service" >&2 || true
+            exit 1
+          fi
+          if [ "$current_cid" != "$baseline_cid" ]; then
+            echo "Runtime stability check failed for $service: container changed during the 20-second observation window (baseline=$baseline_cid current=$current_cid)." >&2
+            docker compose -f docker-compose.prod.yml ps "$service" >&2 || true
+            exit 1
+          fi
 
           current_status="$(docker inspect -f '{{ "{{.State.Status}}" }}' "$current_cid")"
-          [ "$current_status" = "running" ]
+          if [ "$current_status" != "running" ]; then
+            echo "Runtime stability check failed for $service: current status is $current_status instead of running." >&2
+            docker compose -f docker-compose.prod.yml ps "$service" >&2 || true
+            exit 1
+          fi
 
           current_restart_count="$(docker inspect -f '{{ "{{.RestartCount}}" }}' "$current_cid")"
-          [ "$current_restart_count" -eq "$baseline_restart_count" ]
+          if [ "$current_restart_count" -ne "$baseline_restart_count" ]; then
+            echo "Runtime stability check failed for $service: RestartCount increased during the 20-second observation window (baseline=$baseline_restart_count current=$current_restart_count)." >&2
+            docker compose -f docker-compose.prod.yml ps "$service" >&2 || true
+            exit 1
+          fi
         done
       args:
         chdir: "{{ deploy_path }}"

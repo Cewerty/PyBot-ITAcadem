@@ -146,8 +146,12 @@ def test_production_deploy_post_deploy_smoke_enforces_runtime_stability_window()
     )
     assert 'stdin: "{{ runtime_service_stability_baseline.stdout }}"' in deploy_tasks
     assert "snapshot.split('\\t')" not in deploy_tasks
-    assert '[ "$current_cid" = "$baseline_cid" ]' in deploy_tasks
-    assert '[ "$current_restart_count" -eq "$baseline_restart_count" ]' in deploy_tasks
+    assert "service no longer resolves to a container id after the 20-second observation window" in deploy_tasks
+    assert "container changed during the 20-second observation window" in deploy_tasks
+    assert "current status is $current_status instead of running" in deploy_tasks
+    assert "RestartCount increased during the 20-second observation window" in deploy_tasks
+    assert 'if [ "$current_cid" != "$baseline_cid" ]; then' in deploy_tasks
+    assert 'if [ "$current_restart_count" -ne "$baseline_restart_count" ]; then' in deploy_tasks
 
 
 def test_production_deploy_runs_config_check_before_starting_postgres_and_migrations() -> None:
