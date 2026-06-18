@@ -140,6 +140,12 @@ def test_production_deploy_post_deploy_smoke_enforces_runtime_stability_window()
     assert "docker inspect -f '{{ \"{{.RestartCount}}\" }}'" in deploy_tasks
     assert "register: runtime_service_stability_baseline" in deploy_tasks
     assert "seconds: 20" in deploy_tasks
+    assert (
+        "while IFS=\"$(printf '\\t')\" read -r service baseline_cid baseline_status baseline_restart_count; do"
+        in deploy_tasks
+    )
+    assert 'stdin: "{{ runtime_service_stability_baseline.stdout }}"' in deploy_tasks
+    assert "snapshot.split('\\t')" not in deploy_tasks
     assert '[ "$current_cid" = "$baseline_cid" ]' in deploy_tasks
     assert '[ "$current_restart_count" -eq "$baseline_restart_count" ]' in deploy_tasks
 

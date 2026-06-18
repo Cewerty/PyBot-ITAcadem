@@ -351,26 +351,24 @@
     - name: Verify runtime services remain stable through observation window
       ansible.builtin.shell: |
         set -eu
-        {% for snapshot in runtime_service_stability_baseline.stdout_lines %}
-        service="{{ snapshot.split('\t')[0] }}"
-        baseline_cid="{{ snapshot.split('\t')[1] }}"
-        baseline_status="{{ snapshot.split('\t')[2] }}"
-        baseline_restart_count="{{ snapshot.split('\t')[3] }}"
+        while IFS="$(printf '\t')" read -r service baseline_cid baseline_status baseline_restart_count; do
+          [ -n "$service" ] || continue
+          [ "$baseline_status" = "running" ]
 
-        [ "$baseline_status" = "running" ]
-        current_cid="$(docker compose -f docker-compose.prod.yml ps -q "$service")"
-        [ -n "$current_cid" ]
-        [ "$current_cid" = "$baseline_cid" ]
+          current_cid="$(docker compose -f docker-compose.prod.yml ps -q "$service")"
+          [ -n "$current_cid" ]
+          [ "$current_cid" = "$baseline_cid" ]
 
-        current_status="$(docker inspect -f '{{ "{{.State.Status}}" }}' "$current_cid")"
-        [ "$current_status" = "running" ]
+          current_status="$(docker inspect -f '{{ "{{.State.Status}}" }}' "$current_cid")"
+          [ "$current_status" = "running" ]
 
-        current_restart_count="$(docker inspect -f '{{ "{{.RestartCount}}" }}' "$current_cid")"
-        [ "$current_restart_count" -eq "$baseline_restart_count" ]
-        {% endfor %}
+          current_restart_count="$(docker inspect -f '{{ "{{.RestartCount}}" }}' "$current_cid")"
+          [ "$current_restart_count" -eq "$baseline_restart_count" ]
+        done
       args:
         chdir: "{{ deploy_path }}"
         executable: /bin/sh
+        stdin: "{{ runtime_service_stability_baseline.stdout }}"
       changed_when: false
       environment:
         APP_IMAGE: "{{ image_repository }}:{{ image_tag }}"
