@@ -2,6 +2,38 @@
 
 <!-- version list -->
 
+## v0.32.0 (2026-06-18)
+
+### Bug Fixes
+
+- **seed**: Возвращать ошибку при сбое наполнения БД
+  ([`68e695a`](https://github.com/Cewerty/PyBot-ITAcadem/commit/68e695a27b3049242eb3ebaa6d4c2b18f128e92b))
+
+### Documentation
+
+- **plan**: Добавить рабочий план на 8-12 июня
+  ([`113bd25`](https://github.com/Cewerty/PyBot-ITAcadem/commit/113bd254f5c041f909942a8dfa50cdb912481c31))
+
+### Features
+
+- **db**: Сбросить схему на PostgreSQL baseline
+  ([`fc8f3ae`](https://github.com/Cewerty/PyBot-ITAcadem/commit/fc8f3aee860746ac0a31c8406d9f1acdfbe5e623))
+
+- **deploy**: Harden rollback and production validation flow
+  ([`3f4a8d6`](https://github.com/Cewerty/PyBot-ITAcadem/commit/3f4a8d60d56457827f747440429c20652126f04a))
+
+- **health**: Sanitize public readiness details
+  ([`23c5361`](https://github.com/Cewerty/PyBot-ITAcadem/commit/23c536114875a823d5d30abbe100db0a3eb9c478))
+
+- **runtime**: Добавить PostgreSQL 18 и backup restore
+  ([`1095168`](https://github.com/Cewerty/PyBot-ITAcadem/commit/1095168c4862cba679b7873c0090285526e8d120))
+
+### Testing
+
+- **db**: Перенести интеграционные тесты на PostgreSQL
+  ([`6a07c55`](https://github.com/Cewerty/PyBot-ITAcadem/commit/6a07c55c8d79af9a1515ed4fb99ea46597e7cb12))
+
+
 ## v0.31.0 (2026-06-07)
 
 ### Continuous Integration
