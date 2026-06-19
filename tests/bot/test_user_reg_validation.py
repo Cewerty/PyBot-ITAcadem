@@ -219,7 +219,10 @@ async def test_patronymic_input_loads_competencies_and_moves_to_selection_step(m
     )
 
     assert manager_state.manager.dialog_data["patronymic"] == "Иванович"
-    assert manager_state.manager.dialog_data["registration_competencies"] == [(1, "Python"), (2, "SQL")]
+    assert manager_state.manager.dialog_data["registration_competencies"] == [
+        {"id": 1, "name": "Python"},
+        {"id": 2, "name": "SQL"},
+    ]
     assert manager_state.manager.dialog_data["competence_ids"] == []
     manager_state.next_mock.assert_awaited_once()
     answer_mock.assert_not_awaited()
@@ -241,7 +244,7 @@ async def test_patronymic_skip_loads_competencies_and_moves_to_selection_step(mo
     )
 
     assert manager_state.manager.dialog_data["patronymic"] is None
-    assert manager_state.manager.dialog_data["registration_competencies"] == [(3, "Docker")]
+    assert manager_state.manager.dialog_data["registration_competencies"] == [{"id": 3, "name": "Docker"}]
     assert manager_state.manager.dialog_data["competence_ids"] == []
     callback.answer.assert_awaited_once()
     manager_state.next_mock.assert_awaited_once()

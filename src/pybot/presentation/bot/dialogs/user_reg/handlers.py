@@ -31,6 +31,7 @@ from ....texts import (
     render_profile_message,
 )
 from ...keyboards.auth import request_contact_kb
+from .getters import RegistrationCompetenceOption
 
 
 async def on_other_messages(message: Message, message_input: MessageInput, manager: DialogManager) -> None:
@@ -303,8 +304,8 @@ async def _prepare_registration_competence_step(
     manager.dialog_data.setdefault("competence_ids", [])
 
 
-def _map_competencies_to_options(competencies: Sequence[CompetenceReadDTO]) -> list[tuple[int, str]]:
-    return [(competence.id, competence.name) for competence in competencies]
+def _map_competencies_to_options(competencies: Sequence[CompetenceReadDTO]) -> list[RegistrationCompetenceOption]:
+    return [{"id": competence.id, "name": competence.name} for competence in competencies]
 
 
 async def _register_user_from_dialog(

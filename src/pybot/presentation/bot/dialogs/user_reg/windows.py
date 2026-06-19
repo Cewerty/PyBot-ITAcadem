@@ -85,11 +85,11 @@ profile_create_dialog = Dialog(
         Const(REGISTRATION_COMPETENCE_STEP),
         Column(
             Multiselect(
-                checked_text=Format("✅ {item[1]}"),
-                unchecked_text=Format("{item[1]}"),
+                checked_text=Format("✅ {item[name]}"),
+                unchecked_text=Format("{item[name]}"),
                 id="registration_competence_select",
                 items="registration_competencies",
-                item_id_getter=operator.itemgetter(0),
+                item_id_getter=operator.itemgetter("id"),
                 type_factory=int,
                 on_state_changed=on_competence_selection_changed,  # ty:ignore[invalid-argument-type]
             ),
