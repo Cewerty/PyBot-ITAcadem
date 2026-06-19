@@ -30,7 +30,7 @@ The deploy workflow additionally fails fast if the checked-out production artifa
 6. GitHub Actions runs Ansible against the target server.
    The deploy workflow uses `Python 3.14` on the GitHub-hosted runner as the control-node baseline for Ansible.
 7. Ansible copies `docker-compose.prod.yml` and `.env`, validates the PostgreSQL contract without printing secrets, pulls images, and runs a one-shot `config-check` process against the selected image and deployed `.env`.
-8. Only after `config-check` passes, Ansible starts PostgreSQL 18, creates a custom-format PostgreSQL backup, runs the one-shot `migrate` process only for the standard deploy path, optionally runs `seed`, and then refreshes the remaining runtime services in place with `docker compose up -d --remove-orphans`.
+8. Only after `config-check` passes, Ansible starts PostgreSQL 18, creates a custom-format PostgreSQL backup, runs the one-shot `migrate` process only for the standard deploy path, optionally runs `seed`, refreshes the remaining runtime services in place with `docker compose up -d --remove-orphans`, and then explicitly restarts the Compose `nginx` container so bind-mounted observability routing config and current Docker DNS targets are reloaded before smoke checks.
 9. Ansible runs a lightweight post-deploy smoke-check for the application processes, PostgreSQL, Redis, and the readiness API when enabled.
 
 ## Manual redeploy and rollback

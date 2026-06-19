@@ -173,3 +173,19 @@ def test_production_deploy_runs_config_check_before_starting_postgres_and_migrat
     assert deploy_tasks.index(pull_step) < deploy_tasks.index(config_step)
     assert deploy_tasks.index(config_step) < deploy_tasks.index(postgres_step)
     assert deploy_tasks.index(config_step) < deploy_tasks.index(migrate_step)
+
+
+def test_production_deploy_restarts_nginx_after_compose_apply_before_smoke() -> None:
+    project_root = Path(__file__).resolve().parents[2]
+    deploy_tasks = (project_root / "ansible" / "roles" / "pybot_deploy" / "tasks" / "main.yml").read_text(
+        encoding="utf-8"
+    )
+
+    compose_step = "Apply production compose"
+    nginx_restart_step = "Restart compose nginx to reload observability routing config"
+    smoke_step = "Run post-deploy smoke checks"
+
+    assert nginx_restart_step in deploy_tasks
+    assert "docker compose -f docker-compose.prod.yml restart nginx" in deploy_tasks
+    assert deploy_tasks.index(compose_step) < deploy_tasks.index(nginx_restart_step)
+    assert deploy_tasks.index(nginx_restart_step) < deploy_tasks.index(smoke_step)

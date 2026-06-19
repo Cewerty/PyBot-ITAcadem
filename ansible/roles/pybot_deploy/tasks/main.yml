@@ -232,6 +232,13 @@
   environment:
     APP_IMAGE: "{{ image_repository }}:{{ image_tag }}"
 
+- name: Restart compose nginx to reload observability routing config
+  ansible.builtin.command:
+    cmd: docker compose -f docker-compose.prod.yml restart nginx
+    chdir: "{{ deploy_path }}"
+  environment:
+    APP_IMAGE: "{{ image_repository }}:{{ image_tag }}"
+
 - name: Run post-deploy smoke checks
   block:
     - name: Read smoke-check health API toggle from deployed environment file
