@@ -26,3 +26,15 @@ def test_ci_workflow_verifies_loki_config_with_pinned_runtime_image() -> None:
     assert "observability/loki/local-config.yaml:/etc/loki/config.yaml:ro" in ci_workflow
     assert "-config.file=/etc/loki/config.yaml" in ci_workflow
     assert "-verify-config=true" in ci_workflow
+
+
+def test_observability_nginx_re_resolves_compose_service_dns_for_health_and_grafana() -> None:
+    project_root = Path(__file__).resolve().parents[2]
+    nginx_config = (project_root / "observability" / "nginx" / "nginx.conf").read_text(encoding="utf-8")
+
+    assert "resolver 127.0.0.11 ipv6=off valid=30s;" in nginx_config
+    assert "set $health_upstream health:8001;" in nginx_config
+    assert "rewrite ^/health/(.*)$ /$1 break;" in nginx_config
+    assert "proxy_pass http://$health_upstream;" in nginx_config
+    assert "set $grafana_upstream grafana:3000;" in nginx_config
+    assert "proxy_pass http://$grafana_upstream;" in nginx_config
