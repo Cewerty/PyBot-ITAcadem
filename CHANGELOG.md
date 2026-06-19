@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.32.4 (2026-06-19)
+
+### Bug Fixes
+
+- Исправление бага с сериализацией JSON в Multiselect при сохранении состояния в Redis
+  ([`a455058`](https://github.com/Cewerty/PyBot-ITAcadem/commit/a455058ab126361bec5a6155fd5dc55a5be6d332))
+
+
 ## v0.32.3 (2026-06-19)
 
 
