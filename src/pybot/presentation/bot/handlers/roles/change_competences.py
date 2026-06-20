@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
+from typing import Literal, overload
 
 from aiogram.filters.command import Command
 from aiogram.types import Message
@@ -16,6 +17,7 @@ from .....services import CompetenceService
 from .....services.user_services import UserCompetenceService, UserService
 from ....texts import (
     COMPETENCE_UNEXPECTED_ERROR,
+    SHOW_COMPETENCES_SELF_REQUIRES_REGISTRATION,
     TARGET_NOT_FOUND,
     competence_add_success,
     competence_catalog,
@@ -161,6 +163,28 @@ def _extract_competence_names(message: Message, target_source: str | None) -> li
     return names
 
 
+@overload
+async def _resolve_target_user_for_command(
+    message: Message,
+    user_service: UserService,
+    *,
+    command_name: str,
+    required: Literal[True],
+    fallback_user_id: int | None = None,
+) -> tuple[UserReadDTO, str | None]: ...
+
+
+@overload
+async def _resolve_target_user_for_command(
+    message: Message,
+    user_service: UserService,
+    *,
+    command_name: str,
+    required: Literal[False],
+    fallback_user_id: int | None = None,
+) -> tuple[UserReadDTO | None, str | None]: ...
+
+
 async def _resolve_target_user_for_command(
     message: Message,
     user_service: UserService,
@@ -168,7 +192,7 @@ async def _resolve_target_user_for_command(
     command_name: str,
     required: bool,
     fallback_user_id: int | None = None,
-) -> tuple[UserReadDTO, str | None]:
+) -> tuple[UserReadDTO | None, str | None]:
     target_tg_id, target_source = await _resolve_target_user_telegram_id(message)
     if target_tg_id is not None:
         target_user = await user_service.find_user_by_telegram_id(target_tg_id)
@@ -192,7 +216,7 @@ async def _resolve_target_user_for_command(
     if required:
         raise CommandTargetNotSpecifiedError(command_name=command_name)
 
-    raise UserNotFoundError()
+    return None, None
 
 
 @change_competence_global_router.message(
@@ -293,7 +317,7 @@ async def handle_show_competences(
     message: Message,
     user_service: FromDishka[UserService],
     user_competence_service: FromDishka[UserCompetenceService],
-    user_id: int,
+    user_id: int | None = None,
 ) -> None:
     """Форматирует текст для списка компетенций."""
     try:
@@ -306,6 +330,9 @@ async def handle_show_competences(
         )
     except UserNotFoundError:
         await message.reply(TARGET_NOT_FOUND)
+        return
+    if target_user is None:
+        await message.reply(SHOW_COMPETENCES_SELF_REQUIRES_REGISTRATION)
         return
 
     try:

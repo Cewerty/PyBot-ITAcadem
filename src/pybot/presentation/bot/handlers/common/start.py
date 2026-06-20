@@ -59,8 +59,16 @@ async def cmd_info(message: Message) -> None:
 
 
 @start_private_router.message(Command("help"))
-async def cmd_help_private(message: Message, user_roles_service: FromDishka[UserRolesService], user_id: int) -> None:
+async def cmd_help_private(
+    message: Message,
+    user_roles_service: FromDishka[UserRolesService],
+    user_id: int | None = None,
+) -> None:
     """Обработчик команды /help_private."""
+    if user_id is None:
+        await message.answer(HELP_PRIVATE_PUBLIC)
+        return
+
     user_roles = await user_roles_service.find_user_roles(user_id)
     if user_roles and has_any_role(set(user_roles), {"Admin"}):
         await message.answer(HELP_PRIVATE)

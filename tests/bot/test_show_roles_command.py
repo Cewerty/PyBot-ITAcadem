@@ -8,7 +8,7 @@ import pytest
 from aiogram.types import Chat, Message, MessageEntity, User
 
 from pybot.presentation.bot import handle_show_roles
-from pybot.presentation.texts import TARGET_NOT_FOUND
+from pybot.presentation.texts import SHOW_ROLES_SELF_REQUIRES_REGISTRATION, TARGET_NOT_FOUND
 from pybot.core.constants import PointsTypeEnum
 from pybot.dto import UserReadDTO
 from pybot.dto.value_objects import Points
@@ -144,7 +144,7 @@ async def test_showroles_with_numeric_target_uses_target_user(
         message=message,
         user_service=user_service,
         user_roles_service=user_roles_service,
-        user_id=current_user.id,
+        user_id=None,
     )
 
     assert user_roles_service.show_calls == [target_user.id]
@@ -176,7 +176,7 @@ async def test_showroles_with_reply_uses_reply_target(
         message=message,
         user_service=user_service,
         user_roles_service=user_roles_service,
-        user_id=current_user.id,
+        user_id=None,
     )
 
     assert user_roles_service.show_calls == [target_user.id]
@@ -209,7 +209,7 @@ async def test_showroles_with_text_mention_uses_mentioned_user(
         message=message,
         user_service=user_service,
         user_roles_service=user_roles_service,
-        user_id=current_user.id,
+        user_id=None,
     )
 
     assert user_roles_service.show_calls == [target_user.id]
@@ -234,13 +234,36 @@ async def test_showroles_returns_target_not_found_for_invalid_explicit_target(
         message=message,
         user_service=user_service,
         user_roles_service=user_roles_service,
-        user_id=current_user.id,
+        user_id=None,
     )
 
     assert user_roles_service.show_calls == []
     reply_text, reply_kwargs = _last_reply(reply_mock)
     assert reply_kwargs == {}
     assert reply_text == TARGET_NOT_FOUND
+
+
+@pytest.mark.asyncio
+async def test_showroles_without_target_and_user_id_requires_registration(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user_service = StubUserService()
+    user_roles_service = StubUserRolesService()
+    message = _build_message(text="/showroles", from_user_id=100_019)
+    reply_mock = AsyncMock()
+    monkeypatch.setattr(Message, "reply", reply_mock)
+
+    await handle_show_roles(
+        message=message,
+        user_service=user_service,
+        user_roles_service=user_roles_service,
+        user_id=None,
+    )
+
+    assert user_roles_service.show_calls == []
+    reply_text, reply_kwargs = _last_reply(reply_mock)
+    assert reply_kwargs == {}
+    assert reply_text == SHOW_ROLES_SELF_REQUIRES_REGISTRATION
 
 
 @pytest.mark.asyncio

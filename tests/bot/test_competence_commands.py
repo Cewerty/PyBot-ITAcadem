@@ -12,6 +12,7 @@ from aiogram.types import Chat, Message, MessageEntity, User
 from pybot.presentation.bot import change_competences_handlers as change_competences
 from pybot.presentation.texts import (
     COMPETENCE_UNEXPECTED_ERROR,
+    SHOW_COMPETENCES_SELF_REQUIRES_REGISTRATION,
     TARGET_NOT_FOUND,
     competence_list_required,
     competence_none,
@@ -327,6 +328,24 @@ async def test_resolve_target_user_for_command_when_required_and_missing_target_
 
 
 @pytest.mark.asyncio
+async def test_resolve_target_user_for_command_when_optional_and_missing_target_returns_none() -> None:
+    user_service = StubUserService()
+    message = _build_message(text="/showcompetences", from_user_id=100_014)
+
+    target_user, target_source = await change_competences._resolve_target_user_for_command(
+        message,
+        cast(UserService, user_service),
+        command_name="showcompetences",
+        required=False,
+    )
+
+    assert target_user is None
+    assert target_source is None
+    assert user_service.telegram_queries == []
+    assert user_service.user_queries == []
+
+
+@pytest.mark.asyncio
 async def test_addcompetence_by_reply_calls_service_with_csv_names(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -611,13 +630,109 @@ async def test_showcompetences_with_target_text_id_uses_target_user(
         message=message,
         user_service=user_service,
         user_competence_service=user_competence_service,
-        user_id=admin_user.id,
+        user_id=None,
     )
 
     assert user_competence_service.show_calls == [target_user.id]
     reply_text = _last_reply_text(reply_mock)
     assert "Target" in reply_text
     assert "SQL" in reply_text
+
+
+@pytest.mark.asyncio
+async def test_showcompetences_with_reply_target_uses_target_user_without_current_user_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target_user = _build_user_read_dto(db_id=42, telegram_id=400_003, first_name="ReplyTarget")
+    user_service = StubUserService(users_by_tg={target_user.telegram_id: target_user})
+    user_competence_service = StubUserCompetenceService(
+        competencies_by_user_id={
+            target_user.id: [CompetenceReadDTO(id=3, name="Python", description=None)],
+        },
+    )
+    message = _build_message(
+        text="/showcompetences",
+        from_user_id=400_004,
+        reply_user_id=target_user.telegram_id,
+    )
+
+    reply_mock = AsyncMock()
+    monkeypatch.setattr(Message, "reply", reply_mock)
+
+    await change_competences.handle_show_competences(
+        message=message,
+        user_service=user_service,
+        user_competence_service=user_competence_service,
+        user_id=None,
+    )
+
+    assert user_competence_service.show_calls == [target_user.id]
+    reply_text = _last_reply_text(reply_mock)
+    assert "ReplyTarget" in reply_text
+    assert "Python" in reply_text
+
+
+@pytest.mark.asyncio
+async def test_showcompetences_with_text_mention_uses_target_user_without_current_user_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target_user = _build_user_read_dto(db_id=43, telegram_id=400_005, first_name="Mentioned")
+    text = "/showcompetences Mentioned"
+    mention_label = "Mentioned"
+    user_service = StubUserService(users_by_tg={target_user.telegram_id: target_user})
+    user_competence_service = StubUserCompetenceService(
+        competencies_by_user_id={
+            target_user.id: [CompetenceReadDTO(id=4, name="Django", description=None)],
+        },
+    )
+    message = _build_message(
+        text=text,
+        from_user_id=400_006,
+        entities=[
+            MessageEntity(
+                type="text_mention",
+                offset=text.index(mention_label),
+                length=len(mention_label),
+                user=User(id=target_user.telegram_id, is_bot=False, first_name=mention_label),
+            )
+        ],
+    )
+
+    reply_mock = AsyncMock()
+    monkeypatch.setattr(Message, "reply", reply_mock)
+
+    await change_competences.handle_show_competences(
+        message=message,
+        user_service=user_service,
+        user_competence_service=user_competence_service,
+        user_id=None,
+    )
+
+    assert user_competence_service.show_calls == [target_user.id]
+    reply_text = _last_reply_text(reply_mock)
+    assert "Mentioned" in reply_text
+    assert "Django" in reply_text
+
+
+@pytest.mark.asyncio
+async def test_showcompetences_without_target_and_user_id_requires_registration(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user_service = StubUserService()
+    user_competence_service = StubUserCompetenceService()
+    message = _build_message(text="/showcompetences", from_user_id=400_007)
+    reply_mock = AsyncMock()
+    monkeypatch.setattr(Message, "reply", reply_mock)
+
+    await change_competences.handle_show_competences(
+        message=message,
+        user_service=user_service,
+        user_competence_service=user_competence_service,
+        user_id=None,
+    )
+
+    assert user_competence_service.show_calls == []
+    assert _last_reply_text(reply_mock) == SHOW_COMPETENCES_SELF_REQUIRES_REGISTRATION
 
 
 @pytest.mark.asyncio
@@ -763,11 +878,11 @@ async def test_showcompetences_does_not_fallback_on_invalid_explicit_target(
         message=message,
         user_service=user_service,
         user_competence_service=user_competence_service,
-        user_id=current_user.id,
+        user_id=None,
     )
 
     assert user_competence_service.show_calls == []
-    assert "Python" not in _last_reply_text(reply_mock)
+    assert _last_reply_text(reply_mock) == TARGET_NOT_FOUND
 
 
 @pytest.mark.asyncio

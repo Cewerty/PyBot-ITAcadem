@@ -12,7 +12,13 @@ from .....core import logger
 from .....domain.exceptions import UserNotFoundError
 from .....dto import UserReadDTO
 from .....services.user_services import UserRolesService, UserService
-from ....texts import ROLE_UNEXPECTED_ERROR, TARGET_NOT_FOUND, user_role_list, user_role_none
+from ....texts import (
+    ROLE_UNEXPECTED_ERROR,
+    SHOW_ROLES_SELF_REQUIRES_REGISTRATION,
+    TARGET_NOT_FOUND,
+    user_role_list,
+    user_role_none,
+)
 from ...filters import check_text_message_correction, create_chat_type_routers
 
 (_, _, show_roles_global_router) = create_chat_type_routers("show_roles")
@@ -100,37 +106,46 @@ async def _get_target_user_id_from_text(message: Message) -> int | None:
     return int(target_token)
 
 
-async def _resolve_target_user(
-    message: Message,
-    user_service: UserService,
-    fallback_user_id: int,
-) -> UserReadDTO:
+async def _find_target_user_by_telegram_id(user_service: UserService, telegram_id: int) -> UserReadDTO:
+    target_user = await user_service.find_user_by_telegram_id(telegram_id)
+    if target_user is None:
+        raise UserNotFoundError(telegram_id=telegram_id)
+    return target_user
+
+
+async def _resolve_explicit_target_user(message: Message, user_service: UserService) -> UserReadDTO | None:
     reply_target = await _get_target_user_id_from_reply(message)
     if reply_target is not None:
-        target_user = await user_service.find_user_by_telegram_id(reply_target)
-        if target_user is None:
-            raise UserNotFoundError(telegram_id=reply_target)
-        return target_user
+        return await _find_target_user_by_telegram_id(user_service, reply_target)
 
     mention_target = await _get_target_user_id_from_mention(message)
     if mention_target is not None:
-        target_user = await user_service.find_user_by_telegram_id(mention_target)
-        if target_user is None:
-            raise UserNotFoundError(telegram_id=mention_target)
-        return target_user
+        return await _find_target_user_by_telegram_id(user_service, mention_target)
 
     text_target = await _get_target_user_id_from_text(message)
     if text_target is not None:
-        target_user = await user_service.find_user_by_telegram_id(text_target)
-        if target_user is None:
-            raise UserNotFoundError(telegram_id=text_target)
+        return await _find_target_user_by_telegram_id(user_service, text_target)
+
+    if not _has_explicit_target_token(message):
+        return None
+
+    numeric_target = _extract_numeric_target_token(message)
+    if numeric_target is not None:
+        raise UserNotFoundError(telegram_id=numeric_target)
+    raise UserNotFoundError()
+
+
+async def _resolve_target_user(
+    message: Message,
+    user_service: UserService,
+    fallback_user_id: int | None = None,
+) -> UserReadDTO | None:
+    target_user = await _resolve_explicit_target_user(message, user_service)
+    if target_user is not None:
         return target_user
 
-    if _has_explicit_target_token(message):
-        numeric_target = _extract_numeric_target_token(message)
-        if numeric_target is not None:
-            raise UserNotFoundError(telegram_id=numeric_target)
-        raise UserNotFoundError()
+    if fallback_user_id is None:
+        return None
 
     try:
         return await user_service.get_user(fallback_user_id)
@@ -146,7 +161,7 @@ async def handle_show_roles(
     message: Message,
     user_service: FromDishka[UserService],
     user_roles_service: FromDishka[UserRolesService],
-    user_id: int,
+    user_id: int | None = None,
 ) -> None:
     """Форматирует текст для ролей."""
     try:
@@ -157,6 +172,9 @@ async def handle_show_roles(
         )
     except UserNotFoundError:
         await message.reply(TARGET_NOT_FOUND)
+        return
+    if target_user is None:
+        await message.reply(SHOW_ROLES_SELF_REQUIRES_REGISTRATION)
         return
 
     try:

@@ -186,6 +186,14 @@ TARGET_NOT_FOUND = (
     "Не удалось найти пользователя.\n"
     "Проверьте @mention или Telegram ID, либо ответьте на сообщение нужного пользователя."
 )
+SHOW_ROLES_SELF_REQUIRES_REGISTRATION = (
+    "Чтобы посмотреть свои роли, сначала зарегистрируйтесь через /start.\n"
+    "Или укажите пользователя: /showroles @user, id или reply."
+)
+SHOW_COMPETENCES_SELF_REQUIRES_REGISTRATION = (
+    "Чтобы посмотреть свои компетенции, сначала зарегистрируйтесь через /start.\n"
+    "Или укажите пользователя: /showcompetences @user, id или reply."
+)
 TARGET_REQUIRED = (
     "Не удалось определить пользователя для команды.\nОтветьте на сообщение, укажите @mention или Telegram ID."
 )
