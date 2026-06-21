@@ -9,6 +9,7 @@ from .....core import logger
 from ....texts import STALE_DIALOG_MESSAGE
 
 
+# TODO Проверить
 async def handle_unknown_intent(event: ErrorEvent) -> bool:
     """Вспомогательная функция handle_unknown_intent."""
     callback: CallbackQuery | None = event.update.callback_query
