@@ -142,6 +142,9 @@ REGISTRATION_VALUE_INVALID = (
 REGISTRATION_CONTACT_EMPTY = (
     "Не удалось получить номер телефона.\nНажмите кнопку ниже и отправьте именно контакт, а не обычное сообщение."
 )
+REGISTRATION_CONTACT_OWNER_MISMATCH = (
+    "Отправьте свой контакт с помощью кнопки ниже.\nРегистрация по чужому контакту недоступна."
+)
 REGISTRATION_CONTACT_ACCEPTED = "Номер получен. Продолжаем регистрацию."
 REGISTRATION_ALREADY_EXISTS = "Похоже, вы уже зарегистрированы.\nОткройте профиль командой /profile."
 REGISTRATION_INTERNAL_ERROR = "Не удалось завершить регистрацию.\nНачните её заново с команды /start."

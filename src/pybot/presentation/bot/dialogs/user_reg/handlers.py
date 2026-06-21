@@ -19,6 +19,7 @@ from .....services.user_services import UserProfileService, UserService
 from ....texts import (
     REGISTRATION_CONTACT_ACCEPTED,
     REGISTRATION_CONTACT_EMPTY,
+    REGISTRATION_CONTACT_OWNER_MISMATCH,
     REGISTRATION_CONTACT_PROMPT,
     REGISTRATION_INTERNAL_ERROR,
     REGISTRATION_NAME_EMPTY,
@@ -90,6 +91,9 @@ async def _handle_contact_input(
     contact: Contact | None = message.contact if message.contact else None
     if contact is None or contact.phone_number is None:
         await message.answer(REGISTRATION_CONTACT_EMPTY)
+        return
+    if message.from_user is None or contact.user_id != message.from_user.id:
+        await message.answer(REGISTRATION_CONTACT_OWNER_MISMATCH)
         return
 
     phone: str = contact.phone_number

@@ -13,6 +13,7 @@ from pybot.presentation.bot import _handle_contact_input
 from pybot.presentation.texts import (
     REGISTRATION_CONTACT_ACCEPTED,
     REGISTRATION_CONTACT_EMPTY,
+    REGISTRATION_CONTACT_OWNER_MISMATCH,
     registration_existing_profile,
 )
 from pybot.core.constants import PointsTypeEnum
@@ -25,11 +26,16 @@ def _build_message(
     *,
     from_user_id: int = 700_001,
     phone_number: str | None = None,
+    contact_user_id: int | None = None,
 ) -> Message:
     sender = User(id=from_user_id, is_bot=False, first_name="Tester")
     contact: Contact | None = None
     if phone_number is not None:
-        contact = Contact(phone_number=phone_number, first_name="Tester", user_id=from_user_id)
+        contact = Contact(
+            phone_number=phone_number,
+            first_name="Tester",
+            user_id=contact_user_id if contact_user_id is not None else from_user_id,
+        )
 
     return Message(
         message_id=1,
@@ -153,3 +159,31 @@ async def test_on_contact_input_with_empty_contact_keeps_keyboard_and_does_not_a
     assert await_args is not None
     assert await_args.args[0] == REGISTRATION_CONTACT_EMPTY
     assert "reply_markup" not in await_args.kwargs
+
+
+@pytest.mark.asyncio
+async def test_on_contact_input_with_foreign_contact_keeps_keyboard_and_does_not_advance(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    message = _build_message(
+        from_user_id=700_001,
+        phone_number="+79990001124",
+        contact_user_id=700_999,
+    )
+    manager = StubDialogManager()
+    user_service = StubUserService(existing_user=None)
+    answer_mock = AsyncMock()
+    monkeypatch.setattr(Message, "answer", answer_mock)
+
+    await _handle_contact_input(
+        message=message,
+        manager=cast(DialogManager, manager),
+        user_service=cast(UserService, user_service),
+    )
+
+    assert user_service.phone_queries == []
+    manager.next.assert_not_awaited()
+    manager.done.assert_not_awaited()
+    assert manager.dialog_data == {}
+
+    answer_mock.assert_awaited_once_with(REGISTRATION_CONTACT_OWNER_MISMATCH)
