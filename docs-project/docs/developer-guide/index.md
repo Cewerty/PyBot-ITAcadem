@@ -13,6 +13,7 @@
 ## Разделы
 
 - [Архитектура](architecture.md)
+- [Architecture Decision Records](adr.md)
 - [Как контрибьютить](contributing.md)
 - [Тестирование](testing.md)
 - [Деплой](deployment.md)

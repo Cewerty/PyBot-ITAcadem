@@ -55,12 +55,14 @@ nav:
   - Руководство пользователя:
     - Обзор: user-guide/index.md
     - Быстрый старт: user-guide/getting-started.md
+    - Как пользоваться ботом: user-guide/how-to-use-bot.md
     - Установка: user-guide/installation.md
     - Конфигурация: user-guide/configuration.md
     - Примеры: user-guide/examples.md
   - Руководство разработчика:
     - Обзор: developer-guide/index.md
     - Архитектура: developer-guide/architecture.md
+    - Architecture Decision Records: developer-guide/adr.md
     - Как контрибьютить: developer-guide/contributing.md
     - Тестирование: developer-guide/testing.md
     - Деплой: developer-guide/deployment.md

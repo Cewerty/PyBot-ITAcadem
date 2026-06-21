@@ -8,6 +8,7 @@
 ## Разделы
 
 - [Быстрый старт](getting-started.md)
+- [Как пользоваться ботом](how-to-use-bot.md)
 - [Установка](installation.md)
 - [Конфигурация](configuration.md)
 - [Примеры использования](examples.md)

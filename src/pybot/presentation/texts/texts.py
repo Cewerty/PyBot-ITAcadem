@@ -15,9 +15,9 @@ from ...utils import telegram_user_link
 # TODO: Разбить модуль на более узкие срезы: базовые константы, тексты feature-модулей,
 # форматтеры/рендеринг и, где это действительно уместно, model-centric представления.
 # Сейчас texts.py стал монолитом и уже плохо масштабируется как единая точка для всего текстового слоя.
-REPOSITORY_URL = "https://github.com/NikkiShuRA/PyBot-ITAcadem.git"
+REPOSITORY_URL = "https://github.com/Cewerty/PyBot-ITAcadem"
+HELP_PAGE_URL = "https://cewerty.github.io/PyBot-ITAcadem/user-guide/how-to-use-bot/"
 AVAILABLE_ROLES = ", ".join(role.value for role in RoleEnum)
-
 BROADCAST_RESULT_SUMMARY = textwrap.dedent(
     """
     Рассылка завершена.
@@ -39,7 +39,7 @@ BUTTON_APPROVE = "Одобрить"
 BUTTON_REJECT = "Отклонить"
 
 HELP_PRIVATE = textwrap.dedent(
-    """
+    f"""
     Доступные команды в личном чате:
     /start - открыть приветствие и регистрацию
     /profile - показать ваш профиль
@@ -52,6 +52,9 @@ HELP_PRIVATE = textwrap.dedent(
     /roles - показать все роли в системе
     /showroles [@user|id|reply] - показать роли пользователя
     /showcompetences [@user|id|reply] - показать компетенции пользователя
+
+    Подробная инструкция по использованию бота:
+    {HELP_PAGE_URL}
 
     Команды для администраторов:
 
@@ -75,7 +78,7 @@ HELP_PRIVATE = textwrap.dedent(
 ).strip()
 
 HELP_PRIVATE_PUBLIC = textwrap.dedent(
-    """
+    f"""
     Доступные команды в личном чате:
     /start - открыть приветствие и регистрацию
     /profile - показать ваш профиль
@@ -88,12 +91,15 @@ HELP_PRIVATE_PUBLIC = textwrap.dedent(
     /roles - показать все роли в системе
     /showroles [@user|id|reply] - показать роли пользователя
     /showcompetences [@user|id|reply] - показать компетенции пользователя
+
+    Подробная инструкция по использованию бота:
+    {HELP_PAGE_URL}
     """
 ).strip()
 
 
 HELP_GROUP = textwrap.dedent(
-    """
+    f"""
     Доступные команды в группе:
     /start - короткое приветствие
     /help - показать эту подсказку
@@ -104,6 +110,9 @@ HELP_GROUP = textwrap.dedent(
     /roles - показать все роли в системе
     /showroles [@user|id|reply] - показать роли пользователя
     /showcompetences [@user|id|reply] - показать компетенции пользователя
+
+    Подробная инструкция по использованию бота:
+    {HELP_PAGE_URL}
 
     Важно:
     /broadcast доступна только в личном чате с ботом.
@@ -116,9 +125,10 @@ INFO_GLOBAL = textwrap.dedent(
 
     Уже сейчас я умею:
     - помогать с регистрацией и профилем;
-    - показывать академические и репутационные баллы;
-    - принимать запросы на роли;
-    - поддерживать администраторские рассылки.
+    - показывать академические и репутационные баллы, роли, компетенции и недельный лидерборд;
+    - принимать запросы на роли и помогать администраторам их обрабатывать;
+    - показывать каталоги ролей и компетенций, а также роли и компетенции пользователей;
+    - поддерживать администраторские команды для баллов, ролей, компетенций и рассылок.
 
     Репозиторий проекта:
     {REPOSITORY_URL}
@@ -144,7 +154,7 @@ REGISTRATION_COMPETENCE_STEP = textwrap.dedent(
     """
     Шаг 5/5. Выберите компетенции, которые вам уже знакомы или интересны.
 
-    Этот шаг можно пропустить: потом вы сможете изменить компетенции в профиле.
+    Этот шаг можно пропустить. В v1 изменение компетенций выполняется через администратора клуба.
     """
 ).strip()
 REGISTRATION_VALUE_INVALID = (
