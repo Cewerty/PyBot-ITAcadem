@@ -12,8 +12,12 @@ from aiogram_dialog import DialogManager
 from aiogram_dialog.api.entities.modes import StartMode
 from aiogram_dialog.widgets.kbd import Button
 
+from pybot.core.constants import PointsTypeEnum
+from pybot.dto import UserReadDTO
+from pybot.dto.value_objects import Points
 from pybot.presentation.bot import (
     CreateProfileSG,
+    cmd_profile_group,
     cmd_profile_private,
     cmd_start_private,
     profile_handlers_module,
@@ -21,20 +25,17 @@ from pybot.presentation.bot import (
     request_contact_prompt,
     start_handlers_module,
 )
-from pybot.presentation.texts import REGISTRATION_CONTACT_PROMPT
-from pybot.core.constants import PointsTypeEnum
-from pybot.dto import UserReadDTO
-from pybot.dto.value_objects import Points
+from pybot.presentation.texts import PROFILE_GROUP_REGISTRATION_REQUIRED, REGISTRATION_CONTACT_PROMPT
 from pybot.services.user_services import UserProfileService, UserService
 
 
-def _build_message(*, from_user_id: int | None = 700_001) -> Message:
+def _build_message(*, from_user_id: int | None = 700_001, chat_type: str = "private") -> Message:
     sender = None if from_user_id is None else User(id=from_user_id, is_bot=False, first_name="Tester")
     chat_id = from_user_id if from_user_id is not None else 99_001
     return Message(
         message_id=1,
         date=datetime.now(UTC),
-        chat=Chat(id=chat_id, type="private"),
+        chat=Chat(id=chat_id, type=chat_type),
         from_user=sender,
     )
 
@@ -203,6 +204,77 @@ async def test_cmd_profile_private_requests_contact_when_message_sender_is_missi
     user_profile_service.build_profile_view_mock.assert_not_awaited()
     answer_mock.assert_not_awaited()
     dialog_manager.start.assert_awaited_once_with(CreateProfileSG.welcome, mode=StartMode.RESET_STACK)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("chat_type", ["group", "supergroup"])
+async def test_cmd_profile_group_shows_sender_profile_when_user_exists(
+    chat_type: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    message = _build_message(chat_type=chat_type)
+    user = _build_user_read_dto()
+    user_service = StubUserService(found_user=user)
+    user_profile_service = StubUserProfileService()
+    answer_mock = AsyncMock()
+    render_mock = Mock(return_value="profile text")
+    monkeypatch.setattr(Message, "answer", answer_mock)
+    monkeypatch.setattr(profile_handlers_module, "render_profile_message", render_mock)
+
+    await cmd_profile_group(
+        message=message,
+        user_service=user_service,
+        user_profile_service=cast(UserProfileService, user_profile_service),
+    )
+
+    assert user_service.telegram_queries == [700_001]
+    user_profile_service.build_profile_view_mock.assert_awaited_once_with(user)
+    render_mock.assert_called_once_with(user_profile_service.profile_view)
+    answer_mock.assert_awaited_once_with("profile text", parse_mode="HTML")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("chat_type", ["group", "supergroup"])
+async def test_cmd_profile_group_requires_registration_when_user_is_not_registered(
+    chat_type: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    message = _build_message(chat_type=chat_type)
+    user_service = StubUserService(found_user=None)
+    user_profile_service = StubUserProfileService()
+    answer_mock = AsyncMock()
+    monkeypatch.setattr(Message, "answer", answer_mock)
+
+    await cmd_profile_group(
+        message=message,
+        user_service=user_service,
+        user_profile_service=cast(UserProfileService, user_profile_service),
+    )
+
+    assert user_service.telegram_queries == [700_001]
+    user_profile_service.build_profile_view_mock.assert_not_awaited()
+    answer_mock.assert_awaited_once_with(PROFILE_GROUP_REGISTRATION_REQUIRED)
+
+
+@pytest.mark.asyncio
+async def test_cmd_profile_group_requires_registration_when_message_sender_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    message = _build_message(from_user_id=None, chat_type="group")
+    user_service = StubUserService(found_user=None)
+    user_profile_service = StubUserProfileService()
+    answer_mock = AsyncMock()
+    monkeypatch.setattr(Message, "answer", answer_mock)
+
+    await cmd_profile_group(
+        message=message,
+        user_service=user_service,
+        user_profile_service=cast(UserProfileService, user_profile_service),
+    )
+
+    assert user_service.telegram_queries == []
+    user_profile_service.build_profile_view_mock.assert_not_awaited()
+    answer_mock.assert_awaited_once_with(PROFILE_GROUP_REGISTRATION_REQUIRED)
 
 
 @pytest.mark.asyncio

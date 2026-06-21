@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from .handlers.points import grand_points as grand_points_handlers
     from .handlers.points.leaderboard import handle_leaderboard
     from .handlers.profile import user_profile as profile_handlers_module
-    from .handlers.profile.user_profile import cmd_profile_private
+    from .handlers.profile.user_profile import cmd_profile_group, cmd_profile_private
     from .handlers.roles import change_competences as change_competences_handlers
     from .handlers.roles import change_roles as change_roles_handlers
     from .handlers.roles.role_catalog import handle_show_all_roles
@@ -77,6 +77,7 @@ _ATTRIBUTE_EXPORTS: Final[dict[str, tuple[str, str]]] = {
     "accept_role_request": (".handlers.roles.role_request_flow", "accept_role_request"),
     "broadcast_command": (".handlers.broadcast.broadcast_commands", "broadcast_command"),
     "cmd_chat_id": (".handlers.common.misc", "cmd_chat_id"),
+    "cmd_profile_group": (".handlers.profile.user_profile", "cmd_profile_group"),
     "cmd_profile_private": (".handlers.profile.user_profile", "cmd_profile_private"),
     "cmd_role_request": (".handlers.roles.role_request_flow", "cmd_role_request"),
     "cmd_start_private": (".handlers.common.start", "cmd_start_private"),
