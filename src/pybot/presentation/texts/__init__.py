@@ -3,6 +3,7 @@
 from .texts import (
     AVAILABLE_ROLES,
     BROADCAST_MESSAGE_REQUIRED,
+    BROADCAST_RESULT_SUMMARY,
     BROADCAST_UNKNOWN_TARGET,
     BROADCAST_USAGE,
     BUTTON_APPROVE,
@@ -113,6 +114,7 @@ from .texts import (
     TARGET_REQUIRED,
     TARGET_SELECTED_MENTION,
     TARGET_SELECTED_REPLY,
+    broadcast_result_summary,
     broadcast_unknown_target,
     button_back,
     button_cancel,
@@ -163,6 +165,7 @@ from .texts import (
 __all__ = [
     "AVAILABLE_ROLES",
     "BROADCAST_MESSAGE_REQUIRED",
+    "BROADCAST_RESULT_SUMMARY",
     "BROADCAST_UNKNOWN_TARGET",
     "BROADCAST_USAGE",
     "BUTTON_APPROVE",
@@ -273,6 +276,7 @@ __all__ = [
     "TARGET_REQUIRED",
     "TARGET_SELECTED_MENTION",
     "TARGET_SELECTED_REPLY",
+    "broadcast_result_summary",
     "broadcast_unknown_target",
     "button_back",
     "button_cancel",

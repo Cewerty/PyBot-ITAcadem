@@ -6,12 +6,14 @@ from aiogram.filters.command import Command
 from aiogram.types import Message
 from dishka import FromDishka
 
-from .....core.constants import RoleEnum
+from .....core import logger
+from .....core.constants import RoleEnum, TaskScheduleKind
 from .....domain.exceptions import BroadcastAlreadyRunningError, BroadcastMessageNotSpecifiedError, UsersNotFoundError
-from .....dto import BroadcastDTO, CompetenceBroadcastDTO, CompetenceReadDTO, RoleBroadcastDTO
+from .....dto import BroadcastDTO, BroadcastResult, CompetenceBroadcastDTO, CompetenceReadDTO, RoleBroadcastDTO
 from .....services.broadcast import BroadcastService
 from .....services.competence import CompetenceService
-from ....texts import BROADCAST_MESSAGE_REQUIRED, BROADCAST_USAGE, broadcast_unknown_target
+from .....services.notification_facade import NotificationFacade, NotifyUserDTO
+from ....texts import BROADCAST_MESSAGE_REQUIRED, BROADCAST_USAGE, broadcast_result_summary, broadcast_unknown_target
 from ...filters import check_text_message_correction, create_chat_type_routers
 
 (broadcast_command_private_router, _, _) = create_chat_type_routers("broadcast")
@@ -75,6 +77,33 @@ async def _extract_message_for_broadcast(message: Message, target_token: str) ->
     return broadcast_message
 
 
+async def _notify_broadcast_result(
+    message: Message,
+    notification_facade: NotificationFacade,
+    result: BroadcastResult,
+) -> None:
+    summary = broadcast_result_summary(result)
+    if message.from_user is None:
+        logger.warning("Broadcast summary fallback: message.from_user is missing")
+        await message.reply(summary)
+        return
+
+    try:
+        await notification_facade.notify_user(
+            NotifyUserDTO(
+                recipient_id=message.from_user.id,
+                message=summary,
+                kind=TaskScheduleKind.IMMEDIATE,
+            )
+        )
+    except Exception:
+        logger.exception(
+            "Failed to enqueue broadcast summary notification for telegram_id={telegram_id}",
+            telegram_id=message.from_user.id,
+        )
+        await message.reply(summary)
+
+
 @broadcast_command_private_router.message(
     Command("broadcast"),
     flags={"role_policy": "broadcast_allowed_roles", "rate_limit": "expensive"},
@@ -83,6 +112,7 @@ async def broadcast_command(
     message: Message,
     broadcast_service: FromDishka[BroadcastService],
     competence_service: FromDishka[CompetenceService],
+    notification_facade: FromDishka[NotificationFacade],
 ) -> None:
     """Вспомогательная функция broadcast_command."""
     target_token = _extract_target_token(message)
@@ -97,22 +127,25 @@ async def broadcast_command(
         return
     try:
         if _extract_all_ping(target_token):
-            await broadcast_service.broadcast_for_all(BroadcastDTO(broadcast_message=broadcast_message))
+            result = await broadcast_service.broadcast_for_all(BroadcastDTO(broadcast_message=broadcast_message))
+            await _notify_broadcast_result(message, notification_facade, result)
             return
 
         role = _extract_role(target_token)
         if role is not None:
-            await broadcast_service.broadcast_for_users_with_role(
+            result = await broadcast_service.broadcast_for_users_with_role(
                 RoleBroadcastDTO(broadcast_message=broadcast_message, role_name=role.value)
             )
+            await _notify_broadcast_result(message, notification_facade, result)
             return
 
         competencies = await competence_service.find_all_competencies()
         competence = _extract_competence(target_token, competencies)
         if competence is not None:
-            await broadcast_service.broadcast_for_users_with_competence(
+            result = await broadcast_service.broadcast_for_users_with_competence(
                 CompetenceBroadcastDTO(broadcast_message=broadcast_message, competence_id=competence.id)
             )
+            await _notify_broadcast_result(message, notification_facade, result)
             return
 
         await message.reply(broadcast_unknown_target(competencies))

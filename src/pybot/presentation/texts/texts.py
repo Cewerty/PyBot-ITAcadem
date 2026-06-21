@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from datetime import timedelta
 
 from ...core.constants import PointsTypeEnum, RequestStatus, RoleEnum
-from ...dto import CompetenceReadDTO, ProfileViewDTO, RoleReadDTO, WeeklyLeaderboardRowDTO
+from ...dto import BroadcastResult, CompetenceReadDTO, ProfileViewDTO, RoleReadDTO, WeeklyLeaderboardRowDTO
 from ...dto.leaderboard_dto import LeaderboardPeriod
 from ...dto.value_objects import Points
 from ...utils import telegram_user_link
@@ -17,6 +17,17 @@ from ...utils import telegram_user_link
 # Сейчас texts.py стал монолитом и уже плохо масштабируется как единая точка для всего текстового слоя.
 REPOSITORY_URL = "https://github.com/NikkiShuRA/PyBot-ITAcadem.git"
 AVAILABLE_ROLES = ", ".join(role.value for role in RoleEnum)
+
+BROADCAST_RESULT_SUMMARY = textwrap.dedent(
+    """
+    Рассылка завершена.
+    Попыток отправки: {attempted}
+    Успешно отправлено: {sent}
+    Временных ошибок: {failed_temporary}
+    Постоянных ошибок: {failed_permanent}
+    Пропущено некорректных пользователей: {skipped_invalid_user}
+    """
+).strip()
 
 BUTTON_CONTINUE = "Продолжить"
 BUTTON_CANCEL = "Отмена"
@@ -508,6 +519,17 @@ def broadcast_unknown_target(competencies: Sequence[CompetenceReadDTO]) -> str:
     """Вспомогательная функция broadcast_unknown_target."""
     competences_list = ", ".join(competence.name for competence in competencies) or "нет доступных"
     return BROADCAST_UNKNOWN_TARGET.format(roles=AVAILABLE_ROLES, competencies=competences_list)
+
+
+def broadcast_result_summary(result: BroadcastResult) -> str:
+    """Форматирует статистику завершённой рассылки."""
+    return BROADCAST_RESULT_SUMMARY.format(
+        attempted=result.attempted,
+        sent=result.sent,
+        failed_temporary=result.failed_temporary,
+        failed_permanent=result.failed_permanent,
+        skipped_invalid_user=result.skipped_invalid_user,
+    )
 
 
 def points_label(points_type: PointsTypeEnum) -> str:
