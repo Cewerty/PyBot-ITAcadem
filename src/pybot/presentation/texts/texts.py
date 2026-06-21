@@ -296,6 +296,12 @@ POINTS_COMMAND_INVALID_FORMAT = (
     "Не удалось разобрать команду изменения баллов.\n"
     'Используйте формат: /academic_points @user <число> "причина" или /reputation_points @user <число> "причина".'
 )
+POINTS_TARGET_REQUIRED = (
+    "Не удалось определить пользователя для изменения баллов.\n"
+    "Используйте reply, text_mention или Telegram ID.\n"
+    'Формат: /academic_points <tg_id> <число> "причина" '
+    'или /reputation_points <tg_id> <число> "причина".'
+)
 POINTS_AMOUNT_REQUIRED = "Не удалось определить количество баллов.\nУкажите целое число после пользователя."
 POINTS_REASON_QUOTES_REQUIRED = (
     "Не удалось распознать причину изменения баллов.\nУкажите её в кавычках: \"причина\" или 'причина'."
@@ -543,6 +549,11 @@ def points_change_success(target_name: str, points: Points, reason: str | None) 
 def points_invalid_value(value: object) -> str:
     """Возвращает текст сообщения об ошибке."""
     return POINTS_INVALID_VALUE.format(value=value)
+
+
+def points_target_required() -> str:
+    """Возвращает текст для points-команды без указания target."""
+    return POINTS_TARGET_REQUIRED
 
 
 def render_leaderboard_message(

@@ -8,20 +8,21 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from aiogram.types import Chat, Message, User
 
+from pybot.core.constants import PointsTypeEnum, TaskScheduleKind
+from pybot.domain.exceptions import DomainError, InvalidPointsValueError, UserNotFoundError, ZeroPointsAdjustmentError
+from pybot.dto import UserReadDTO
+from pybot.dto.value_objects import Points
 from pybot.presentation.bot import grand_points_handlers as grand_points
 from pybot.presentation.texts import (
     POINTS_AMOUNT_REQUIRED,
     POINTS_COMMAND_INVALID_FORMAT,
     POINTS_OPERATION_FAILED,
     POINTS_REASON_QUOTES_REQUIRED,
+    POINTS_TARGET_REQUIRED,
     POINTS_UNEXPECTED_ERROR,
     TARGET_NOT_FOUND,
     points_invalid_value,
 )
-from pybot.core.constants import PointsTypeEnum, TaskScheduleKind
-from pybot.domain.exceptions import DomainError, InvalidPointsValueError, UserNotFoundError, ZeroPointsAdjustmentError
-from pybot.dto import UserReadDTO
-from pybot.dto.value_objects import Points
 from pybot.services.notification_facade import NotificationFacade
 from pybot.services.points import PointsService
 from pybot.services.user_services import UserService
@@ -162,37 +163,72 @@ async def test_extract_points_and_reason_rejects_unquoted_reason(monkeypatch: py
 
 
 @pytest.mark.asyncio
-async def test_prepare_points_command_context_when_message_has_no_from_user_returns_none(
+async def test_extract_points_and_reason_with_numeric_target_skips_target_token(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    user_service = StubUserService()
-    message = _build_message(text='/academic_points 12 "Helpful review"', from_user_id=None)
+    message = _build_message(text='/academic_points 720002 25 "Great progress"')
     reply_mock = AsyncMock()
     monkeypatch.setattr(Message, "reply", reply_mock)
 
-    context = await grand_points._prepare_points_command_context(
+    points, reason = await grand_points._extract_points_and_reason(
         message,
-        PointsTypeEnum.ACADEMIC,
-        cast(UserService, user_service),
+        has_explicit_numeric_target=True,
     )
 
-    assert context is None
-    assert user_service.telegram_queries == []
+    assert points == 25
+    assert reason == "Great progress"
     reply_mock.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_prepare_points_command_context_when_target_not_resolved_logs_warning_and_returns_none(
+async def test_resolve_target_user_id_for_points_command_when_target_missing_replies_points_target_required(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     user_service = StubUserService()
     message = _build_message(text='/academic_points 12 "Helpful review"')
     reply_mock = AsyncMock()
+    monkeypatch.setattr(Message, "reply", reply_mock)
+
+    target_user_id, has_explicit_numeric_target = await grand_points._resolve_target_user_id_for_points_command(
+        message,
+        cast(UserService, user_service),
+    )
+
+    assert target_user_id is None
+    assert has_explicit_numeric_target is False
+    assert user_service.telegram_queries == []
+    reply_mock.assert_awaited_once_with(POINTS_TARGET_REQUIRED)
+
+
+@pytest.mark.asyncio
+async def test_resolve_target_user_id_for_points_command_when_numeric_target_not_found_replies_target_not_found(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user_service = StubUserService()
+    message = _build_message(text='/academic_points 720099 12 "Helpful review"')
+    reply_mock = AsyncMock()
+    monkeypatch.setattr(Message, "reply", reply_mock)
+
+    target_user_id, has_explicit_numeric_target = await grand_points._resolve_target_user_id_for_points_command(
+        message,
+        cast(UserService, user_service),
+    )
+
+    assert target_user_id is None
+    assert has_explicit_numeric_target is True
+    assert user_service.telegram_queries == [720_099]
+    reply_mock.assert_awaited_once_with(TARGET_NOT_FOUND)
+
+
+@pytest.mark.asyncio
+async def test_prepare_points_command_context_when_message_has_no_from_user_replies_operation_failed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user_service = StubUserService()
+    message = _build_message(text='/academic_points 12 "Helpful review"', from_user_id=None)
+    reply_mock = AsyncMock()
     logger_mocks = _patch_logger_methods(monkeypatch)
     monkeypatch.setattr(Message, "reply", reply_mock)
-    monkeypatch.setattr(grand_points, "_get_target_user_id_from_reply", AsyncMock(return_value=None))
-    monkeypatch.setattr(grand_points, "_get_target_user_id_from_mention", AsyncMock(return_value=None))
-    monkeypatch.setattr(grand_points, "_get_target_user_id_from_text", AsyncMock(return_value=None))
 
     context = await grand_points._prepare_points_command_context(
         message,
@@ -201,9 +237,9 @@ async def test_prepare_points_command_context_when_target_not_resolved_logs_warn
     )
 
     assert context is None
-    logger_mocks["warning"].assert_called_once()
     assert user_service.telegram_queries == []
-    reply_mock.assert_not_awaited()
+    reply_mock.assert_awaited_once_with(POINTS_OPERATION_FAILED)
+    logger_mocks["warning"].assert_called_once_with("Points command sender is missing in update payload")
 
 
 @pytest.mark.asyncio
@@ -212,12 +248,14 @@ async def test_prepare_points_command_context_when_points_value_invalid_replies_
 ) -> None:
     user_service = StubUserService()
     too_large_points = 2**31
-    message = _build_message(text=f'/academic_points {too_large_points} "Helpful review"')
+    message = _build_message(text=f'/academic_points 720099 {too_large_points} "Helpful review"')
     reply_mock = AsyncMock()
     monkeypatch.setattr(Message, "reply", reply_mock)
-    monkeypatch.setattr(grand_points, "_get_target_user_id_from_reply", AsyncMock(return_value=None))
-    monkeypatch.setattr(grand_points, "_get_target_user_id_from_mention", AsyncMock(return_value=None))
-    monkeypatch.setattr(grand_points, "_get_target_user_id_from_text", AsyncMock(return_value=720_099))
+    monkeypatch.setattr(
+        grand_points,
+        "_resolve_target_user_id_for_points_command",
+        AsyncMock(return_value=(720_099, True)),
+    )
 
     context = await grand_points._prepare_points_command_context(
         message,
@@ -231,18 +269,22 @@ async def test_prepare_points_command_context_when_points_value_invalid_replies_
 
 
 @pytest.mark.asyncio
-async def test_prepare_points_command_context_when_recipient_or_giver_missing_logs_warning_and_returns_none(
+async def test_prepare_points_command_context_when_recipient_missing_replies_target_not_found(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    recipient = _build_user_read_dto(db_id=20, telegram_id=720_003, first_name="Student")
-    user_service = StubUserService(users_by_tg={recipient.telegram_id: recipient})
-    message = _build_message(text='/academic_points 12 "Helpful review"', from_user_id=720_999)
+    giver = _build_user_read_dto(db_id=21, telegram_id=720_999, first_name="Admin")
+    user_service = StubUserService(users_by_tg={giver.telegram_id: giver})
+    message = _build_message(
+        text='/academic_points 720_003 12 "Helpful review"'.replace("_", ""), from_user_id=giver.telegram_id
+    )
     reply_mock = AsyncMock()
     logger_mocks = _patch_logger_methods(monkeypatch)
     monkeypatch.setattr(Message, "reply", reply_mock)
-    monkeypatch.setattr(grand_points, "_get_target_user_id_from_reply", AsyncMock(return_value=None))
-    monkeypatch.setattr(grand_points, "_get_target_user_id_from_mention", AsyncMock(return_value=None))
-    monkeypatch.setattr(grand_points, "_get_target_user_id_from_text", AsyncMock(return_value=recipient.telegram_id))
+    monkeypatch.setattr(
+        grand_points,
+        "_resolve_target_user_id_for_points_command",
+        AsyncMock(return_value=(720_003, True)),
+    )
 
     context = await grand_points._prepare_points_command_context(
         message,
@@ -251,12 +293,39 @@ async def test_prepare_points_command_context_when_recipient_or_giver_missing_lo
     )
 
     assert context is None
-    logger_mocks["warning"].assert_called_once_with("Failed to resolve giver or recipient for points command")
-    reply_mock.assert_not_awaited()
+    reply_mock.assert_awaited_once_with(TARGET_NOT_FOUND)
+    logger_mocks["warning"].assert_called_once_with("Recipient user was not found during points command preparation")
 
 
 @pytest.mark.asyncio
-async def test_handle_points_command_changes_points_and_enqueues_notification(
+async def test_prepare_points_command_context_when_giver_missing_replies_operation_failed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    recipient = _build_user_read_dto(db_id=20, telegram_id=720_003, first_name="Student")
+    user_service = StubUserService(users_by_tg={recipient.telegram_id: recipient})
+    message = _build_message(text='/academic_points 720003 12 "Helpful review"', from_user_id=720_999)
+    reply_mock = AsyncMock()
+    logger_mocks = _patch_logger_methods(monkeypatch)
+    monkeypatch.setattr(Message, "reply", reply_mock)
+    monkeypatch.setattr(
+        grand_points,
+        "_resolve_target_user_id_for_points_command",
+        AsyncMock(return_value=(recipient.telegram_id, True)),
+    )
+
+    context = await grand_points._prepare_points_command_context(
+        message,
+        PointsTypeEnum.ACADEMIC,
+        cast(UserService, user_service),
+    )
+
+    assert context is None
+    reply_mock.assert_awaited_once_with(POINTS_OPERATION_FAILED)
+    logger_mocks["warning"].assert_called_once_with("Giver user was not found during points command preparation")
+
+
+@pytest.mark.asyncio
+async def test_handle_points_command_changes_points_and_enqueues_notification_for_numeric_target(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     recipient = _build_user_read_dto(db_id=10, telegram_id=720_002, first_name="Student")
@@ -264,12 +333,9 @@ async def test_handle_points_command_changes_points_and_enqueues_notification(
     user_service = StubUserService(users_by_tg={recipient.telegram_id: recipient, giver.telegram_id: giver})
     points_service = StubPointsService()
     notification_facade = StubNotificationFacade()
-    message = _build_message(text='/academic_points 15 "Great progress"', from_user_id=giver.telegram_id)
+    message = _build_message(text='/academic_points 720002 15 "Great progress"', from_user_id=giver.telegram_id)
     reply_mock = AsyncMock()
     monkeypatch.setattr(Message, "reply", reply_mock)
-    monkeypatch.setattr(grand_points, "_get_target_user_id_from_reply", AsyncMock(return_value=None))
-    monkeypatch.setattr(grand_points, "_get_target_user_id_from_mention", AsyncMock(return_value=None))
-    monkeypatch.setattr(grand_points, "_get_target_user_id_from_text", AsyncMock(return_value=recipient.telegram_id))
 
     await grand_points._handle_points_command(
         message=message,
@@ -301,19 +367,16 @@ async def test_handle_points_command_changes_points_and_enqueues_notification(
 
 
 @pytest.mark.asyncio
-async def test_handle_points_command_stops_when_recipient_or_giver_is_missing(
+async def test_handle_points_command_stops_when_giver_is_missing_with_explicit_reply(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     recipient = _build_user_read_dto(db_id=20, telegram_id=720_003, first_name="Student")
     user_service = StubUserService(users_by_tg={recipient.telegram_id: recipient})
     points_service = StubPointsService()
     notification_facade = StubNotificationFacade()
-    message = _build_message(text='/academic_points 12 "Helpful review"', from_user_id=720_999)
+    message = _build_message(text='/academic_points 720003 12 "Helpful review"', from_user_id=720_999)
     reply_mock = AsyncMock()
     monkeypatch.setattr(Message, "reply", reply_mock)
-    monkeypatch.setattr(grand_points, "_get_target_user_id_from_reply", AsyncMock(return_value=None))
-    monkeypatch.setattr(grand_points, "_get_target_user_id_from_mention", AsyncMock(return_value=None))
-    monkeypatch.setattr(grand_points, "_get_target_user_id_from_text", AsyncMock(return_value=recipient.telegram_id))
 
     await grand_points._handle_points_command(
         message=message,
@@ -325,7 +388,7 @@ async def test_handle_points_command_stops_when_recipient_or_giver_is_missing(
 
     points_service.change_points.assert_not_awaited()
     notification_facade.notify_user.assert_not_awaited()
-    reply_mock.assert_not_awaited()
+    reply_mock.assert_awaited_once_with(POINTS_OPERATION_FAILED)
 
 
 @pytest.mark.asyncio
@@ -337,13 +400,10 @@ async def test_handle_points_command_when_notification_fails_still_replies_succe
     user_service = StubUserService(users_by_tg={recipient.telegram_id: recipient, giver.telegram_id: giver})
     points_service = StubPointsService()
     notification_facade = StubNotificationFacade(notify_user=AsyncMock(side_effect=RuntimeError("queue down")))
-    message = _build_message(text='/academic_points 9 "For review"', from_user_id=giver.telegram_id)
+    message = _build_message(text='/academic_points 720012 9 "For review"', from_user_id=giver.telegram_id)
     reply_mock = AsyncMock()
     logger_mocks = _patch_logger_methods(monkeypatch)
     monkeypatch.setattr(Message, "reply", reply_mock)
-    monkeypatch.setattr(grand_points, "_get_target_user_id_from_reply", AsyncMock(return_value=None))
-    monkeypatch.setattr(grand_points, "_get_target_user_id_from_mention", AsyncMock(return_value=None))
-    monkeypatch.setattr(grand_points, "_get_target_user_id_from_text", AsyncMock(return_value=recipient.telegram_id))
 
     await grand_points._handle_points_command(
         message=message,
@@ -369,12 +429,9 @@ async def test_handle_points_command_reports_points_service_failure(
     user_service = StubUserService(users_by_tg={recipient.telegram_id: recipient, giver.telegram_id: giver})
     points_service = StubPointsService(change_points=AsyncMock(side_effect=RuntimeError("boom")))
     notification_facade = StubNotificationFacade()
-    message = _build_message(text='/academic_points 5 "For helping"', from_user_id=giver.telegram_id)
+    message = _build_message(text='/academic_points 720004 5 "For helping"', from_user_id=giver.telegram_id)
     reply_mock = AsyncMock()
     monkeypatch.setattr(Message, "reply", reply_mock)
-    monkeypatch.setattr(grand_points, "_get_target_user_id_from_reply", AsyncMock(return_value=None))
-    monkeypatch.setattr(grand_points, "_get_target_user_id_from_mention", AsyncMock(return_value=None))
-    monkeypatch.setattr(grand_points, "_get_target_user_id_from_text", AsyncMock(return_value=recipient.telegram_id))
 
     await grand_points._handle_points_command(
         message=message,

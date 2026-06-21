@@ -1,6 +1,7 @@
 """Модуль бота IT Academ."""
 
 import re
+from typing import Final
 
 from aiogram.filters.command import Command
 from aiogram.types import Message
@@ -20,6 +21,7 @@ from ....texts import (
     POINTS_COMMAND_INVALID_FORMAT,
     POINTS_OPERATION_FAILED,
     POINTS_REASON_QUOTES_REQUIRED,
+    POINTS_TARGET_REQUIRED,
     POINTS_UNEXPECTED_ERROR,
     TARGET_NOT_FOUND,
     points_change_success,
@@ -27,9 +29,11 @@ from ....texts import (
     points_notification,
 )
 from ...filters import check_text_message_correction, create_chat_type_routers
-from ...utils import _get_target_user_id_from_mention, _get_target_user_id_from_reply, _get_target_user_id_from_text
+from ...utils import _get_target_user_id_from_mention, _get_target_user_id_from_reply
 
 (_, _, grand_points_global_router) = create_chat_type_routers("grand_points")
+MIN_POINTS_PAYLOAD_PARTS: Final[int] = 2
+POINTS_TARGET_TOKEN_INDEX: Final[int] = 1
 
 
 def _build_points_notification_message(
@@ -41,19 +45,39 @@ def _build_points_notification_message(
     return points_notification(points, points_type, giver_user.first_name, reason)
 
 
-async def _extract_points_and_reason(message: Message) -> tuple[int | None, str | None]:
+def _strip_command_prefix(text: str) -> str:
+    command_parts = text.split(maxsplit=1)
+    if len(command_parts) == 1:
+        return ""
+
+    return command_parts[1].strip()
+
+
+async def _extract_points_and_reason(
+    message: Message,
+    *,
+    has_explicit_numeric_target: bool = False,
+) -> tuple[int | None, str | None]:
     text = check_text_message_correction(message)
     if text is None:
         await message.reply(POINTS_COMMAND_INVALID_FORMAT)
         return None, None
 
-    points_match = re.search(r'(?:^|\s)(-?\d+)(?=\s|$|"|\')', text)
+    payload = _strip_command_prefix(text)
+    if has_explicit_numeric_target:
+        payload_parts = payload.split(maxsplit=1)
+        if len(payload_parts) < MIN_POINTS_PAYLOAD_PARTS:
+            await message.reply(POINTS_AMOUNT_REQUIRED)
+            return None, None
+        payload = payload_parts[1].strip()
+
+    points_match = re.search(r'(?:^|\s)(-?\d+)(?=\s|$|"|\')', payload)
     if not points_match:
         await message.reply(POINTS_AMOUNT_REQUIRED)
         return None, None
 
     points = int(points_match.group(1))
-    remaining_text = text[points_match.end() :].strip()
+    remaining_text = payload[points_match.end() :].strip()
     reason = None
 
     if remaining_text:
@@ -70,6 +94,47 @@ async def _extract_points_and_reason(message: Message) -> tuple[int | None, str 
     return points, reason
 
 
+async def _resolve_target_user_id_for_points_command(
+    message: Message,
+    user_service: UserService,
+) -> tuple[int | None, bool]:
+    target_user_id: int | None = None
+    has_explicit_numeric_target = False
+
+    reply_target = await _get_target_user_id_from_reply(message)
+    if reply_target is not None:
+        return reply_target, has_explicit_numeric_target
+
+    mention_target = await _get_target_user_id_from_mention(message, user_service)
+    if mention_target is not None:
+        return mention_target, has_explicit_numeric_target
+
+    text = check_text_message_correction(message)
+    payload_parts: list[str] = []
+    if text is not None:
+        payload = _strip_command_prefix(text)
+        payload_parts = payload.split(maxsplit=2)
+
+    if (
+        text is None
+        or len(payload_parts) <= POINTS_TARGET_TOKEN_INDEX
+        or not payload_parts[0].strip().isdigit()
+        or payload_parts[1].strip().startswith(('"', "'"))
+    ):
+        await message.reply(POINTS_COMMAND_INVALID_FORMAT if text is None else POINTS_TARGET_REQUIRED)
+        return None, has_explicit_numeric_target
+
+    target_token = payload_parts[0].strip()
+    has_explicit_numeric_target = True
+    target_user = await user_service.find_user_by_telegram_id(int(target_token))
+    if target_user is None:
+        await message.reply(TARGET_NOT_FOUND)
+        return None, has_explicit_numeric_target
+
+    target_user_id = target_user.telegram_id
+    return target_user_id, has_explicit_numeric_target
+
+
 async def _prepare_points_command_context(
     message: Message,
     points_type: PointsTypeEnum,
@@ -80,30 +145,36 @@ async def _prepare_points_command_context(
         return None
 
     if message.from_user is None:
+        logger.warning("Points command sender is missing in update payload")
+        await message.reply(POINTS_OPERATION_FAILED)
         return None
 
     prepared_context: tuple[int, Points, str | None, UserReadDTO, UserReadDTO] | None = None
-    target_user_id: int | None = (
-        await _get_target_user_id_from_reply(message)
-        or await _get_target_user_id_from_mention(message, user_service)
-        or await _get_target_user_id_from_text(message, user_service)
+    target_user_id, has_explicit_numeric_target = await _resolve_target_user_id_for_points_command(
+        message,
+        user_service,
     )
     if target_user_id is not None:
-        raw_points, reason = await _extract_points_and_reason(message)
+        raw_points, reason = await _extract_points_and_reason(
+            message,
+            has_explicit_numeric_target=has_explicit_numeric_target,
+        )
         if raw_points is not None:
             try:
                 points = Points(value=raw_points, point_type=points_type)
-            except ValidationError, ValueError:
+            except (ValidationError, ValueError):
                 await message.reply(points_invalid_value(raw_points))
             else:
                 recipient_user = await user_service.find_user_by_telegram_id(target_user_id)
                 giver_user = await user_service.find_user_by_telegram_id(message.from_user.id)
-                if recipient_user is None or giver_user is None:
-                    logger.warning("Failed to resolve giver or recipient for points command")
+                if recipient_user is None:
+                    logger.warning("Recipient user was not found during points command preparation")
+                    await message.reply(TARGET_NOT_FOUND)
+                elif giver_user is None:
+                    logger.warning("Giver user was not found during points command preparation")
+                    await message.reply(POINTS_OPERATION_FAILED)
                 else:
                     prepared_context = target_user_id, points, reason, recipient_user, giver_user
-    else:
-        logger.warning("Failed to resolve target user for points command: {text}", text=message.text)
 
     return prepared_context
 
