@@ -237,12 +237,6 @@ class AppSettings(BaseSettings):
         description="Broadcast allowed roles",
     )
 
-    log_policy_strict: bool = Field(
-        True,
-        alias="LOG_POLICY_STRICT",
-        description="Global toggle for strict logging policy (suppress content logging when requested by handler flag)",
-    )
-
     broadcast_max_text_length: int = Field(
         4093,
         alias="BROADCAST_MAX_TEXT_LENGTH",

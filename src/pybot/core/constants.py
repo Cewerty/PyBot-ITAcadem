@@ -81,13 +81,3 @@ class RolePolicyKey(StrEnum):
     """
 
     BROADCAST = "broadcast_allowed_roles"
-
-
-class LogPolicyKey(StrEnum):
-    """Configuration keys for logging policies.
-
-    Attributes:
-        STRICT: Policy that suppresses content logging for sensitive handlers.
-    """
-
-    STRICT = "log_policy_strict"

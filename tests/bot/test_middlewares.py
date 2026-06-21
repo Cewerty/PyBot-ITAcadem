@@ -77,11 +77,61 @@ async def test_logger_middleware_reuses_same_event_id_for_start_and_finish_logs(
 
     first_call = info_mock.call_args_list[0]
     second_call = info_mock.call_args_list[1]
-    assert "событие=получен_update" in first_call.args[0]
-    assert "событие=обработан_update" in second_call.args[0]
+    assert "получен_update" in first_call.args[0]
+    assert "обработан_update" in second_call.args[0]
     assert first_call.kwargs["event_id"] == second_call.kwargs["event_id"]
+    assert first_call.kwargs["event_type"] == "MESSAGE"
+    assert second_call.kwargs["event_type"] == "MESSAGE"
     assert first_call.kwargs["handler_name"] == "cmd_start_private"
     assert second_call.kwargs["handler_name"] == "cmd_start_private"
+    assert "user_id" not in first_call.kwargs
+    assert "chat_id" not in first_call.kwargs
+    assert "chat_type" not in first_call.kwargs
+    assert "content" not in first_call.kwargs
+
+
+@pytest.mark.asyncio
+async def test_logger_middleware_logs_handler_failure_without_exception_text(
+    monkeypatch: pytest.MonkeyPatch,
+    mocker,
+    settings_obj: AppSettings,
+) -> None:
+    settings_obj.enable_logging_middleware = True
+    middleware = LoggerMiddleware(settings_obj, enabled=True)
+    message = _build_message(text="/start", from_user_id=700_000)
+    handler = AsyncMock(side_effect=RuntimeError("boom"))
+    data: dict[str, object] = {
+        "handler": SimpleNamespace(callback=SimpleNamespace(__name__="cmd_start_private")),
+    }
+
+    info_mock = mocker.Mock()
+    error_mock = mocker.Mock()
+    warning_mock = mocker.Mock()
+    debug_mock = mocker.Mock()
+
+    monkeypatch.setattr(logger_middleware_module.logger, "info", info_mock)
+    monkeypatch.setattr(logger_middleware_module.logger, "error", error_mock)
+    monkeypatch.setattr(logger_middleware_module.logger, "warning", warning_mock)
+    monkeypatch.setattr(logger_middleware_module.logger, "debug", debug_mock)
+
+    real_monotonic = time.monotonic
+    monotonic_mock = mocker.Mock(side_effect=itertools.chain([10.0, 10.2], itertools.repeat(real_monotonic())))
+    monkeypatch.setattr(logger_middleware_module.time, "monotonic", monotonic_mock)
+
+    with pytest.raises(RuntimeError, match="boom"):
+        await middleware(handler, message, data)
+
+    warning_mock.assert_not_called()
+    assert info_mock.call_count == 1
+    error_mock.assert_called_once()
+    error_call = error_mock.call_args
+    assert error_call is not None
+    assert "ошибка_handler" in error_call.args[0]
+    assert error_call.kwargs["event_type"] == "MESSAGE"
+    assert error_call.kwargs["handler_name"] == "cmd_start_private"
+    assert error_call.kwargs["error_type"] == "RuntimeError"
+    assert "error" not in error_call.kwargs
+    assert "user_id" not in error_call.kwargs
 
 
 @pytest.mark.asyncio

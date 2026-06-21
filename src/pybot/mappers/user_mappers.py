@@ -37,10 +37,7 @@ async def map_dialog_data_to_user_create_dto(manager: DialogManager) -> UserCrea
     patronymic = manager.dialog_data.get("patronymic")
 
     if not (phone and tg_id and first_name and last_name):
-        logger.error(
-            f"Недостаточно данных для создания профиля в dialog_data. "
-            f"phone: {phone}, tg_id: {tg_id}, first_name: {first_name}, last_name: {last_name}"
-        )
+        logger.error("Недостаточно данных для создания профиля в dialog_data.")
         return None
 
     try:
@@ -51,7 +48,7 @@ async def map_dialog_data_to_user_create_dto(manager: DialogManager) -> UserCrea
             last_name=last_name,
             patronymic=patronymic,
         )
-    except ValidationError, TypeError:
+    except (ValidationError, TypeError):
         logger.exception("Ошибка валидации данных для создания профиля из dialog_data")
         await manager.done()
         return None
@@ -75,7 +72,7 @@ async def map_dialog_data_to_user_registration_dto(manager: DialogManager) -> Us
             user=user_data,
             competence_ids=raw_competence_ids,
         )
-    except ValidationError, TypeError:
+    except (ValidationError, TypeError):
         logger.exception("Ошибка валидации данных для регистрации пользователя из dialog_data")
         await manager.done()
         return None

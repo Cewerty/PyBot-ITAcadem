@@ -253,7 +253,7 @@ async def _on_competence_submit_impl(
         await manager.done()
         return
 
-    logger.info("User created: {user}", user=user)
+    logger.info("User created: {user}", user=user.id)
     if callback.message is not None:
         await callback.message.answer(registration_profile_created(user.first_name))
         user_profile_dto = await user_profile_service.build_profile_view(user)

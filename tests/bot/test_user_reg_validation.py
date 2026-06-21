@@ -283,7 +283,7 @@ async def test_competence_submit_registers_user_and_shows_profile_on_success(moc
     user_registration_service_state = _build_user_registration_service(mocker)
     user_profile_service_state = _build_user_profile_service(mocker)
     user_dto = SimpleNamespace()
-    created_user = SimpleNamespace(first_name="Иван")
+    created_user = SimpleNamespace(id=1, first_name="Иван")
     answer_mock = mocker.patch.object(Message, "answer", new=mocker.AsyncMock())
     render_mock = mocker.patch.object(
         registration_handlers_module,
@@ -331,7 +331,7 @@ async def test_competence_skip_clears_selection_and_registers_user(mocker: Mocke
     user_registration_service_state = _build_user_registration_service(mocker)
     user_profile_service_state = _build_user_profile_service(mocker)
     user_dto = SimpleNamespace()
-    created_user = SimpleNamespace(first_name="Иван")
+    created_user = SimpleNamespace(id=1, first_name="Иван")
     answer_mock = mocker.patch.object(Message, "answer", new=mocker.AsyncMock())
     render_mock = mocker.patch.object(
         registration_handlers_module,
