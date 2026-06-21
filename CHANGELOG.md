@@ -2,6 +2,31 @@
 
 <!-- version list -->
 
+## v0.33.0 (2026-06-21)
+
+### Bug Fixes
+
+- Добавление доступа к info-командам для незарегестрированных пользователей
+  ([`db3b0af`](https://github.com/Cewerty/PyBot-ITAcadem/commit/db3b0afa08bae84379c599339df38e789c50a8dd))
+
+- Закрыть доступ при отсутствии DI-контейнера
+  ([`23ad984`](https://github.com/Cewerty/PyBot-ITAcadem/commit/23ad984841275a7ad408cbd9427df9a8a19e7cbf))
+
+- Запретить регистрацию по чужому контакту
+  ([`79ea094`](https://github.com/Cewerty/PyBot-ITAcadem/commit/79ea0943fcbb88b19124389f7cc7649340acfd55))
+
+- Исключить персональные данные из lifecycle-логов
+  ([`b2b9ee4`](https://github.com/Cewerty/PyBot-ITAcadem/commit/b2b9ee42aa2e5b6a157bc9475cc270b6fb42d45a))
+
+- Уточнить разбор цели в points-командах
+  ([`ed2af0f`](https://github.com/Cewerty/PyBot-ITAcadem/commit/ed2af0f8530208febf83431443cd72a349ff600e))
+
+### Features
+
+- Отправлять итог рассылки администратору
+  ([`c0344be`](https://github.com/Cewerty/PyBot-ITAcadem/commit/c0344be916c5cb709537b1b54874299c1ebfcffa))
+
+
 ## v0.32.4 (2026-06-19)
 
 ### Bug Fixes
