@@ -200,6 +200,40 @@ async def test_role_middleware_replies_with_auth_error_when_user_id_is_missing(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "flags",
+    [
+        {"role": "Admin"},
+        {"role_policy": "broadcast_allowed_roles"},
+    ],
+)
+async def test_role_middleware_replies_with_auth_error_when_container_is_missing(
+    flags: dict[str, object],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Given
+    middleware = RoleMiddleware()
+    message = _build_message()
+    handler = AsyncMock()
+    answer_mock = AsyncMock()
+    monkeypatch.setattr(Message, "answer", answer_mock)
+    data = _build_handler_data(**flags)
+    data["event_from_user"] = message.from_user
+    data["user_id"] = 42
+
+    # When
+    result = await middleware(handler, message, data)
+
+    # Then
+    assert result is None
+    handler.assert_not_awaited()
+    answer_mock.assert_awaited_once()
+    await_args = answer_mock.await_args
+    assert await_args is not None
+    assert "/start" in str(await_args.args[0])
+
+
+@pytest.mark.asyncio
 async def test_role_middleware_allows_user_with_required_role(
     db_session: AsyncSession,
     dishka_test_container: AsyncContainer,

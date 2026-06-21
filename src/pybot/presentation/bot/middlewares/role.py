@@ -87,8 +87,10 @@ class RoleMiddleware(BaseMiddleware):
 
         container = data.get(CONTAINER_NAME)
         if not container:
-            logger.error("Dishka container not found in data")
-            return await handler(event, data)
+            logger.error("Role check failed: Dishka container not found in data")
+            if isinstance(event, Message):
+                await event.answer(ROLE_AUTH_ERROR)
+            return
 
         async with container() as request_container:
             service: UserService = await request_container.get(UserService)
